@@ -25,14 +25,16 @@ class ProgramV54Test {
     }
 
     @Test
-    fun weekOneIsBaselineAndPostBaselineDefaultsAreExplicit() {
+    fun weekOneIsBaselineAndFirstPostBaselineDefaultsAreOneTimeReferences() {
         val week1 = OperatorProgramV54.weekOrNull(1)!!
         assertTrue(week1.speedBaseline)
         assertTrue(week1.engineBaseline)
         OperatorProgramV54.weeks.drop(1).forEach {
-            assertEquals(SpeedVariant.ACCELERATION, it.defaultSpeedVariant)
-            assertEquals(EngineVariant.THRESHOLD, it.defaultEngineVariant)
+            assertFalse(it.speedBaseline)
+            assertFalse(it.engineBaseline)
         }
+        assertEquals(SpeedVariant.ACCELERATION, OperatorProgramV54.firstPostBaselineSpeedDefault)
+        assertEquals(EngineVariant.THRESHOLD, OperatorProgramV54.firstPostBaselineEngineDefault)
     }
 
     @Test
