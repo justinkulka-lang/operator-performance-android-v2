@@ -42,8 +42,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          sdkmanager --install "platforms;android-37.0" "build-tools;37.0.0" "emulator"
+          sdkmanager --install \
+            "platforms;android-37.0" \
+            "build-tools;37.0.0" \
+            "emulator" \
+            "system-images;android-35;default;x86_64"
           test -f "$ANDROID_HOME/platforms/android-37.0/android.jar"
+          test -f "$ANDROID_HOME/system-images/android-35/default/x86_64/system.img"
 
       - name: Verify package, version, and offline manifest
         shell: bash
@@ -83,7 +88,32 @@ jobs:
           grep -q '^32,Block 4,UNPOPULATED,—,—,—$' app/build/reports/program-weeks-1-32.csv
 
       - name: Run reference UI instrumentation tests
-        run: gradle :app:pixel2api35DebugAndroidTest -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect --stacktrace
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -e /dev/kvm
+          sudo chmod 666 /dev/kvm
+          echo no | avdmanager create avd \
+            --force \
+            --name operator-ci-api35 \
+            --package "system-images;android-35;default;x86_64" \
+            --device "pixel_2"
+          "$ANDROID_HOME/emulator/emulator" \
+            -avd operator-ci-api35 \
+            -no-window \
+            -no-audio \
+            -no-boot-anim \
+            -no-snapshot-save \
+            -gpu swiftshader_indirect \
+            -accel on > "$RUNNER_TEMP/operator-emulator.log" 2>&1 &
+          emulator_pid=$!
+          trap 'kill "$emulator_pid" 2>/dev/null || true' EXIT
+          adb wait-for-device
+          timeout 240 bash -c 'until [[ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" == "1" ]]; do sleep 2; done'
+          adb shell settings put global window_animation_scale 0
+          adb shell settings put global transition_animation_scale 0
+          adb shell settings put global animator_duration_scale 0
+          gradle :app:connectedDebugAndroidTest --stacktrace
 
       - name: Build debug APK
         run: gradle :app:assembleDebug --stacktrace
