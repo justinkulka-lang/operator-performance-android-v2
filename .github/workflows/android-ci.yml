@@ -1,0 +1,95 @@
+name: Operator Performance v5.4 Core CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - 'construction/**'
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  core-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 9.6
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
+        with:
+          cmdline-tools-version: 15859902
+          packages: platform-tools
+
+      - name: Install Android API 37
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager --install "platforms;android-37.0" "build-tools;37.0.0"
+          test -f "$ANDROID_HOME/platforms/android-37.0/android.jar"
+
+      - name: Verify package, version, and offline manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'applicationId = "com.jk.operatorperformance"' app/build.gradle.kts
+          grep -q 'versionCode = 44' app/build.gradle.kts
+          grep -q 'versionName = "0.35.0"' app/build.gradle.kts
+          if grep -Eq 'android.permission.INTERNET|android.permission.health|HealthConnect' app/src/main/AndroidManifest.xml; then
+            echo "Prohibited network/health permission found in manifest" >&2
+            exit 1
+          fi
+
+      - name: Run canonical program tests
+        run: gradle :app:testDebugUnitTest --stacktrace
+
+      - name: Verify computed program exports
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f app/build/reports/program-matrix.csv
+          test -f app/build/reports/program-resistance-rows.csv
+          test -f app/build/reports/program-weeks-1-32.csv
+          grep -q 'Quads,13.0,2,10.0,2' app/build/reports/program-matrix.csv
+          grep -q '^1,Block 1,POPULATED,"13 / 11.5 / 11.5 / 12 / 12 / 11 / 15 / 11.5 / 12 / 10 / 9 / 9.5 / 10",148.0,1.667$' app/build/reports/program-weeks-1-32.csv
+          grep -q '^9,Block 2,UNPOPULATED,—,—,—$' app/build/reports/program-weeks-1-32.csv
+          grep -q '^32,Block 4,UNPOPULATED,—,—,—$' app/build/reports/program-weeks-1-32.csv
+
+      - name: Build debug APK
+        run: gradle :app:assembleDebug --stacktrace
+
+      - name: Build unsigned release APK
+        run: gradle :app:assembleRelease --stacktrace
+
+      - name: Upload Pass 1 artifacts
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: Operator-Performance-Pass-1
+          path: |
+            app/build/reports/tests/
+            app/build/test-results/
+            app/build/reports/program-matrix.csv
+            app/build/reports/program-resistance-rows.csv
+            app/build/reports/program-weeks-1-32.csv
+            app/build/outputs/apk/debug/*.apk
+            app/build/outputs/apk/release/*.apk
+          if-no-files-found: warn
+          retention-days: 14
