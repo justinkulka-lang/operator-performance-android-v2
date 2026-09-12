@@ -1,5 +1,7 @@
 package com.jk.operatorperformance.program
 
+import java.util.Locale
+
 object ProgramExport {
     fun programMatrixCsv(): String = buildString {
         appendLine("muscle,normal_credit,normal_exposures,deload_credit,deload_exposures,normal_direct_sets,deload_direct_sets")
@@ -30,6 +32,30 @@ object ProgramExport {
             append(csv(alternatives)).appendLine()
         }
     }
+
+    fun programWeeksCsv(): String = buildString {
+        appendLine("week,block,state,normal_fractional_vector,total,balance")
+        val normal = ProgramAudit.credits(deload = false)
+        val vector = Muscle.entries.joinToString(" / ") { muscle -> formatCredit(normal.getValue(muscle)) }
+        val total = String.format(Locale.US, "%.1f", normal.values.sum())
+        val balance = String.format(Locale.US, "%.3f", normal.values.max() / normal.values.min())
+
+        (1..32).forEach { week ->
+            val block = "Block ${((week - 1) / 8) + 1}"
+            append(week).append(',').append(block).append(',')
+            if (week <= 8) {
+                append("POPULATED,")
+                append(csv(vector)).append(',')
+                append(total).append(',')
+                append(balance).appendLine()
+            } else {
+                append("UNPOPULATED,—,—,—").appendLine()
+            }
+        }
+    }
+
+    private fun formatCredit(value: Double): String =
+        if (value % 1.0 == 0.0) value.toInt().toString() else value.toString()
 
     private fun csv(value: String): String = "\"${value.replace("\"", "\"\"")}\""
 }
