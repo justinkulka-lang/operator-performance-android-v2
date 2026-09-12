@@ -1,4 +1,4 @@
-name: Operator Performance v5.4 Core CI
+name: Operator Performance v5.4 Reference UI CI
 
 on:
   workflow_dispatch:
@@ -14,9 +14,9 @@ permissions:
   contents: read
 
 jobs:
-  core-build:
+  app-build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Checkout exact source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -38,11 +38,11 @@ jobs:
           cmdline-tools-version: 15859902
           packages: platform-tools
 
-      - name: Install Android API 37
+      - name: Install Android API and emulator support
         shell: bash
         run: |
           set -euo pipefail
-          sdkmanager --install "platforms;android-37.0" "build-tools;37.0.0"
+          sdkmanager --install "platforms;android-37.0" "build-tools;37.0.0" "emulator"
           test -f "$ANDROID_HOME/platforms/android-37.0/android.jar"
 
       - name: Verify package, version, and offline manifest
@@ -57,7 +57,17 @@ jobs:
             exit 1
           fi
 
-      - name: Run canonical program tests
+      - name: Source stale-architecture and design-boundary scan
+        shell: bash
+        run: |
+          set -euo pipefail
+          pattern='ESTABLISH CURRENT CAPABILITY|Recent runs per week|Easy continuous run capacity|Next-day lower-leg soreness|Pain currently changes my gait|PROGRAM TRACKING|PERFORMANCE PROFILE|HEALTH CONNECT|READINESS|SESSION RESULT|EASY / GOOD / HARD / FAILED|POSITION [1-7]|bodyweight|progress-photo|benchmark result entry|RECOVERY MODE|HISTORY destination|sled push|sled pull|Speed \+ sled'
+          if grep -RniE "$pattern" app/src/main/java app/src/main/res; then
+            echo "Stale/prohibited runtime architecture reference found in production source" >&2
+            exit 1
+          fi
+
+      - name: Run canonical program and reference-state unit tests
         run: gradle :app:testDebugUnitTest --stacktrace
 
       - name: Verify computed program exports
@@ -72,23 +82,45 @@ jobs:
           grep -q '^9,Block 2,UNPOPULATED,—,—,—$' app/build/reports/program-weeks-1-32.csv
           grep -q '^32,Block 4,UNPOPULATED,—,—,—$' app/build/reports/program-weeks-1-32.csv
 
+      - name: Run reference UI instrumentation tests
+        run: gradle :app:pixel2api35DebugAndroidTest -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect --stacktrace
+
       - name: Build debug APK
         run: gradle :app:assembleDebug --stacktrace
 
       - name: Build unsigned release APK
         run: gradle :app:assembleRelease --stacktrace
 
-      - name: Upload Pass 1 artifacts
+      - name: APK stale-architecture scan
+        shell: bash
+        run: |
+          set -euo pipefail
+          pattern='ESTABLISH CURRENT CAPABILITY|Recent runs per week|PROGRAM TRACKING|PERFORMANCE PROFILE|HEALTH CONNECT|READINESS|SESSION RESULT|RECOVERY MODE|Speed \+ sled'
+          for apk in app/build/outputs/apk/debug/*.apk app/build/outputs/apk/release/*.apk; do
+            test -f "$apk"
+            if unzip -p "$apk" 'classes*.dex' 2>/dev/null | strings | grep -Ei "$pattern"; then
+              echo "Stale runtime reference found in $apk" >&2
+              exit 1
+            fi
+          done
+
+      - name: Capture dependency graph
+        run: gradle :app:dependencies > app/build/reports/dependencies.txt
+
+      - name: Upload Pass 2 artifacts
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: Operator-Performance-Pass-1
+          name: Operator-Performance-Pass-2
           path: |
             app/build/reports/tests/
             app/build/test-results/
+            app/build/reports/androidTests/
+            app/build/outputs/androidTest-results/
             app/build/reports/program-matrix.csv
             app/build/reports/program-resistance-rows.csv
             app/build/reports/program-weeks-1-32.csv
+            app/build/reports/dependencies.txt
             app/build/outputs/apk/debug/*.apk
             app/build/outputs/apk/release/*.apk
           if-no-files-found: warn
