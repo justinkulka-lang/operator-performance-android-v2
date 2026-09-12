@@ -66,7 +66,11 @@ jobs:
           set -euo pipefail
           test -f app/build/reports/program-matrix.csv
           test -f app/build/reports/program-resistance-rows.csv
+          test -f app/build/reports/program-weeks-1-32.csv
           grep -q 'Quads,13.0,2,10.0,2' app/build/reports/program-matrix.csv
+          grep -q '^1,Block 1,POPULATED,"13 / 11.5 / 11.5 / 12 / 12 / 11 / 15 / 11.5 / 12 / 10 / 9 / 9.5 / 10",148.0,1.667$' app/build/reports/program-weeks-1-32.csv
+          grep -q '^9,Block 2,UNPOPULATED,—,—,—$' app/build/reports/program-weeks-1-32.csv
+          grep -q '^32,Block 4,UNPOPULATED,—,—,—$' app/build/reports/program-weeks-1-32.csv
 
       - name: Build debug APK
         run: gradle :app:assembleDebug --stacktrace
@@ -84,6 +88,7 @@ jobs:
             app/build/test-results/
             app/build/reports/program-matrix.csv
             app/build/reports/program-resistance-rows.csv
+            app/build/reports/program-weeks-1-32.csv
             app/build/outputs/apk/debug/*.apk
             app/build/outputs/apk/release/*.apk
           if-no-files-found: warn
