@@ -14,15 +14,18 @@ object OperatorProgramV54 {
     )
 
     val weeks = listOf(
-        WeekDefinition(1, speedBaseline = true, engineBaseline = true, defaultSpeedVariant = null, defaultEngineVariant = null),
-        WeekDefinition(2, speedBaseline = false, engineBaseline = false, defaultSpeedVariant = SpeedVariant.ACCELERATION, defaultEngineVariant = EngineVariant.THRESHOLD),
-        WeekDefinition(3, speedBaseline = false, engineBaseline = false, defaultSpeedVariant = SpeedVariant.ACCELERATION, defaultEngineVariant = EngineVariant.THRESHOLD),
-        WeekDefinition(4, speedBaseline = false, engineBaseline = false, defaultSpeedVariant = SpeedVariant.ACCELERATION, defaultEngineVariant = EngineVariant.THRESHOLD),
-        WeekDefinition(5, speedBaseline = false, engineBaseline = false, defaultSpeedVariant = SpeedVariant.ACCELERATION, defaultEngineVariant = EngineVariant.THRESHOLD),
-        WeekDefinition(6, speedBaseline = false, engineBaseline = false, defaultSpeedVariant = SpeedVariant.ACCELERATION, defaultEngineVariant = EngineVariant.THRESHOLD),
-        WeekDefinition(7, speedBaseline = false, engineBaseline = false, defaultSpeedVariant = SpeedVariant.ACCELERATION, defaultEngineVariant = EngineVariant.THRESHOLD),
-        WeekDefinition(8, speedBaseline = false, engineBaseline = false, defaultSpeedVariant = SpeedVariant.ACCELERATION, defaultEngineVariant = EngineVariant.THRESHOLD),
+        WeekDefinition(1, speedBaseline = true, engineBaseline = true),
+        WeekDefinition(2, speedBaseline = false, engineBaseline = false),
+        WeekDefinition(3, speedBaseline = false, engineBaseline = false),
+        WeekDefinition(4, speedBaseline = false, engineBaseline = false),
+        WeekDefinition(5, speedBaseline = false, engineBaseline = false),
+        WeekDefinition(6, speedBaseline = false, engineBaseline = false),
+        WeekDefinition(7, speedBaseline = false, engineBaseline = false),
+        WeekDefinition(8, speedBaseline = false, engineBaseline = false),
     )
+
+    val firstPostBaselineSpeedDefault = SpeedVariant.ACCELERATION
+    val firstPostBaselineEngineDefault = EngineVariant.THRESHOLD
 
     val dayTitles = mapOf(
         1 to "Lower A + easy aerobic",
