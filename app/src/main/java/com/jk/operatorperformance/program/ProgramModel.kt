@@ -90,8 +90,6 @@ data class WeekDefinition(
     val week: Int,
     val speedBaseline: Boolean,
     val engineBaseline: Boolean,
-    val defaultSpeedVariant: SpeedVariant?,
-    val defaultEngineVariant: EngineVariant?,
 )
 
 enum class BlockStatus {
