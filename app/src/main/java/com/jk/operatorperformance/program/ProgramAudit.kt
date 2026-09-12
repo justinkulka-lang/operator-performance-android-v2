@@ -201,10 +201,9 @@ object ProgramAudit {
         if (OperatorProgramV54.weeks.map { it.week } != (1..8).toList()) errors += "Exactly Weeks 1–8 must be populated."
         if ((9..32).any { OperatorProgramV54.weekOrNull(it) != null }) errors += "Weeks 9–32 must remain unpopulated."
         if (!OperatorProgramV54.weeks.first().speedBaseline || !OperatorProgramV54.weeks.first().engineBaseline) errors += "Week 1 must be the speed/engine baseline microcycle."
-        OperatorProgramV54.weeks.drop(1).forEach { week ->
-            if (week.defaultSpeedVariant != SpeedVariant.ACCELERATION) errors += "Week ${week.week}: first/default post-baseline Speed reference must be ACCELERATION."
-            if (week.defaultEngineVariant != EngineVariant.THRESHOLD) errors += "Week ${week.week}: first/default post-baseline Engine reference must be THRESHOLD."
-        }
+        if (OperatorProgramV54.weeks.drop(1).any { it.speedBaseline || it.engineBaseline }) errors += "Weeks 2–8 must use manually selected post-baseline references, not baseline sessions."
+        if (OperatorProgramV54.firstPostBaselineSpeedDefault != SpeedVariant.ACCELERATION) errors += "First post-baseline Speed display must default to ACCELERATION."
+        if (OperatorProgramV54.firstPostBaselineEngineDefault != EngineVariant.THRESHOLD) errors += "First post-baseline Engine display must default to THRESHOLD."
 
         val finisher = OperatorProgramV54.machinePowerFinisher
         if (finisher.efforts != 6 || finisher.hardSeconds != 10 || finisher.easySeconds != 80) errors += "Machine-power finisher must be 6 × 10 s hard / 80 s easy."
