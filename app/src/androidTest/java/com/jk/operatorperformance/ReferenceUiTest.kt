@@ -70,14 +70,20 @@ class ReferenceUiTest {
         composeRule.onNodeWithTag("program_week_2").performClick()
         composeRule.onNodeWithTag("program_screen").performScrollToNode(hasText("NEXT WEEK • WEEK 2"))
         composeRule.onNodeWithText("NEXT WEEK • WEEK 2").assertExists()
-        composeRule.onNodeWithTag("program_screen").performScrollToNode(hasTestTag("phase_9_16"))
-        composeRule.onNodeWithTag("phase_9_16").assertExists()
+
+        composeRule.onNodeWithTag("program_screen").performScrollToNode(hasTestTag("current_phase"))
+        composeRule.onNodeWithText("CURRENT PHASE • Block 1 — Accumulation • Weeks 1–8 • POPULATED").assertExists()
+        composeRule.onNodeWithTag("program_screen").performScrollToNode(hasTestTag("next_phase"))
+        composeRule.onNodeWithText("NEXT PHASE • Block 2 • Weeks 9–16 • UNPOPULATED / NOT PROGRAMMED").assertExists()
+        composeRule.onNodeWithTag("program_screen").performScrollToNode(hasTestTag("phase_17_24"))
         composeRule.onNodeWithTag("phase_17_24").assertExists()
+        composeRule.onNodeWithTag("program_screen").performScrollToNode(hasTestTag("phase_25_32"))
         composeRule.onNodeWithTag("phase_25_32").assertExists()
+
         composeRule.onNodeWithTag("program_screen").performScrollToNode(hasTestTag("program_day_3"))
         composeRule.onNodeWithTag("program_day_3").performClick()
         composeRule.onNodeWithText("ACCELERATION").assertExists()
-        composeRule.onNodeWithText("Machine-power finisher").assertExists()
+        composeRule.onNodeWithText("Optional machine-power finisher").assertExists()
         composeRule.onNodeWithTag("set_current_button").performClick()
         composeRule.onNodeWithTag("confirm_set_current").performClick()
 
