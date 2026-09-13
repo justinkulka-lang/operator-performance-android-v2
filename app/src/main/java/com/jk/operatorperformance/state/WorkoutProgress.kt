@@ -10,6 +10,8 @@ object WorkoutProgress {
         speedVariant = state.speedVariant,
         engineVariant = state.engineVariant,
         deloadMode = state.deloadMode,
+        machineInventoryConfigured = state.machineInventoryConfigured,
+        availableMachineModalities = state.availableMachineModalities,
     )
 
     fun normalize(progress: ActiveWorkoutState, session: SessionReference): ActiveWorkoutState {
