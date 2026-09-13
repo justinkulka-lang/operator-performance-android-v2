@@ -189,14 +189,22 @@ jobs:
       - name: Build unsigned release APK
         run: gradle :app:assembleRelease --stacktrace
 
-      - name: APK stale-architecture scan
+      - name: APK permission and stale-architecture scan
         shell: bash
         run: |
           set -euo pipefail
-          pattern='ESTABLISH CURRENT CAPABILITY|Recent runs per week|PROGRAM TRACKING|PERFORMANCE PROFILE|HEALTH CONNECT|READINESS|SESSION RESULT|RECOVERY MODE|Speed \\+ sled|ProgramTrackingStore|ReadinessStore|BenchmarkStore|StrengthLog|RunStopwatchStore|ConditioningExecutionStore|ActiveSetProgressStore|actualLoad|actualReps|actualRir|performed load|performed reps|performed RIR|session score|workout rating|POST_NOTIFICATIONS|automatic progression|block recomposition'
+          aapt2="$ANDROID_HOME/build-tools/37.0.0/aapt2"
+          test -x "$aapt2"
+          permission_pattern='android.permission.INTERNET|android.permission.POST_NOTIFICATIONS|android.permission.health|HealthConnect'
+          runtime_pattern='ESTABLISH CURRENT CAPABILITY|Recent runs per week|PROGRAM TRACKING|PERFORMANCE PROFILE|HEALTH CONNECT|READINESS|SESSION RESULT|RECOVERY MODE|Speed \\+ sled|ProgramTrackingStore|ReadinessStore|BenchmarkStore|StrengthLog|RunStopwatchStore|ConditioningExecutionStore|ActiveSetProgressStore|actualLoad|actualReps|actualRir|performed load|performed reps|performed RIR|session score|workout rating|automatic progression|block recomposition'
           for apk in app/build/outputs/apk/debug/*.apk app/build/outputs/apk/release/*.apk; do
             test -f "$apk"
-            if unzip -p "$apk" 'classes*.dex' 2>/dev/null | strings | grep -Ei "$pattern"; then
+            permissions="$($aapt2 dump permissions "$apk")"
+            if grep -Ei "$permission_pattern" <<< "$permissions"; then
+              echo "Prohibited permission found in merged APK manifest: $apk" >&2
+              exit 1
+            fi
+            if unzip -p "$apk" 'classes*.dex' 2>/dev/null | strings | grep -Ei "$runtime_pattern"; then
               echo "Stale runtime reference found in $apk" >&2
               exit 1
             fi
