@@ -16,7 +16,7 @@ class SessionResolverTest {
     }
 
     @Test
-    fun postBaselineAccelerationAppendsAuthorizedMachineFinisher() {
+    fun postBaselineAccelerationAppendsCanonicalMachineHierarchyWhenInventoryIsUnconfigured() {
         val session = SessionResolver.resolve(2, 3, SpeedVariant.ACCELERATION, EngineVariant.THRESHOLD, deload = false)
         assertEquals(listOf("d3_acceleration", "d3_machine_power_finisher"), session.rows.map { it.id })
         val finisher = session.rows.last()
@@ -28,8 +28,47 @@ class SessionResolverTest {
     }
 
     @Test
+    fun configuredMachineInventoryResolvesHighestRankedAvailableModality() {
+        val session = SessionResolver.resolve(
+            week = 2,
+            day = 3,
+            speedVariant = SpeedVariant.ACCELERATION,
+            engineVariant = EngineVariant.THRESHOLD,
+            deload = false,
+            machineInventoryConfigured = true,
+            availableMachineModalities = setOf(MachineModality.ROW_ERG, MachineModality.SKI_ERG),
+        )
+        val finisher = session.rows.single { it.id == "d3_machine_power_finisher" }
+        assertEquals("Optional machine-power finisher — Row ergometer", finisher.title)
+        assertTrue(finisher.alternatives.isEmpty())
+    }
+
+    @Test
+    fun configuredMachineInventoryOmitsFinisherWhenNoAuthorizedMachineIsAvailable() {
+        val session = SessionResolver.resolve(
+            week = 2,
+            day = 3,
+            speedVariant = SpeedVariant.MAX_VELOCITY,
+            engineVariant = EngineVariant.THRESHOLD,
+            deload = false,
+            machineInventoryConfigured = true,
+            availableMachineModalities = emptySet(),
+        )
+        assertEquals(listOf("d3_max_velocity"), session.rows.map { it.id })
+        assertFalse(session.rows.any { it.id == "d3_machine_power_finisher" })
+    }
+
+    @Test
     fun specialEnduranceNeverAppendsMachineFinisher() {
-        val session = SessionResolver.resolve(4, 3, SpeedVariant.SPECIAL_ENDURANCE, EngineVariant.THRESHOLD, deload = false)
+        val session = SessionResolver.resolve(
+            4,
+            3,
+            SpeedVariant.SPECIAL_ENDURANCE,
+            EngineVariant.THRESHOLD,
+            deload = false,
+            machineInventoryConfigured = true,
+            availableMachineModalities = MachineModality.entries.toSet(),
+        )
         assertEquals(1, session.rows.size)
         assertEquals("d3_special_endurance", session.rows.single().id)
         assertTrue(session.rows.single().prescription.contains("3 × 200 m"))
@@ -57,7 +96,15 @@ class SessionResolverTest {
         assertFalse(day2.rows.any { it.id == "d2_abs" })
         assertEquals("1 × 10–12 @ 1 RIR", day2.rows.single { it.id == "d2_triceps" }.prescription)
 
-        val day3 = SessionResolver.resolve(5, 3, SpeedVariant.MAX_VELOCITY, EngineVariant.THRESHOLD, deload = true)
+        val day3 = SessionResolver.resolve(
+            5,
+            3,
+            SpeedVariant.MAX_VELOCITY,
+            EngineVariant.THRESHOLD,
+            deload = true,
+            machineInventoryConfigured = true,
+            availableMachineModalities = MachineModality.entries.toSet(),
+        )
         assertEquals(listOf("d3_deload"), day3.rows.map { it.id })
         assertFalse(day3.rows.any { it.id == "d3_machine_power_finisher" })
     }

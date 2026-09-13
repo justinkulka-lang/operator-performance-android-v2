@@ -10,10 +10,13 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -38,17 +41,22 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.jk.operatorperformance.program.BlockStatus
 import com.jk.operatorperformance.program.EngineVariant
+import com.jk.operatorperformance.program.MachineModality
 import com.jk.operatorperformance.program.OperatorProgramV54
 import com.jk.operatorperformance.program.SessionReference
 import com.jk.operatorperformance.program.SessionResolver
 import com.jk.operatorperformance.program.SessionRow
+import com.jk.operatorperformance.program.SessionRowKind
 import com.jk.operatorperformance.program.SpeedVariant
+import com.jk.operatorperformance.state.ActiveWorkoutState
 import com.jk.operatorperformance.state.ProgramStateStore
 import com.jk.operatorperformance.state.ProgramUiState
+import com.jk.operatorperformance.state.WorkoutProgress
 
 private enum class Destination(val label: String) {
     TODAY("TODAY"),
@@ -60,6 +68,8 @@ private enum class Destination(val label: String) {
 @Composable
 fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
     var state by remember { mutableStateOf(stateStore.load()) }
+    var activeWorkout by remember { mutableStateOf(stateStore.loadWorkout()) }
+    var workoutMode by rememberSaveable { mutableStateOf(false) }
     var destinationName by rememberSaveable { mutableStateOf(Destination.TODAY.name) }
     var selectedProgramWeek by rememberSaveable { mutableIntStateOf(state.currentWeek) }
     var referenceSession by remember { mutableStateOf<SessionReference?>(null) }
@@ -71,9 +81,33 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
         stateStore.save(next)
     }
 
-    val destination = Destination.valueOf(destinationName)
+    fun persistWorkout(next: ActiveWorkoutState) {
+        activeWorkout = next
+        stateStore.saveWorkout(next)
+    }
+
+    fun clearWorkout() {
+        activeWorkout = null
+        stateStore.clearWorkout()
+    }
 
     MaterialTheme {
+        if (workoutMode) {
+            val progress = activeWorkout
+            if (progress == null) {
+                workoutMode = false
+            } else {
+                WorkoutModeScreen(
+                    progress = progress,
+                    timerDurationSeconds = state.restTimerSeconds,
+                    onProgress = ::persistWorkout,
+                    onReturnToToday = { workoutMode = false },
+                )
+            }
+            return@MaterialTheme
+        }
+
+        val destination = Destination.valueOf(destinationName)
         Scaffold(
             bottomBar = {
                 NavigationBar {
@@ -94,7 +128,17 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
                 when (destination) {
                     Destination.TODAY -> TodayScreen(
                         state = state,
-                        onAdvance = { persist(state.advanceDay()) },
+                        activeWorkout = activeWorkout?.takeIf { it.matchesPointer(state) },
+                        onStartWorkout = {
+                            val existing = activeWorkout?.takeIf { it.matchesPointer(state) }
+                            val next = existing ?: WorkoutProgress.start(state).also(::persistWorkout)
+                            activeWorkout = next
+                            workoutMode = true
+                        },
+                        onAdvance = {
+                            clearWorkout()
+                            persist(state.advanceDay())
+                        },
                     )
 
                     Destination.WEEK -> WeekScreen(
@@ -120,6 +164,18 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
                         onDeloadChanged = { persist(state.copy(deloadMode = it)) },
                         onSpeedChanged = { persist(state.copy(speedVariant = it)) },
                         onEngineChanged = { persist(state.copy(engineVariant = it)) },
+                        onRestTimerSecondsChanged = { persist(state.copy(restTimerSeconds = it)) },
+                        onUtilityRestTimerEndChanged = {
+                            persist(state.copy(utilityRestTimerEndEpochMillis = it))
+                        },
+                        onMachineInventoryChanged = { configured, available ->
+                            persist(
+                                state.copy(
+                                    machineInventoryConfigured = configured,
+                                    availableMachineModalities = available,
+                                ),
+                            )
+                        },
                     )
                 }
             }
@@ -143,16 +199,20 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
                 confirmButton = {
                     TextButton(
                         onClick = {
+                            clearWorkout()
                             persist(state.withCurrentPointer(week, day))
                             selectedProgramWeek = week
                             pendingPointer = null
                             referenceSession = null
                         },
-                        modifier = Modifier.testTag("confirm_set_current"),
+                        modifier = Modifier.heightIn(min = 48.dp).testTag("confirm_set_current"),
                     ) { Text("CONFIRM") }
                 },
                 dismissButton = {
-                    TextButton(onClick = { pendingPointer = null }) { Text("CANCEL") }
+                    TextButton(
+                        onClick = { pendingPointer = null },
+                        modifier = Modifier.heightIn(min = 48.dp),
+                    ) { Text("CANCEL") }
                 },
             )
         }
@@ -160,13 +220,20 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
 }
 
 @Composable
-private fun TodayScreen(state: ProgramUiState, onAdvance: () -> Unit) {
+private fun TodayScreen(
+    state: ProgramUiState,
+    activeWorkout: ActiveWorkoutState?,
+    onStartWorkout: () -> Unit,
+    onAdvance: () -> Unit,
+) {
     val session = SessionResolver.resolve(
         week = state.currentWeek,
         day = state.currentDay,
         speedVariant = state.speedVariant,
         engineVariant = state.engineVariant,
         deload = state.deloadMode,
+        machineInventoryConfigured = state.machineInventoryConfigured,
+        availableMachineModalities = state.availableMachineModalities,
     )
     val atEnd = state.currentWeek == 8 && state.currentDay == 7
 
@@ -188,6 +255,13 @@ private fun TodayScreen(state: ProgramUiState, onAdvance: () -> Unit) {
         items(session.rows, key = { it.id }) { row -> WorkoutRowCard(row) }
         item {
             Spacer(Modifier.height(4.dp))
+            Button(
+                onClick = onStartWorkout,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("start_resume_workout"),
+            ) {
+                Text(if (activeWorkout == null) "START WORKOUT" else "RESUME WORKOUT")
+            }
+            Spacer(Modifier.height(8.dp))
             if (atEnd) {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Text(
@@ -199,8 +273,292 @@ private fun TodayScreen(state: ProgramUiState, onAdvance: () -> Unit) {
             } else {
                 Button(
                     onClick = onAdvance,
-                    modifier = Modifier.fillMaxWidth().testTag("complete_day"),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("complete_day"),
                 ) { Text("COMPLETE DAY / NEXT DAY") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WorkoutModeScreen(
+    progress: ActiveWorkoutState,
+    timerDurationSeconds: Int?,
+    onProgress: (ActiveWorkoutState) -> Unit,
+    onReturnToToday: () -> Unit,
+) {
+    val session = SessionResolver.resolve(
+        week = progress.week,
+        day = progress.day,
+        speedVariant = progress.speedVariant,
+        engineVariant = progress.engineVariant,
+        deload = progress.deloadMode,
+        machineInventoryConfigured = progress.machineInventoryConfigured,
+        availableMachineModalities = progress.availableMachineModalities,
+    )
+    val normalized = WorkoutProgress.normalize(progress, session)
+    val currentRow = session.rows[normalized.movementIndex]
+    val selectedSubstitution = normalized.selectedSubstitutions[currentRow.id]
+    val visibleMovement = selectedSubstitution ?: currentRow.title
+    val resting = normalized.restTimerEndEpochMillis != null
+    var showSubstitutions by rememberSaveable(currentRow.id) { mutableStateOf(false) }
+    var showMap by rememberSaveable { mutableStateOf(false) }
+    var noteExpanded by rememberSaveable(currentRow.id) { mutableStateOf(false) }
+
+    Surface(modifier = Modifier.fillMaxSize().testTag("workout_mode")) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                "WEEK ${session.week} • DAY ${session.day} • ${session.title}",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.testTag("workout_context"),
+            )
+            Text(
+                "MOVEMENT ${normalized.movementIndex + 1} OF ${session.rows.size}",
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.testTag("workout_movement_index"),
+            )
+
+            Card(modifier = Modifier.fillMaxWidth().testTag("workout_hero")) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(5.dp),
+                ) {
+                    if (normalized.complete) {
+                        Text(
+                            "WORKOUT COMPLETE",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text("Return to TODAY, then use COMPLETE DAY / NEXT DAY when you are ready to advance the program pointer.")
+                    } else {
+                        Text(
+                            visibleMovement,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.testTag("workout_movement"),
+                        )
+                        if (selectedSubstitution != null) {
+                            Text(
+                                "SUBSTITUTED FOR ${currentRow.title}",
+                                style = MaterialTheme.typography.labelMedium,
+                                modifier = Modifier.testTag("selected_substitution"),
+                            )
+                        }
+                        val effortLabel = if (currentRow.kind == SessionRowKind.RESISTANCE) {
+                            "SET ${normalized.effortIndex} OF ${currentRow.effortCount}"
+                        } else {
+                            "EFFORT"
+                        }
+                        Text(
+                            effortLabel,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.testTag("workout_effort"),
+                        )
+                        Text(
+                            currentRow.prescription,
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.testTag("workout_prescription"),
+                        )
+                        currentRow.note?.let { note ->
+                            Text(
+                                note,
+                                style = MaterialTheme.typography.bodySmall,
+                                maxLines = if (noteExpanded) Int.MAX_VALUE else 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            TextButton(
+                                onClick = { noteExpanded = !noteExpanded },
+                                modifier = Modifier.heightIn(min = 48.dp).testTag("workout_note_toggle"),
+                            ) { Text(if (noteExpanded) "LESS" else "MORE") }
+                        }
+                    }
+                }
+            }
+
+            if (!normalized.complete && normalized.restTimerEndEpochMillis != null) {
+                WorkoutRestPanel(
+                    endEpochMillis = normalized.restTimerEndEpochMillis,
+                    onFinished = {
+                        onProgress(WorkoutProgress.clearExpiredRest(normalized, System.currentTimeMillis()))
+                    },
+                    onSkip = { onProgress(WorkoutProgress.skipRest(normalized)) },
+                )
+            }
+
+            if (!normalized.complete) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    if (currentRow.alternatives.isNotEmpty()) {
+                        TextButton(
+                            onClick = { showSubstitutions = true },
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = 48.dp)
+                                .testTag("workout_substitutions"),
+                        ) { Text("SUBSTITUTIONS") }
+                    }
+                    TextButton(
+                        onClick = { showMap = true },
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp)
+                            .testTag("workout_map_button"),
+                    ) { Text("WORKOUT MAP") }
+                }
+
+                if (!resting) {
+                    Button(
+                        onClick = {
+                            onProgress(
+                                WorkoutProgress.advance(
+                                    progress = normalized,
+                                    session = session,
+                                    timerDurationSeconds = timerDurationSeconds,
+                                    nowMillis = System.currentTimeMillis(),
+                                ),
+                            )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 48.dp)
+                            .testTag("workout_primary"),
+                    ) {
+                        Text(if (currentRow.kind == SessionRowKind.RESISTANCE) "SET DONE" else "DONE")
+                    }
+                }
+            } else {
+                Button(
+                    onClick = onReturnToToday,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("workout_complete"),
+                ) { Text("RETURN TO TODAY") }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (normalized.canUndo) {
+                    TextButton(
+                        onClick = { onProgress(WorkoutProgress.undo(normalized)) },
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp).testTag("workout_undo"),
+                    ) { Text("UNDO") }
+                }
+                TextButton(
+                    onClick = onReturnToToday,
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp).testTag("workout_return_today"),
+                ) { Text("FULL TODAY") }
+            }
+        }
+    }
+
+    if (showSubstitutions) {
+        AlertDialog(
+            onDismissRequest = { showSubstitutions = false },
+            title = { Text("Ranked substitutions") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(
+                        onClick = {
+                            onProgress(
+                                WorkoutProgress.selectSubstitution(
+                                    normalized,
+                                    session,
+                                    currentRow.id,
+                                    null,
+                                ),
+                            )
+                            showSubstitutions = false
+                        },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("substitution_canonical"),
+                    ) { Text("CANONICAL • ${currentRow.title}") }
+                    currentRow.alternatives.forEachIndexed { index, alternative ->
+                        TextButton(
+                            onClick = {
+                                onProgress(
+                                    WorkoutProgress.selectSubstitution(
+                                        normalized,
+                                        session,
+                                        currentRow.id,
+                                        alternative,
+                                    ),
+                                )
+                                showSubstitutions = false
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 48.dp)
+                                .testTag("substitution_$index"),
+                        ) { Text("${index + 1}. $alternative") }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { showSubstitutions = false },
+                    modifier = Modifier.heightIn(min = 48.dp),
+                ) { Text("CLOSE") }
+            },
+        )
+    }
+
+    if (showMap) {
+        WorkoutMapDialog(
+            session = session,
+            progress = normalized,
+            onDismiss = { showMap = false },
+        )
+    }
+}
+
+@Composable
+private fun WorkoutMapDialog(
+    session: SessionReference,
+    progress: ActiveWorkoutState,
+    onDismiss: () -> Unit,
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = MaterialTheme.shapes.large,
+            tonalElevation = 6.dp,
+            modifier = Modifier.fillMaxWidth().fillMaxHeight(0.85f).testTag("workout_map_dialog"),
+        ) {
+            LazyColumn(
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                item {
+                    Text("WORKOUT MAP", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Text("Completed / current / upcoming only")
+                }
+                items(session.rows.indices.toList()) { index ->
+                    val status = when {
+                        progress.complete || index < progress.movementIndex -> "COMPLETED"
+                        index == progress.movementIndex -> "CURRENT"
+                        else -> "UPCOMING"
+                    }
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text("${index + 1}. ${session.rows[index].title}", fontWeight = FontWeight.Bold)
+                            Text(status)
+                        }
+                    }
+                }
+                item {
+                    TextButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    ) { Text("CLOSE") }
+                }
             }
         }
     }
@@ -213,6 +571,8 @@ private fun WeekScreen(state: ProgramUiState, onOpenDay: (SessionReference) -> U
         speedVariant = state.speedVariant,
         engineVariant = state.engineVariant,
         deload = state.deloadMode,
+        machineInventoryConfigured = state.machineInventoryConfigured,
+        availableMachineModalities = state.availableMachineModalities,
     )
 
     LazyColumn(
@@ -247,6 +607,8 @@ private fun ProgramScreen(
         speedVariant = state.speedVariant,
         engineVariant = state.engineVariant,
         deload = state.deloadMode,
+        machineInventoryConfigured = state.machineInventoryConfigured,
+        availableMachineModalities = state.availableMachineModalities,
     )
     val nextWeek = if (state.currentWeek < 8) state.currentWeek + 1 else null
     val nextSplit = nextWeek?.let {
@@ -255,6 +617,8 @@ private fun ProgramScreen(
             speedVariant = state.speedVariant,
             engineVariant = state.engineVariant,
             deload = state.deloadMode,
+            machineInventoryConfigured = state.machineInventoryConfigured,
+            availableMachineModalities = state.availableMachineModalities,
         )
     }
     val currentPhase = OperatorProgramV54.blocks.first()
@@ -336,6 +700,9 @@ private fun ToolsScreen(
     onDeloadChanged: (Boolean) -> Unit,
     onSpeedChanged: (SpeedVariant) -> Unit,
     onEngineChanged: (EngineVariant) -> Unit,
+    onRestTimerSecondsChanged: (Int?) -> Unit,
+    onUtilityRestTimerEndChanged: (Long?) -> Unit,
+    onMachineInventoryChanged: (Boolean, Set<MachineModality>) -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize().testTag("tools_screen"),
@@ -344,7 +711,22 @@ private fun ToolsScreen(
     ) {
         item {
             Text("TOOLS", style = MaterialTheme.typography.headlineMedium)
-            Text("Reference controls")
+            Text("Reference controls and utilities")
+        }
+        item {
+            RestTimerToolsCard(
+                configuredSeconds = state.restTimerSeconds,
+                activeEndEpochMillis = state.utilityRestTimerEndEpochMillis,
+                onConfiguredSecondsChanged = onRestTimerSecondsChanged,
+                onActiveEndChanged = onUtilityRestTimerEndChanged,
+            )
+        }
+        item {
+            MachineEquipmentInventoryCard(
+                configured = state.machineInventoryConfigured,
+                available = state.availableMachineModalities,
+                onChanged = onMachineInventoryChanged,
+            )
         }
         item {
             Card(modifier = Modifier.fillMaxWidth()) {
@@ -373,7 +755,7 @@ private fun ToolsScreen(
                         selected = state.speedVariant == variant,
                         onClick = { onSpeedChanged(variant) },
                         label = { Text(variant.name.replace('_', ' ')) },
-                        modifier = Modifier.testTag("speed_${variant.name}"),
+                        modifier = Modifier.heightIn(min = 48.dp).testTag("speed_${variant.name}"),
                     )
                 }
             }
@@ -387,7 +769,7 @@ private fun ToolsScreen(
                         selected = state.engineVariant == variant,
                         onClick = { onEngineChanged(variant) },
                         label = { Text(variant.name) },
-                        modifier = Modifier.testTag("engine_${variant.name}"),
+                        modifier = Modifier.heightIn(min = 48.dp).testTag("engine_${variant.name}"),
                     )
                 }
             }
@@ -401,6 +783,7 @@ private fun ToolsScreen(
                 }
             }
         }
+        item { AdditionalToolsCards() }
     }
 }
 
@@ -499,11 +882,14 @@ private fun DayReferenceDialog(
                     if (allowSetCurrent) {
                         Button(
                             onClick = onRequestSetCurrent,
-                            modifier = Modifier.fillMaxWidth().testTag("set_current_button"),
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("set_current_button"),
                         ) { Text("SET AS CURRENT") }
                         Spacer(Modifier.height(8.dp))
                     }
-                    TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text("CLOSE") }
+                    TextButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    ) { Text("CLOSE") }
                 }
             }
         }

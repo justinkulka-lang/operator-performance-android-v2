@@ -13,7 +13,12 @@ data class SessionRow(
     val kind: SessionRowKind,
     val alternatives: List<String> = emptyList(),
     val note: String? = null,
-)
+    val effortCount: Int = 1,
+) {
+    init {
+        require(effortCount >= 1) { "effortCount must be at least 1." }
+    }
+}
 
 data class SessionReference(
     val week: Int,
@@ -30,6 +35,8 @@ object SessionResolver {
         speedVariant: SpeedVariant,
         engineVariant: EngineVariant,
         deload: Boolean,
+        machineInventoryConfigured: Boolean = false,
+        availableMachineModalities: Set<MachineModality> = emptySet(),
     ): SessionReference {
         require(week in 1..8) { "Only populated Weeks 1–8 may resolve." }
         require(day in 1..7) { "Day must be 1–7." }
@@ -38,7 +45,13 @@ object SessionResolver {
         val rows = when (day) {
             1 -> resistanceRows(day, deload) + aerobicRow()
             2 -> resistanceRows(day, deload)
-            3 -> speedRows(week, speedVariant, deload)
+            3 -> speedRows(
+                week,
+                speedVariant,
+                deload,
+                machineInventoryConfigured,
+                availableMachineModalities,
+            )
             4 -> resistanceRows(day, deload)
             5 -> resistanceRows(day, deload)
             6 -> resistanceRows(day, deload) + engineRows(week, engineVariant, deload)
@@ -67,9 +80,21 @@ object SessionResolver {
         speedVariant: SpeedVariant,
         engineVariant: EngineVariant,
         deload: Boolean,
+        machineInventoryConfigured: Boolean = false,
+        availableMachineModalities: Set<MachineModality> = emptySet(),
     ): List<SessionReference> {
         require(week in 1..8) { "Only populated Weeks 1–8 may resolve." }
-        return (1..7).map { day -> resolve(week, day, speedVariant, engineVariant, deload) }
+        return (1..7).map { day ->
+            resolve(
+                week,
+                day,
+                speedVariant,
+                engineVariant,
+                deload,
+                machineInventoryConfigured,
+                availableMachineModalities,
+            )
+        }
     }
 
     private fun resistanceRows(day: Int, deload: Boolean): List<SessionRow> =
@@ -82,6 +107,7 @@ object SessionResolver {
                 prescription = doseWithSets(slot.dose, sets),
                 kind = SessionRowKind.RESISTANCE,
                 alternatives = slot.alternatives.sortedBy { it.rank }.map { it.name },
+                effortCount = sets,
             )
         }
 
@@ -100,6 +126,8 @@ object SessionResolver {
         week: Int,
         selected: SpeedVariant,
         deload: Boolean,
+        machineInventoryConfigured: Boolean,
+        availableMachineModalities: Set<MachineModality>,
     ): List<SessionRow> {
         if (deload) {
             return listOf(
@@ -124,23 +152,52 @@ object SessionResolver {
         }
 
         val option = OperatorProgramV54.speedOptions.single { it.variant == selected }
+        val sprintBoundaryWarning = option.qualifyingSprintMeters
+            .filter { ProgramAudit.sprintVolumeStatus(it) == SprintVolumeStatus.WARNING }
+            .maxOrNull()
+            ?.let { meters ->
+                "SPRINT VOLUME WARNING • This built-in option uses $meters m qualifying sprint volume. 600 m exactly is permitted with a warning; do not exceed 600 m."
+            }
         val speed = SessionRow(
             id = "d3_${option.variant.name.lowercase()}",
             title = option.variant.displayLabel(),
             prescription = option.prescriptions.joinToString(" OR "),
             kind = SessionRowKind.CONDITIONING,
-            note = listOf(OperatorProgramV54.speedSessionGuidance, option.guidance).joinToString(" "),
+            note = listOfNotNull(
+                OperatorProgramV54.speedSessionGuidance,
+                option.guidance,
+                sprintBoundaryWarning,
+            ).joinToString(" "),
         )
         if (!option.includesMachinePowerFinisher) return listOf(speed)
 
         val finisher = OperatorProgramV54.machinePowerFinisher
+        val resolvedModality = if (machineInventoryConfigured) {
+            finisher.rankedModalities.firstOrNull { it in availableMachineModalities }
+        } else {
+            null
+        }
+        if (machineInventoryConfigured && resolvedModality == null) return listOf(speed)
+
         val finisherRow = SessionRow(
             id = "d3_machine_power_finisher",
-            title = "Optional machine-power finisher",
+            title = if (resolvedModality == null) {
+                "Optional machine-power finisher"
+            } else {
+                "Optional machine-power finisher — ${resolvedModality.label}"
+            },
             prescription = "${finisher.efforts} × ${finisher.hardSeconds} s hard / ${finisher.easySeconds} s easy",
             kind = SessionRowKind.CONDITIONING,
-            alternatives = finisher.rankedModalities.map { it.label },
-            note = OperatorProgramV54.machinePowerFinisherGuidance,
+            alternatives = if (resolvedModality == null) {
+                finisher.rankedModalities.map { it.label }
+            } else {
+                emptyList()
+            },
+            note = if (resolvedModality == null) {
+                OperatorProgramV54.machinePowerFinisherGuidance
+            } else {
+                "${OperatorProgramV54.machinePowerFinisherGuidance} Resolved from configured equipment inventory: ${resolvedModality.label}."
+            },
         )
         return listOf(speed, finisherRow)
     }
