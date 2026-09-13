@@ -66,7 +66,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          pattern='ESTABLISH CURRENT CAPABILITY|Recent runs per week|Easy continuous run capacity|Next-day lower-leg soreness|Pain currently changes my gait|PROGRAM TRACKING|PERFORMANCE PROFILE|HEALTH CONNECT|READINESS|SESSION RESULT|EASY / GOOD / HARD / FAILED|POSITION [1-7]|bodyweight|progress-photo|benchmark result entry|RECOVERY MODE|HISTORY destination|sled push|sled pull|Speed \+ sled'
+          pattern='ESTABLISH CURRENT CAPABILITY|Recent runs per week|Easy continuous run capacity|Next-day lower-leg soreness|Pain currently changes my gait|PROGRAM TRACKING|PERFORMANCE PROFILE|HEALTH CONNECT|READINESS|SESSION RESULT|EASY / GOOD / HARD / FAILED|POSITION [1-7]|bodyweight|progress-photo|benchmark result entry|RECOVERY MODE|HISTORY destination|sled push|sled pull|Speed \\+ sled'
           if grep -RniE "$pattern" app/src/main/java app/src/main/res; then
             echo "Stale/prohibited runtime architecture reference found in production source" >&2
             exit 1
@@ -94,13 +94,17 @@ jobs:
           test -e /dev/kvm
           sudo chmod 666 /dev/kvm
           emulator_log="$RUNNER_TEMP/operator-emulator.log"
+          avd_dir="$HOME/.android/avd/operator-ci-api35.avd"
           echo no | avdmanager create avd \
             --force \
             --name operator-ci-api35 \
             --package "system-images;android-35;default;x86_64" \
             --device "pixel_2"
+          printf '\ndisk.dataPartition.size=2048M\n' >> "$avd_dir/config.ini"
+          grep -q '^disk.dataPartition.size=2048M$' "$avd_dir/config.ini"
           "$ANDROID_HOME/emulator/emulator" \
             -avd operator-ci-api35 \
+            -partition-size 2048 \
             -no-window \
             -no-audio \
             -no-boot-anim \
@@ -145,7 +149,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          pattern='ESTABLISH CURRENT CAPABILITY|Recent runs per week|PROGRAM TRACKING|PERFORMANCE PROFILE|HEALTH CONNECT|READINESS|SESSION RESULT|RECOVERY MODE|Speed \+ sled'
+          pattern='ESTABLISH CURRENT CAPABILITY|Recent runs per week|PROGRAM TRACKING|PERFORMANCE PROFILE|HEALTH CONNECT|READINESS|SESSION RESULT|RECOVERY MODE|Speed \\+ sled'
           for apk in app/build/outputs/apk/debug/*.apk app/build/outputs/apk/release/*.apk; do
             test -f "$apk"
             if unzip -p "$apk" 'classes*.dex' 2>/dev/null | strings | grep -Ei "$pattern"; then
