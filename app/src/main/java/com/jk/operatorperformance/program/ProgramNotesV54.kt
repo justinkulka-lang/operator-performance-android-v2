@@ -37,7 +37,7 @@ object ProgramNotesV54 {
         "Backstop reference: 6–8 weeks since the previous deload.",
         "Deload duration: 5–7 days.",
         "During deload, hold load/intensity, stay short of failure, remove sprint/special-endurance work, and keep running easy.",
-        "The app does not score these indicators, does not require readiness data, and does not automatically force a deload.",
+        "The app does not score these indicators, does not require those inputs, and does not automatically force a deload.",
         "The app applies only the canonical deload overlay and does not infer deload activation from hidden or entered performance statistics.",
     )
 }
