@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "OperatorPerformance"
 include(":app")
+include(":legacy-fixture")
