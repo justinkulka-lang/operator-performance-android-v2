@@ -127,8 +127,6 @@ jobs:
           apk="app/build/outputs/apk/debug/app-debug.apk"
           adb install "$apk"
           adb shell pm clear com.jk.operatorperformance >/dev/null
-          adb shell am start -W -n com.jk.operatorperformance/.MainActivity >/dev/null
-          adb shell am force-stop com.jk.operatorperformance
 
           timer_end_ms=$(( $(date +%s%3N) + 300000 ))
           state_file="$RUNNER_TEMP/operator_v54_reference_state.xml"
@@ -161,12 +159,16 @@ jobs:
           </map>
           EOF
           sed -i 's/^          //' "$state_file"
+          adb shell run-as com.jk.operatorperformance mkdir -p shared_prefs
           cat "$state_file" | adb shell run-as com.jk.operatorperformance sh -c 'cat > shared_prefs/operator_v54_reference_state.xml'
 
+          echo "Launching seeded focus state, then killing the app process"
           adb shell am start -W -n com.jk.operatorperformance/.MainActivity >/dev/null
           sleep 1
           adb shell am force-stop com.jk.operatorperformance
           test -z "$(adb shell pidof com.jk.operatorperformance 2>/dev/null | tr -d '\r')"
+
+          echo "Relaunching after true process death"
           adb shell am start -W -n com.jk.operatorperformance/.MainActivity >/dev/null
           sleep 1
 
@@ -183,9 +185,9 @@ jobs:
           wanted = sys.argv[2]
           for node in root.iter('node'):
               if node.attrib.get('text') == wanted:
-                  m = re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds', ''))
-                  if m:
-                      x1, y1, x2, y2 = map(int, m.groups())
+                  match = re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds', ''))
+                  if match:
+                      x1, y1, x2, y2 = map(int, match.groups())
                       print(f'{(x1+x2)//2} {(y1+y2)//2}')
                       raise SystemExit(0)
           raise SystemExit(1)
@@ -203,6 +205,7 @@ jobs:
           adb shell uiautomator dump /sdcard/window.xml >/dev/null
           adb pull /sdcard/window.xml "$RUNNER_TEMP/resumed.xml" >/dev/null
           grep -q 'text="SET 2 OF 4"' "$RUNNER_TEMP/resumed.xml"
+          grep -q 'text="REST"' "$RUNNER_TEMP/resumed.xml"
 
           restored_state="$(adb shell run-as com.jk.operatorperformance cat shared_prefs/operator_v54_reference_state.xml | tr -d '\r')"
           grep -q 'name="workoutMovementIndex" value="0"' <<< "$restored_state"
