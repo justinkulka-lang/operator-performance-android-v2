@@ -57,8 +57,11 @@ jobs:
           grep -q 'applicationId = "com.jk.operatorperformance"' app/build.gradle.kts
           grep -q 'versionCode = 44' app/build.gradle.kts
           grep -q 'versionName = "0.35.0"' app/build.gradle.kts
-          if grep -Eq 'android.permission.INTERNET|android.permission.health|HealthConnect' app/src/main/AndroidManifest.xml; then
-            echo "Prohibited network/health permission found in manifest" >&2
+          grep -q 'applicationId = "com.jk.operatorperformance"' legacy-fixture/build.gradle.kts
+          grep -q 'versionCode = 43' legacy-fixture/build.gradle.kts
+          grep -q 'versionName = "0.34.0"' legacy-fixture/build.gradle.kts
+          if grep -Eq 'android.permission.INTERNET|android.permission.health|HealthConnect|POST_NOTIFICATIONS' app/src/main/AndroidManifest.xml; then
+            echo "Prohibited network/health/notification permission found in manifest" >&2
             exit 1
           fi
 
@@ -66,7 +69,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          pattern='ESTABLISH CURRENT CAPABILITY|Recent runs per week|Easy continuous run capacity|Next-day lower-leg soreness|Pain currently changes my gait|PROGRAM TRACKING|PERFORMANCE PROFILE|HEALTH CONNECT|READINESS|SESSION RESULT|EASY / GOOD / HARD / FAILED|POSITION [1-7]|bodyweight|progress-photo|benchmark result entry|RECOVERY MODE|HISTORY destination|sled push|sled pull|Speed \\+ sled'
+          pattern='ESTABLISH CURRENT CAPABILITY|Recent runs per week|Easy continuous run capacity|Next-day lower-leg soreness|Pain currently changes my gait|PROGRAM TRACKING|PERFORMANCE PROFILE|HEALTH CONNECT|READINESS|SESSION RESULT|EASY / GOOD / HARD / FAILED|POSITION [1-7]|bodyweight|progress-photo|benchmark result entry|RECOVERY MODE|HISTORY destination|sled push|sled pull|Speed \\+ sled|ProgramTrackingStore|ReadinessStore|BenchmarkStore|StrengthLog|RunStopwatchStore|ConditioningExecutionStore|ActiveSetProgressStore|actualLoad|actualReps|actualRir|performed load|performed reps|performed RIR|session score|workout rating|POST_NOTIFICATIONS|notification permission|automatic progression|block recomposition'
           if grep -RniE "$pattern" app/src/main/java app/src/main/res; then
             echo "Stale/prohibited runtime architecture reference found in production source" >&2
             exit 1
@@ -87,7 +90,10 @@ jobs:
           grep -q '^9,Block 2,UNPOPULATED,—,—,—$' app/build/reports/program-weeks-1-32.csv
           grep -q '^32,Block 4,UNPOPULATED,—,—,—$' app/build/reports/program-weeks-1-32.csv
 
-      - name: Run reference UI instrumentation tests
+      - name: Build install-over compatibility fixture and current debug APK
+        run: gradle :legacy-fixture:assembleDebug :app:assembleDebug --stacktrace
+
+      - name: Run migration, airplane-mode, and reference UI acceptance
         shell: bash
         run: |
           set -euo pipefail
@@ -132,12 +138,50 @@ jobs:
           adb shell settings put global transition_animation_scale 0
           adb shell settings put global animator_duration_scale 0
 
+          legacy_apk="legacy-fixture/build/outputs/apk/debug/legacy-fixture-debug.apk"
+          current_apk="app/build/outputs/apk/debug/app-debug.apk"
+          apksigner="$ANDROID_HOME/build-tools/37.0.0/apksigner"
+          test -f "$legacy_apk"
+          test -f "$current_apk"
+          test -x "$apksigner"
+
+          legacy_cert="$($apksigner verify --print-certs "$legacy_apk" | awk -F': ' '/Signer #1 certificate SHA-256 digest/{print $2}')"
+          current_cert="$($apksigner verify --print-certs "$current_apk" | awk -F': ' '/Signer #1 certificate SHA-256 digest/{print $2}')"
+          test -n "$legacy_cert"
+          test "$legacy_cert" = "$current_cert"
+
+          adb install "$legacy_apk"
+          adb shell am start -W -n com.jk.operatorperformance/.MainActivity >/dev/null
+          adb shell dumpsys package com.jk.operatorperformance | grep -q 'versionCode=43'
+          adb shell dumpsys package com.jk.operatorperformance | grep -q 'versionName=0.34.0'
+          adb shell am force-stop com.jk.operatorperformance
+
+          adb install -r "$current_apk"
+          adb shell am start -W -n com.jk.operatorperformance/.MainActivity >/dev/null
+          adb shell dumpsys package com.jk.operatorperformance | grep -q 'versionCode=44'
+          adb shell dumpsys package com.jk.operatorperformance | grep -q 'versionName=0.35.0'
+
+          current_state="$(adb shell run-as com.jk.operatorperformance cat shared_prefs/operator_v54_reference_state.xml | tr -d '\r')"
+          grep -q 'name="currentWeek" value="3"' <<< "$current_state"
+          grep -q 'name="currentDay" value="5"' <<< "$current_state"
+          legacy_state="$(adb shell run-as com.jk.operatorperformance cat shared_prefs/operator_performance_state.xml | tr -d '\r')"
+          grep -q 'legacy-fixture-row' <<< "$legacy_state"
+
+          adb shell pm clear com.jk.operatorperformance >/dev/null
+          if ! adb shell cmd connectivity airplane-mode enable >/dev/null 2>&1; then
+            adb shell settings put global airplane_mode_on 1
+            adb shell am broadcast -a android.intent.action.AIRPLANE_MODE --ez state true >/dev/null
+          fi
+          test "$(adb shell settings get global airplane_mode_on | tr -d '\r')" = "1"
+          adb shell am force-stop com.jk.operatorperformance || true
+
           if ! timeout 600 gradle :app:connectedDebugAndroidTest --stacktrace; then
             echo "Instrumentation tests failed or exceeded 600 seconds." >&2
             adb devices -l || true
             cat "$emulator_log" || true
             exit 1
           fi
+          test "$(adb shell settings get global airplane_mode_on | tr -d '\r')" = "1"
 
       - name: Build debug APK
         run: gradle :app:assembleDebug --stacktrace
@@ -149,7 +193,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          pattern='ESTABLISH CURRENT CAPABILITY|Recent runs per week|PROGRAM TRACKING|PERFORMANCE PROFILE|HEALTH CONNECT|READINESS|SESSION RESULT|RECOVERY MODE|Speed \\+ sled'
+          pattern='ESTABLISH CURRENT CAPABILITY|Recent runs per week|PROGRAM TRACKING|PERFORMANCE PROFILE|HEALTH CONNECT|READINESS|SESSION RESULT|RECOVERY MODE|Speed \\+ sled|ProgramTrackingStore|ReadinessStore|BenchmarkStore|StrengthLog|RunStopwatchStore|ConditioningExecutionStore|ActiveSetProgressStore|actualLoad|actualReps|actualRir|performed load|performed reps|performed RIR|session score|workout rating|POST_NOTIFICATIONS|automatic progression|block recomposition'
           for apk in app/build/outputs/apk/debug/*.apk app/build/outputs/apk/release/*.apk; do
             test -f "$apk"
             if unzip -p "$apk" 'classes*.dex' 2>/dev/null | strings | grep -Ei "$pattern"; then
@@ -161,11 +205,11 @@ jobs:
       - name: Capture dependency graph
         run: gradle :app:dependencies > app/build/reports/dependencies.txt
 
-      - name: Upload Pass 6 artifacts
+      - name: Upload Pass 7 artifacts
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: Operator-Performance-Pass-6
+          name: Operator-Performance-Pass-7
           path: |
             app/build/reports/tests/
             app/build/test-results/
@@ -177,5 +221,6 @@ jobs:
             app/build/reports/dependencies.txt
             app/build/outputs/apk/debug/*.apk
             app/build/outputs/apk/release/*.apk
+            legacy-fixture/build/outputs/apk/debug/*.apk
           if-no-files-found: warn
           retention-days: 14
