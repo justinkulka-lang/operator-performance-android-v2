@@ -136,7 +136,7 @@ object SessionResolver {
         val finisher = OperatorProgramV54.machinePowerFinisher
         val finisherRow = SessionRow(
             id = "d3_machine_power_finisher",
-            title = "Machine-power finisher",
+            title = "Optional machine-power finisher",
             prescription = "${finisher.efforts} × ${finisher.hardSeconds} s hard / ${finisher.easySeconds} s easy",
             kind = SessionRowKind.CONDITIONING,
             alternatives = finisher.rankedModalities.map { it.label },
