@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.jk.operatorperformance.program.BlockStatus
 import com.jk.operatorperformance.program.EngineVariant
+import com.jk.operatorperformance.program.MachineModality
 import com.jk.operatorperformance.program.OperatorProgramV54
 import com.jk.operatorperformance.program.SessionReference
 import com.jk.operatorperformance.program.SessionResolver
@@ -167,6 +168,14 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
                         onUtilityRestTimerEndChanged = {
                             persist(state.copy(utilityRestTimerEndEpochMillis = it))
                         },
+                        onMachineInventoryChanged = { configured, available ->
+                            persist(
+                                state.copy(
+                                    machineInventoryConfigured = configured,
+                                    availableMachineModalities = available,
+                                ),
+                            )
+                        },
                     )
                 }
             }
@@ -223,6 +232,8 @@ private fun TodayScreen(
         speedVariant = state.speedVariant,
         engineVariant = state.engineVariant,
         deload = state.deloadMode,
+        machineInventoryConfigured = state.machineInventoryConfigured,
+        availableMachineModalities = state.availableMachineModalities,
     )
     val atEnd = state.currentWeek == 8 && state.currentDay == 7
 
@@ -282,6 +293,8 @@ private fun WorkoutModeScreen(
         speedVariant = progress.speedVariant,
         engineVariant = progress.engineVariant,
         deload = progress.deloadMode,
+        machineInventoryConfigured = progress.machineInventoryConfigured,
+        availableMachineModalities = progress.availableMachineModalities,
     )
     val normalized = WorkoutProgress.normalize(progress, session)
     val currentRow = session.rows[normalized.movementIndex]
@@ -558,6 +571,8 @@ private fun WeekScreen(state: ProgramUiState, onOpenDay: (SessionReference) -> U
         speedVariant = state.speedVariant,
         engineVariant = state.engineVariant,
         deload = state.deloadMode,
+        machineInventoryConfigured = state.machineInventoryConfigured,
+        availableMachineModalities = state.availableMachineModalities,
     )
 
     LazyColumn(
@@ -592,6 +607,8 @@ private fun ProgramScreen(
         speedVariant = state.speedVariant,
         engineVariant = state.engineVariant,
         deload = state.deloadMode,
+        machineInventoryConfigured = state.machineInventoryConfigured,
+        availableMachineModalities = state.availableMachineModalities,
     )
     val nextWeek = if (state.currentWeek < 8) state.currentWeek + 1 else null
     val nextSplit = nextWeek?.let {
@@ -600,6 +617,8 @@ private fun ProgramScreen(
             speedVariant = state.speedVariant,
             engineVariant = state.engineVariant,
             deload = state.deloadMode,
+            machineInventoryConfigured = state.machineInventoryConfigured,
+            availableMachineModalities = state.availableMachineModalities,
         )
     }
     val currentPhase = OperatorProgramV54.blocks.first()
@@ -683,6 +702,7 @@ private fun ToolsScreen(
     onEngineChanged: (EngineVariant) -> Unit,
     onRestTimerSecondsChanged: (Int?) -> Unit,
     onUtilityRestTimerEndChanged: (Long?) -> Unit,
+    onMachineInventoryChanged: (Boolean, Set<MachineModality>) -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize().testTag("tools_screen"),
@@ -699,6 +719,13 @@ private fun ToolsScreen(
                 activeEndEpochMillis = state.utilityRestTimerEndEpochMillis,
                 onConfiguredSecondsChanged = onRestTimerSecondsChanged,
                 onActiveEndChanged = onUtilityRestTimerEndChanged,
+            )
+        }
+        item {
+            MachineEquipmentInventoryCard(
+                configured = state.machineInventoryConfigured,
+                available = state.availableMachineModalities,
+                onChanged = onMachineInventoryChanged,
             )
         }
         item {
@@ -756,6 +783,7 @@ private fun ToolsScreen(
                 }
             }
         }
+        item { AdditionalToolsCards() }
     }
 }
 
