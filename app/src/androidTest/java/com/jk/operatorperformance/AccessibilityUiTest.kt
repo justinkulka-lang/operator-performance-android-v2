@@ -3,8 +3,8 @@ package com.jk.operatorperformance
 import android.content.Context
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsConfiguration
 import androidx.compose.ui.semantics.SemanticsProperties
-import androidx.compose.ui.test.fetchSemanticsNode
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -68,13 +68,11 @@ class AccessibilityUiTest {
         composeRule.waitForIdle()
 
         val config = composeRule.onNodeWithTag("utility_rest_countdown").fetchSemanticsNode().config
-        assertEquals(listOf("Rest timer countdown"), config.getOrNull(SemanticsProperties.ContentDescription))
-        assertTrue(config.getOrNull(SemanticsProperties.StateDescription)?.startsWith("Rest timer remaining ") == true)
-        assertEquals(LiveRegionMode.Polite, config.getOrNull(SemanticsProperties.LiveRegion))
+        assertEquals(listOf("Rest timer countdown"), config[SemanticsProperties.ContentDescription])
+        assertTrue(config[SemanticsProperties.StateDescription].startsWith("Rest timer remaining "))
+        assertEquals(LiveRegionMode.Polite, config[SemanticsProperties.LiveRegion])
     }
 
-    private fun semanticsText(config: androidx.compose.ui.semantics.SemanticsConfiguration): String =
-        config.getOrNull(SemanticsProperties.Text)
-            ?.joinToString(" ") { it.text }
-            .orEmpty()
+    private fun semanticsText(config: SemanticsConfiguration): String =
+        config[SemanticsProperties.Text].joinToString(" ") { it.text }
 }
