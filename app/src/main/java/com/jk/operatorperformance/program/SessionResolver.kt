@@ -152,12 +152,22 @@ object SessionResolver {
         }
 
         val option = OperatorProgramV54.speedOptions.single { it.variant == selected }
+        val sprintBoundaryWarning = option.qualifyingSprintMeters
+            .filter { ProgramAudit.sprintVolumeStatus(it) == SprintVolumeStatus.WARNING }
+            .maxOrNull()
+            ?.let { meters ->
+                "SPRINT VOLUME WARNING • This built-in option uses $meters m qualifying sprint volume. 600 m exactly is permitted with a warning; do not exceed 600 m."
+            }
         val speed = SessionRow(
             id = "d3_${option.variant.name.lowercase()}",
             title = option.variant.displayLabel(),
             prescription = option.prescriptions.joinToString(" OR "),
             kind = SessionRowKind.CONDITIONING,
-            note = listOf(OperatorProgramV54.speedSessionGuidance, option.guidance).joinToString(" "),
+            note = listOfNotNull(
+                OperatorProgramV54.speedSessionGuidance,
+                option.guidance,
+                sprintBoundaryWarning,
+            ).joinToString(" "),
         )
         if (!option.includesMachinePowerFinisher) return listOf(speed)
 
