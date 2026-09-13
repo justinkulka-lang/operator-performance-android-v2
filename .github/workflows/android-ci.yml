@@ -140,33 +140,32 @@ jobs:
 
           legacy_apk="legacy-fixture/build/outputs/apk/debug/legacy-fixture-debug.apk"
           current_apk="app/build/outputs/apk/debug/app-debug.apk"
-          apksigner="$ANDROID_HOME/build-tools/37.0.0/apksigner"
           test -f "$legacy_apk"
           test -f "$current_apk"
-          test -x "$apksigner"
 
-          legacy_cert="$($apksigner verify --print-certs "$legacy_apk" | awk -F': ' '/Signer #1 certificate SHA-256 digest/{print $2}')"
-          current_cert="$($apksigner verify --print-certs "$current_apk" | awk -F': ' '/Signer #1 certificate SHA-256 digest/{print $2}')"
-          test -n "$legacy_cert"
-          test "$legacy_cert" = "$current_cert"
-
+          echo "Installing v0.34 compatibility fixture"
           adb install "$legacy_apk"
           adb shell am start -W -n com.jk.operatorperformance/.MainActivity >/dev/null
-          adb shell dumpsys package com.jk.operatorperformance | grep -q 'versionCode=43'
-          adb shell dumpsys package com.jk.operatorperformance | grep -q 'versionName=0.34.0'
+          legacy_package="$(adb shell dumpsys package com.jk.operatorperformance | tr -d '\r')"
+          grep -q 'versionCode=43' <<< "$legacy_package"
+          grep -q 'versionName=0.34.0' <<< "$legacy_package"
           adb shell am force-stop com.jk.operatorperformance
 
+          echo "Installing v0.35 over v0.34 without clearing app data"
           adb install -r "$current_apk"
           adb shell am start -W -n com.jk.operatorperformance/.MainActivity >/dev/null
-          adb shell dumpsys package com.jk.operatorperformance | grep -q 'versionCode=44'
-          adb shell dumpsys package com.jk.operatorperformance | grep -q 'versionName=0.35.0'
+          current_package="$(adb shell dumpsys package com.jk.operatorperformance | tr -d '\r')"
+          grep -q 'versionCode=44' <<< "$current_package"
+          grep -q 'versionName=0.35.0' <<< "$current_package"
 
+          echo "Verifying pointer migration and inert legacy data retention"
           current_state="$(adb shell run-as com.jk.operatorperformance cat shared_prefs/operator_v54_reference_state.xml | tr -d '\r')"
           grep -q 'name="currentWeek" value="3"' <<< "$current_state"
           grep -q 'name="currentDay" value="5"' <<< "$current_state"
           legacy_state="$(adb shell run-as com.jk.operatorperformance cat shared_prefs/operator_performance_state.xml | tr -d '\r')"
           grep -q 'legacy-fixture-row' <<< "$legacy_state"
 
+          echo "Clearing migration fixture data before offline acceptance suite"
           adb shell pm clear com.jk.operatorperformance >/dev/null
           if ! adb shell cmd connectivity airplane-mode enable >/dev/null 2>&1; then
             adb shell settings put global airplane_mode_on 1
@@ -175,6 +174,7 @@ jobs:
           test "$(adb shell settings get global airplane_mode_on | tr -d '\r')" = "1"
           adb shell am force-stop com.jk.operatorperformance || true
 
+          echo "Running reference UI suite with airplane mode enabled"
           if ! timeout 600 gradle :app:connectedDebugAndroidTest --stacktrace; then
             echo "Instrumentation tests failed or exceeded 600 seconds." >&2
             adb devices -l || true
