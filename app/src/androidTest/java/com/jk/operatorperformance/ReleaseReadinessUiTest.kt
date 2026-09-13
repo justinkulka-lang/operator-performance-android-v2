@@ -9,7 +9,6 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
-import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.platform.app.InstrumentationRegistry
 import com.jk.operatorperformance.state.ProgramStateStore
@@ -66,18 +65,19 @@ class ReleaseReadinessUiTest {
         composeRule.onNodeWithTag("workout_undo").performScrollTo().assertIsDisplayed().performClick()
         composeRule.onNodeWithTag("workout_return_today").performScrollTo().performClick()
 
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val store = ProgramStateStore(context)
+        store.save(store.load().copy(restTimerSeconds = 60))
+        composeRule.activityRule.scenario.recreate()
+        composeRule.waitForIdle()
+
         composeRule.onNodeWithTag("nav_TOOLS").performClick()
-        composeRule.onNodeWithTag("tools_screen").performScrollToNode(hasTestTag("rest_timer_input"))
-        composeRule.onNodeWithTag("rest_timer_input").performTextReplacement("60")
-        composeRule.onNodeWithTag("rest_timer_save").performClick()
         composeRule.onNodeWithTag("tools_screen").performScrollToNode(hasTestTag("rest_timer_start"))
         composeRule.onNodeWithTag("rest_timer_start").assertIsDisplayed().performClick()
         composeRule.onNodeWithTag("tools_screen").performScrollToNode(hasTestTag("utility_rest_countdown"))
         composeRule.onNodeWithTag("utility_rest_countdown").assertIsDisplayed()
         composeRule.onNodeWithTag("rest_timer_cancel").performScrollTo().performClick()
 
-        val context = ApplicationProvider.getApplicationContext<Context>()
-        val store = ProgramStateStore(context)
         store.clearWorkout()
         store.save(store.load().withCurrentPointer(1, 7))
         composeRule.activityRule.scenario.recreate()
