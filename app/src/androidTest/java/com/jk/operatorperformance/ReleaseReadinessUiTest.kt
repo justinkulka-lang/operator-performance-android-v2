@@ -70,7 +70,9 @@ class ReleaseReadinessUiTest {
         composeRule.onNodeWithTag("tools_screen").performScrollToNode(hasTestTag("rest_timer_input"))
         composeRule.onNodeWithTag("rest_timer_input").performTextReplacement("60")
         composeRule.onNodeWithTag("rest_timer_save").performClick()
-        composeRule.onNodeWithTag("rest_timer_start").performClick()
+        composeRule.onNodeWithTag("tools_screen").performScrollToNode(hasTestTag("rest_timer_start"))
+        composeRule.onNodeWithTag("rest_timer_start").assertIsDisplayed().performClick()
+        composeRule.onNodeWithTag("tools_screen").performScrollToNode(hasTestTag("utility_rest_countdown"))
         composeRule.onNodeWithTag("utility_rest_countdown").assertIsDisplayed()
         composeRule.onNodeWithTag("rest_timer_cancel").performScrollTo().performClick()
 
