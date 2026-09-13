@@ -41,15 +41,22 @@ object ProgramExport {
         val balance = String.format(Locale.US, "%.3f", normal.values.max() / normal.values.min())
 
         (1..32).forEach { week ->
-            val block = "Block ${((week - 1) / 8) + 1}"
-            append(week).append(',').append(block).append(',')
-            if (week <= 8) {
-                append("POPULATED,")
-                append(csv(vector)).append(',')
-                append(total).append(',')
-                append(balance).appendLine()
-            } else {
-                append("UNPOPULATED,—,—,—").appendLine()
+            val block = OperatorProgramV54.blocks.single { week in it.startWeek..it.endWeek }
+            val canonicalWeek = OperatorProgramV54.weekOrNull(week)
+            val blockLabel = block.name.substringBefore(" —")
+            append(week).append(',').append(blockLabel).append(',')
+            when (block.status) {
+                BlockStatus.POPULATED -> {
+                    requireNotNull(canonicalWeek) { "Populated block is missing canonical Week $week." }
+                    append("POPULATED,")
+                    append(csv(vector)).append(',')
+                    append(total).append(',')
+                    append(balance).appendLine()
+                }
+                BlockStatus.UNPOPULATED_NOT_PROGRAMMED -> {
+                    require(canonicalWeek == null) { "Unpopulated Week $week must not have a canonical definition." }
+                    append("UNPOPULATED,—,—,—").appendLine()
+                }
             }
         }
     }
