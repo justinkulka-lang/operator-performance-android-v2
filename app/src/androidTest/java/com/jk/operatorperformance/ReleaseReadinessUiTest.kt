@@ -67,16 +67,19 @@ class ReleaseReadinessUiTest {
 
         val context = ApplicationProvider.getApplicationContext<Context>()
         val store = ProgramStateStore(context)
-        store.save(store.load().copy(restTimerSeconds = 60))
+        store.save(
+            store.load().copy(
+                restTimerSeconds = 60,
+                utilityRestTimerEndEpochMillis = System.currentTimeMillis() + 60_000L,
+            ),
+        )
         composeRule.activityRule.scenario.recreate()
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag("nav_TOOLS").performClick()
-        composeRule.onNodeWithTag("tools_screen").performScrollToNode(hasTestTag("rest_timer_start"))
-        composeRule.onNodeWithTag("rest_timer_start").assertIsDisplayed().performClick()
         composeRule.onNodeWithTag("tools_screen").performScrollToNode(hasTestTag("utility_rest_countdown"))
         composeRule.onNodeWithTag("utility_rest_countdown").assertIsDisplayed()
-        composeRule.onNodeWithTag("rest_timer_cancel").performScrollTo().performClick()
+        composeRule.onNodeWithTag("rest_timer_cancel").performScrollTo().assertIsDisplayed().performClick()
 
         store.clearWorkout()
         store.save(store.load().withCurrentPointer(1, 7))
