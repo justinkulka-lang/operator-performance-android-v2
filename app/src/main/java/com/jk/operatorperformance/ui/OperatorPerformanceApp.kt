@@ -257,6 +257,8 @@ private fun ProgramScreen(
             deload = state.deloadMode,
         )
     }
+    val currentPhase = OperatorProgramV54.blocks.first()
+    val nextPhase = OperatorProgramV54.blocks[1]
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().testTag("program_screen"),
@@ -306,9 +308,23 @@ private fun ProgramScreen(
 
         item {
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
-            Text("PHASE STATUS", style = MaterialTheme.typography.titleLarge)
+            Text(
+                "CURRENT PHASE • ${currentPhase.name} • Weeks ${currentPhase.startWeek}–${currentPhase.endWeek} • ${currentPhase.status.displayText()}",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.testTag("current_phase"),
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "NEXT PHASE • ${nextPhase.name} • Weeks ${nextPhase.startWeek}–${nextPhase.endWeek} • ${nextPhase.status.displayText()}",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.testTag("next_phase"),
+            )
+            Spacer(Modifier.height(8.dp))
+            Text("LATER PHASES", style = MaterialTheme.typography.titleSmall)
         }
-        items(OperatorProgramV54.blocks) { block ->
+        items(OperatorProgramV54.blocks.drop(2)) { block ->
             PhaseCard(block.name, block.startWeek, block.endWeek, block.status)
         }
     }
@@ -440,17 +456,18 @@ private fun DaySummaryCard(
     }
 }
 
+private fun BlockStatus.displayText(): String = when (this) {
+    BlockStatus.POPULATED -> "POPULATED"
+    BlockStatus.UNPOPULATED_NOT_PROGRAMMED -> "UNPOPULATED / NOT PROGRAMMED"
+}
+
 @Composable
 private fun PhaseCard(name: String, startWeek: Int, endWeek: Int, status: BlockStatus) {
-    val statusText = when (status) {
-        BlockStatus.POPULATED -> "POPULATED"
-        BlockStatus.UNPOPULATED_NOT_PROGRAMMED -> "UNPOPULATED / NOT PROGRAMMED"
-    }
     Card(modifier = Modifier.fillMaxWidth().testTag("phase_${startWeek}_${endWeek}")) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(name, fontWeight = FontWeight.Bold)
             Text("Weeks $startWeek–$endWeek")
-            Text(statusText, fontWeight = FontWeight.Bold)
+            Text(status.displayText(), fontWeight = FontWeight.Bold)
         }
     }
 }
