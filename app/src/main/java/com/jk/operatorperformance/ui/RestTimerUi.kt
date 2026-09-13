@@ -36,6 +36,24 @@ internal fun RestTimerToolsCard(
     onConfiguredSecondsChanged: (Int?) -> Unit,
     onActiveEndChanged: (Long?) -> Unit,
 ) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        RestTimerCard(
+            configuredSeconds = configuredSeconds,
+            activeEndEpochMillis = activeEndEpochMillis,
+            onConfiguredSecondsChanged = onConfiguredSecondsChanged,
+            onActiveEndChanged = onActiveEndChanged,
+        )
+        AdditionalToolsCards()
+    }
+}
+
+@Composable
+private fun RestTimerCard(
+    configuredSeconds: Int?,
+    activeEndEpochMillis: Long?,
+    onConfiguredSecondsChanged: (Int?) -> Unit,
+    onActiveEndChanged: (Long?) -> Unit,
+) {
     var draft by rememberSaveable(configuredSeconds) {
         mutableStateOf(configuredSeconds?.toString().orEmpty())
     }
@@ -43,10 +61,7 @@ internal fun RestTimerToolsCard(
     val invalid = draft.isNotBlank() && parsed == null
 
     Card(modifier = Modifier.fillMaxWidth().testTag("rest_timer_tool")) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("REST TIMER", fontWeight = FontWeight.Bold)
             Text("Optional independent timer. A saved duration may also auto-start after non-final resistance sets.")
             OutlinedTextField(
@@ -59,10 +74,7 @@ internal fun RestTimerToolsCard(
                 modifier = Modifier.fillMaxWidth().testTag("rest_timer_input"),
             )
             if (invalid) Text("Enter a positive number of seconds.", style = MaterialTheme.typography.bodySmall)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = { onConfiguredSecondsChanged(requireNotNull(parsed)) },
                     enabled = parsed != null,
@@ -82,9 +94,7 @@ internal fun RestTimerToolsCard(
 
             if (configuredSeconds != null && activeEndEpochMillis == null) {
                 Button(
-                    onClick = {
-                        onActiveEndChanged(System.currentTimeMillis() + configuredSeconds.toLong() * 1_000L)
-                    },
+                    onClick = { onActiveEndChanged(System.currentTimeMillis() + configuredSeconds.toLong() * 1_000L) },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("rest_timer_start"),
                 ) { Text("START TIMER") }
             }
@@ -111,16 +121,9 @@ internal fun WorkoutRestPanel(
     onSkip: () -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth().testTag("workout_rest")) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
+        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("REST", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            RestCountdown(
-                endEpochMillis = endEpochMillis,
-                testTag = "workout_rest_countdown",
-                onFinished = onFinished,
-            )
+            RestCountdown(endEpochMillis = endEpochMillis, testTag = "workout_rest_countdown", onFinished = onFinished)
             TextButton(
                 onClick = onSkip,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("workout_rest_skip"),
@@ -130,15 +133,8 @@ internal fun WorkoutRestPanel(
 }
 
 @Composable
-private fun RestCountdown(
-    endEpochMillis: Long,
-    testTag: String,
-    onFinished: () -> Unit,
-) {
-    var remaining by remember(endEpochMillis) {
-        mutableIntStateOf(remainingSeconds(endEpochMillis, System.currentTimeMillis()))
-    }
-
+private fun RestCountdown(endEpochMillis: Long, testTag: String, onFinished: () -> Unit) {
+    var remaining by remember(endEpochMillis) { mutableIntStateOf(remainingSeconds(endEpochMillis, System.currentTimeMillis())) }
     LaunchedEffect(endEpochMillis) {
         while (true) {
             val next = remainingSeconds(endEpochMillis, System.currentTimeMillis())
@@ -150,7 +146,6 @@ private fun RestCountdown(
             delay(250L)
         }
     }
-
     Text(
         text = formatSeconds(remaining),
         style = MaterialTheme.typography.headlineSmall,
