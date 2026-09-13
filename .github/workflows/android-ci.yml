@@ -161,11 +161,11 @@ jobs:
       - name: Capture dependency graph
         run: gradle :app:dependencies > app/build/reports/dependencies.txt
 
-      - name: Upload Pass 5 artifacts
+      - name: Upload Pass 6 artifacts
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: Operator-Performance-Pass-5
+          name: Operator-Performance-Pass-6
           path: |
             app/build/reports/tests/
             app/build/test-results/
