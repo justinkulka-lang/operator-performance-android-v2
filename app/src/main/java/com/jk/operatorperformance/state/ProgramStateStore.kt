@@ -11,10 +11,18 @@ data class ProgramUiState(
     val speedVariant: SpeedVariant = OperatorProgramV54.firstPostBaselineSpeedDefault,
     val engineVariant: EngineVariant = OperatorProgramV54.firstPostBaselineEngineDefault,
     val deloadMode: Boolean = false,
+    val restTimerSeconds: Int? = null,
+    val utilityRestTimerEndEpochMillis: Long? = null,
 ) {
     init {
         require(currentWeek in 1..8) { "currentWeek must be 1–8." }
         require(currentDay in 1..7) { "currentDay must be 1–7." }
+        require(restTimerSeconds == null || restTimerSeconds > 0) {
+            "restTimerSeconds must be positive when configured."
+        }
+        require(utilityRestTimerEndEpochMillis == null || utilityRestTimerEndEpochMillis > 0L) {
+            "utilityRestTimerEndEpochMillis must be positive when active."
+        }
     }
 
     fun advanceDay(): ProgramUiState = when {
@@ -39,18 +47,30 @@ data class ActiveWorkoutState(
     val movementIndex: Int = 0,
     val effortIndex: Int = 1,
     val complete: Boolean = false,
+    val selectedSubstitutions: Map<String, String> = emptyMap(),
+    val restTimerEndEpochMillis: Long? = null,
     val undoMovementIndex: Int? = null,
     val undoEffortIndex: Int? = null,
     val undoComplete: Boolean? = null,
+    val undoRestTimerEndEpochMillis: Long? = null,
 ) {
     init {
         require(week in 1..8) { "Workout week must be 1–8." }
         require(day in 1..7) { "Workout day must be 1–7." }
         require(movementIndex >= 0) { "movementIndex must be non-negative." }
         require(effortIndex >= 1) { "effortIndex must be at least 1." }
+        require(restTimerEndEpochMillis == null || restTimerEndEpochMillis > 0L) {
+            "restTimerEndEpochMillis must be positive when active."
+        }
+        require(selectedSubstitutions.keys.none { it.isBlank() }) {
+            "Substitution row ids must be non-blank."
+        }
+        require(selectedSubstitutions.values.none { it.isBlank() }) {
+            "Substitution choices must be non-blank."
+        }
         val undoParts = listOf(undoMovementIndex, undoEffortIndex, undoComplete)
         require(undoParts.all { it == null } || undoParts.none { it == null }) {
-            "Undo state must be fully present or fully absent."
+            "Undo pointer state must be fully present or fully absent."
         }
     }
 
@@ -81,17 +101,23 @@ class ProgramStateStore(context: Context) {
             speedVariant = speed,
             engineVariant = engine,
             deloadMode = prefs.getBoolean(KEY_DELOAD, false),
+            restTimerSeconds = prefs.getInt(KEY_REST_TIMER_SECONDS, 0).takeIf { it > 0 },
+            utilityRestTimerEndEpochMillis = prefs.getLong(KEY_UTILITY_REST_TIMER_END, 0L).takeIf { it > 0L },
         )
     }
 
     fun save(state: ProgramUiState) {
-        prefs.edit()
+        val editor = prefs.edit()
             .putInt(KEY_WEEK, state.currentWeek)
             .putInt(KEY_DAY, state.currentDay)
             .putString(KEY_SPEED, state.speedVariant.name)
             .putString(KEY_ENGINE, state.engineVariant.name)
             .putBoolean(KEY_DELOAD, state.deloadMode)
-            .apply()
+        state.restTimerSeconds?.let { editor.putInt(KEY_REST_TIMER_SECONDS, it) }
+            ?: editor.remove(KEY_REST_TIMER_SECONDS)
+        state.utilityRestTimerEndEpochMillis?.let { editor.putLong(KEY_UTILITY_REST_TIMER_END, it) }
+            ?: editor.remove(KEY_UTILITY_REST_TIMER_END)
+        editor.apply()
     }
 
     fun loadWorkout(): ActiveWorkoutState? {
@@ -112,9 +138,18 @@ class ProgramStateStore(context: Context) {
             movementIndex = prefs.getInt(KEY_WORKOUT_MOVEMENT, 0).coerceAtLeast(0),
             effortIndex = prefs.getInt(KEY_WORKOUT_EFFORT, 1).coerceAtLeast(1),
             complete = prefs.getBoolean(KEY_WORKOUT_COMPLETE, false),
+            selectedSubstitutions = decodeSubstitutions(
+                prefs.getStringSet(KEY_WORKOUT_SUBSTITUTIONS, emptySet()).orEmpty(),
+            ),
+            restTimerEndEpochMillis = prefs.getLong(KEY_WORKOUT_REST_TIMER_END, 0L).takeIf { it > 0L },
             undoMovementIndex = if (hasUndo) prefs.getInt(KEY_WORKOUT_UNDO_MOVEMENT, 0).coerceAtLeast(0) else null,
             undoEffortIndex = if (hasUndo) prefs.getInt(KEY_WORKOUT_UNDO_EFFORT, 1).coerceAtLeast(1) else null,
             undoComplete = if (hasUndo) prefs.getBoolean(KEY_WORKOUT_UNDO_COMPLETE, false) else null,
+            undoRestTimerEndEpochMillis = if (hasUndo) {
+                prefs.getLong(KEY_WORKOUT_UNDO_REST_TIMER_END, 0L).takeIf { it > 0L }
+            } else {
+                null
+            },
         )
     }
 
@@ -129,17 +164,24 @@ class ProgramStateStore(context: Context) {
             .putInt(KEY_WORKOUT_MOVEMENT, state.movementIndex)
             .putInt(KEY_WORKOUT_EFFORT, state.effortIndex)
             .putBoolean(KEY_WORKOUT_COMPLETE, state.complete)
+            .putStringSet(KEY_WORKOUT_SUBSTITUTIONS, encodeSubstitutions(state.selectedSubstitutions))
             .putBoolean(KEY_WORKOUT_HAS_UNDO, state.canUndo)
+        state.restTimerEndEpochMillis?.let { editor.putLong(KEY_WORKOUT_REST_TIMER_END, it) }
+            ?: editor.remove(KEY_WORKOUT_REST_TIMER_END)
         if (state.canUndo) {
             editor
                 .putInt(KEY_WORKOUT_UNDO_MOVEMENT, requireNotNull(state.undoMovementIndex))
                 .putInt(KEY_WORKOUT_UNDO_EFFORT, requireNotNull(state.undoEffortIndex))
                 .putBoolean(KEY_WORKOUT_UNDO_COMPLETE, requireNotNull(state.undoComplete))
+            state.undoRestTimerEndEpochMillis?.let {
+                editor.putLong(KEY_WORKOUT_UNDO_REST_TIMER_END, it)
+            } ?: editor.remove(KEY_WORKOUT_UNDO_REST_TIMER_END)
         } else {
             editor
                 .remove(KEY_WORKOUT_UNDO_MOVEMENT)
                 .remove(KEY_WORKOUT_UNDO_EFFORT)
                 .remove(KEY_WORKOUT_UNDO_COMPLETE)
+                .remove(KEY_WORKOUT_UNDO_REST_TIMER_END)
         }
         editor.apply()
     }
@@ -155,12 +197,27 @@ class ProgramStateStore(context: Context) {
             .remove(KEY_WORKOUT_MOVEMENT)
             .remove(KEY_WORKOUT_EFFORT)
             .remove(KEY_WORKOUT_COMPLETE)
+            .remove(KEY_WORKOUT_SUBSTITUTIONS)
+            .remove(KEY_WORKOUT_REST_TIMER_END)
             .remove(KEY_WORKOUT_HAS_UNDO)
             .remove(KEY_WORKOUT_UNDO_MOVEMENT)
             .remove(KEY_WORKOUT_UNDO_EFFORT)
             .remove(KEY_WORKOUT_UNDO_COMPLETE)
+            .remove(KEY_WORKOUT_UNDO_REST_TIMER_END)
             .apply()
     }
+
+    private fun encodeSubstitutions(substitutions: Map<String, String>): Set<String> =
+        substitutions.mapTo(linkedSetOf()) { (rowId, choice) ->
+            rowId + SUBSTITUTION_SEPARATOR + choice
+        }
+
+    private fun decodeSubstitutions(encoded: Set<String>): Map<String, String> =
+        encoded.mapNotNull { item ->
+            val separatorIndex = item.indexOf(SUBSTITUTION_SEPARATOR)
+            if (separatorIndex <= 0 || separatorIndex >= item.lastIndex) return@mapNotNull null
+            item.substring(0, separatorIndex) to item.substring(separatorIndex + SUBSTITUTION_SEPARATOR.length)
+        }.toMap()
 
     private inline fun <reified T : Enum<T>> enumOrDefault(raw: String?, fallback: T): T =
         enumValues<T>().firstOrNull { it.name == raw } ?: fallback
@@ -172,6 +229,8 @@ class ProgramStateStore(context: Context) {
         private const val KEY_SPEED = "manualSpeedVariant"
         private const val KEY_ENGINE = "manualEngineVariant"
         private const val KEY_DELOAD = "manualDeloadMode"
+        private const val KEY_REST_TIMER_SECONDS = "manualRestTimerSeconds"
+        private const val KEY_UTILITY_REST_TIMER_END = "utilityRestTimerEndEpochMillis"
 
         private const val KEY_WORKOUT_ACTIVE = "workoutActive"
         private const val KEY_WORKOUT_WEEK = "workoutWeek"
@@ -182,9 +241,13 @@ class ProgramStateStore(context: Context) {
         private const val KEY_WORKOUT_MOVEMENT = "workoutMovementIndex"
         private const val KEY_WORKOUT_EFFORT = "workoutEffortIndex"
         private const val KEY_WORKOUT_COMPLETE = "workoutComplete"
+        private const val KEY_WORKOUT_SUBSTITUTIONS = "workoutSubstitutions"
+        private const val KEY_WORKOUT_REST_TIMER_END = "workoutRestTimerEndEpochMillis"
         private const val KEY_WORKOUT_HAS_UNDO = "workoutHasUndo"
         private const val KEY_WORKOUT_UNDO_MOVEMENT = "workoutUndoMovementIndex"
         private const val KEY_WORKOUT_UNDO_EFFORT = "workoutUndoEffortIndex"
         private const val KEY_WORKOUT_UNDO_COMPLETE = "workoutUndoComplete"
+        private const val KEY_WORKOUT_UNDO_REST_TIMER_END = "workoutUndoRestTimerEndEpochMillis"
+        private const val SUBSTITUTION_SEPARATOR = "\u001F"
     }
 }
