@@ -13,7 +13,12 @@ data class SessionRow(
     val kind: SessionRowKind,
     val alternatives: List<String> = emptyList(),
     val note: String? = null,
-)
+    val effortCount: Int = 1,
+) {
+    init {
+        require(effortCount >= 1) { "effortCount must be at least 1." }
+    }
+}
 
 data class SessionReference(
     val week: Int,
@@ -82,6 +87,7 @@ object SessionResolver {
                 prescription = doseWithSets(slot.dose, sets),
                 kind = SessionRowKind.RESISTANCE,
                 alternatives = slot.alternatives.sortedBy { it.rank }.map { it.name },
+                effortCount = sets,
             )
         }
 

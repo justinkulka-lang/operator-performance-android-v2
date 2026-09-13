@@ -93,6 +93,40 @@ class ReferenceUiTest {
     }
 
     @Test
+    fun workoutModeAdvancesSetsSupportsUndoAndExposesWorkoutMap() {
+        composeRule.onNodeWithTag("today_screen").performScrollToNode(hasTestTag("start_resume_workout"))
+        composeRule.onNodeWithTag("start_resume_workout").performClick()
+
+        composeRule.onNodeWithTag("workout_mode").assertIsDisplayed()
+        composeRule.onNodeWithText("Back squat or front squat").assertIsDisplayed()
+        composeRule.onNodeWithText("SET 1 OF 4").assertIsDisplayed()
+        composeRule.onNodeWithTag("workout_primary").performClick()
+        composeRule.onNodeWithText("SET 2 OF 4").assertIsDisplayed()
+        composeRule.onNodeWithTag("workout_undo").performClick()
+        composeRule.onNodeWithText("SET 1 OF 4").assertIsDisplayed()
+
+        composeRule.onNodeWithTag("workout_map_button").performClick()
+        composeRule.onNodeWithTag("workout_map_dialog").assertIsDisplayed()
+        composeRule.onNodeWithText("CURRENT").assertExists()
+    }
+
+    @Test
+    fun workoutPointerRestoresAfterActivityRecreationWithoutPerformanceEntry() {
+        composeRule.onNodeWithTag("today_screen").performScrollToNode(hasTestTag("start_resume_workout"))
+        composeRule.onNodeWithTag("start_resume_workout").performClick()
+        composeRule.onNodeWithTag("workout_primary").performClick()
+        composeRule.onNodeWithText("SET 2 OF 4").assertIsDisplayed()
+        composeRule.onNodeWithTag("workout_return_today").performClick()
+
+        composeRule.activityRule.scenario.recreate()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("today_screen").performScrollToNode(hasTestTag("start_resume_workout"))
+        composeRule.onNodeWithText("RESUME WORKOUT").assertIsDisplayed()
+        composeRule.onNodeWithTag("start_resume_workout").performClick()
+        composeRule.onNodeWithText("SET 2 OF 4").assertIsDisplayed()
+    }
+
+    @Test
     fun authorizedReferenceStatePersistsWithoutPerformanceData() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val store = ProgramStateStore(context)
