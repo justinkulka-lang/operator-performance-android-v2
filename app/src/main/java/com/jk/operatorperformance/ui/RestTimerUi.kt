@@ -22,7 +22,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -36,15 +43,12 @@ internal fun RestTimerToolsCard(
     onConfiguredSecondsChanged: (Int?) -> Unit,
     onActiveEndChanged: (Long?) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        RestTimerCard(
-            configuredSeconds = configuredSeconds,
-            activeEndEpochMillis = activeEndEpochMillis,
-            onConfiguredSecondsChanged = onConfiguredSecondsChanged,
-            onActiveEndChanged = onActiveEndChanged,
-        )
-        AdditionalToolsCards()
-    }
+    RestTimerCard(
+        configuredSeconds = configuredSeconds,
+        activeEndEpochMillis = activeEndEpochMillis,
+        onConfiguredSecondsChanged = onConfiguredSecondsChanged,
+        onActiveEndChanged = onActiveEndChanged,
+    )
 }
 
 @Composable
@@ -134,23 +138,39 @@ internal fun WorkoutRestPanel(
 
 @Composable
 private fun RestCountdown(endEpochMillis: Long, testTag: String, onFinished: () -> Unit) {
-    var remaining by remember(endEpochMillis) { mutableIntStateOf(remainingSeconds(endEpochMillis, System.currentTimeMillis())) }
+    var remaining by remember(endEpochMillis) {
+        mutableIntStateOf(remainingSeconds(endEpochMillis, System.currentTimeMillis()))
+    }
+    val haptic = LocalHapticFeedback.current
+
     LaunchedEffect(endEpochMillis) {
         while (true) {
             val next = remainingSeconds(endEpochMillis, System.currentTimeMillis())
             remaining = next
             if (next <= 0) {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 onFinished()
                 break
             }
             delay(250L)
         }
     }
+
     Text(
         text = formatSeconds(remaining),
         style = MaterialTheme.typography.headlineSmall,
         fontWeight = FontWeight.Bold,
-        modifier = Modifier.testTag(testTag),
+        modifier = Modifier
+            .testTag(testTag)
+            .semantics {
+                contentDescription = "Rest timer countdown"
+                stateDescription = if (remaining > 0) {
+                    "Rest timer remaining ${formatSeconds(remaining)}"
+                } else {
+                    "Rest timer complete"
+                }
+                liveRegion = LiveRegionMode.Polite
+            },
     )
 }
 
