@@ -1,6 +1,7 @@
 package com.jk.operatorperformance.state
 
 import com.jk.operatorperformance.program.EngineVariant
+import com.jk.operatorperformance.program.MachineModality
 import com.jk.operatorperformance.program.SessionReference
 import com.jk.operatorperformance.program.SessionRow
 import com.jk.operatorperformance.program.SessionRowKind
@@ -31,7 +32,7 @@ class WorkoutProgressTest {
     )
 
     @Test
-    fun startCopiesOnlyAuthorizedReferenceState() {
+    fun startSnapshotsOnlyAuthorizedReferenceStateIncludingEquipmentInventory() {
         val progress = WorkoutProgress.start(
             ProgramUiState(
                 currentWeek = 2,
@@ -40,10 +41,14 @@ class WorkoutProgressTest {
                 engineVariant = EngineVariant.VO2,
                 deloadMode = true,
                 restTimerSeconds = 90,
+                machineInventoryConfigured = true,
+                availableMachineModalities = setOf(MachineModality.ROW_ERG),
             ),
         )
         assertEquals(2, progress.week)
         assertEquals(2, progress.day)
+        assertTrue(progress.machineInventoryConfigured)
+        assertEquals(setOf(MachineModality.ROW_ERG), progress.availableMachineModalities)
         assertEquals(0, progress.movementIndex)
         assertEquals(1, progress.effortIndex)
         assertFalse(progress.complete)
