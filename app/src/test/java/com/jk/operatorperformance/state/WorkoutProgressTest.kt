@@ -132,6 +132,56 @@ class WorkoutProgressTest {
     }
 
     @Test
+    fun optionalBlockDoesNotInflateRequiredProgressAndCanBeSkippedAtOnce() {
+        val speed = SessionReference(
+            week = 1,
+            day = 3,
+            title = "Speed",
+            rows = listOf(
+                SessionRow("main", "Acceleration", "1 rep", SessionRowKind.CONDITIONING, effortCount = 1),
+                SessionRow("optional", "Machine finisher", "6 efforts", SessionRowKind.CONDITIONING, effortCount = 6, restSeconds = 80, optional = true),
+                SessionRow("cooldown", "Cooldown", "5:00", SessionRowKind.CONDITIONING, effortCount = 1),
+            ),
+            deload = false,
+        )
+        assertEquals(2, WorkoutProgress.totalEfforts(speed))
+
+        var progress = ActiveWorkoutState(1, 3, false)
+        progress = WorkoutProgress.advance(progress, speed)
+        assertEquals(1, progress.movementIndex)
+        assertFalse(progress.complete)
+
+        progress = WorkoutProgress.skipOptional(progress, speed)
+        assertEquals(2, progress.movementIndex)
+        assertEquals(1, WorkoutProgress.completedEfforts(progress, speed))
+        assertTrue((1..6).all { WorkoutProgress.isEffortComplete(progress, "optional", it) })
+
+        progress = WorkoutProgress.advance(progress, speed)
+        assertTrue(progress.complete)
+        assertEquals(2, WorkoutProgress.completedEfforts(progress, speed))
+    }
+
+    @Test
+    fun optionalBlockCanStillBeCompletedEffortByEffort() {
+        val speed = SessionReference(
+            week = 1,
+            day = 3,
+            title = "Speed",
+            rows = listOf(
+                SessionRow("optional", "Machine finisher", "6 efforts", SessionRowKind.CONDITIONING, effortCount = 6, restSeconds = 80, optional = true),
+                SessionRow("cooldown", "Cooldown", "5:00", SessionRowKind.CONDITIONING, effortCount = 1),
+            ),
+            deload = false,
+        )
+        var progress = ActiveWorkoutState(1, 3, false)
+        progress = WorkoutProgress.advance(progress, speed, nowMillis = 1_000L)
+        assertTrue(WorkoutProgress.isEffortComplete(progress, "optional", 1))
+        assertFalse(WorkoutProgress.isEffortComplete(progress, "optional", 2))
+        assertEquals(0, progress.movementIndex)
+        assertEquals(2, progress.effortIndex)
+    }
+
+    @Test
     fun todayStyleToggleCanMarkAndUnmarkAnIndividualSet() {
         val start = ActiveWorkoutState(week = 2, day = 2, deloadMode = false)
         val checked = WorkoutProgress.toggleEffort(start, session, "a", 1, nowMillis = 10_000L)
