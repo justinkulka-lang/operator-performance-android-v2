@@ -2,36 +2,45 @@ package com.jk.operatorperformance.program
 
 object ProgramNotesV56 {
     val interference = listOf(
-        "Speed work is performed fresh; do not add heavy resistance work to the Speed session.",
-        "Day 2 is resistance only.",
-        "Day 1 pairs lower-body resistance only with the prescribed easy low-eccentric aerobic block.",
-        "Day 6 performs the prescribed Engine work before the short upper-body resistance work.",
-        "Do not add extra running, conditioning, sled work, loaded marching, or rucking to the fixed Week 1–8 schedule.",
+        "Speed or special-endurance work → lower-body resistance: 48 h reference separation.",
+        "Lower-body resistance → Speed: 12 h reference separation.",
+        "Lower-body resistance ↔ hard running: 24 h reference separation.",
+        "Hard running ↔ Speed: 24 h reference separation.",
+        "Any two hard sessions on the same day: 6 h floor.",
+        "Easy low-eccentric aerobic work has no additional separation restriction.",
+        "Day 2 is resistance only. Day 6 performs Engine work before the short-upper resistance sequence.",
     )
 
     val sprintVolume = listOf(
-        "The fixed Week 1–8 Speed schedule stays at or below 500 m qualifying sprint/special-endurance volume.",
-        "0–500 m qualifying sprint/special-endurance volume: allowed without a cap warning.",
-        ">500–600 m: allowed only with a clear warning.",
-        "600 m exactly: permitted with a warning.",
+        "0–500 m qualifying sprint/special-endurance volume: allowed.",
+        ">500–600 m: warning range.",
+        "600 m exactly: permitted with warning.",
         ">600 m: prohibited.",
         "Submaximal warm-up/build-up meters below quality-sprint intensity do not count toward the cap.",
+        "No canonical sled work and no rucking.",
+        "Optional 6 × 10 sec hard / 80 sec easy machine finisher is only for Acceleration/Max-Velocity type work and is omitted for baselines, Special Endurance, checkpoint/final tests, and deload.",
     )
 
     val runImpact = listOf(
+        "Before extending a continuous run, compare the proposed distance with the longest continuous run completed in the prior 30 days; proposed distance should not exceed 110% of that reference.",
+        "If a populated D1 easy run would exceed the reference, use the listed duration on the stationary bike instead.",
         "Stop a run or sprint if pain changes gait.",
         "Stop if Achilles or shin symptoms worsen during the session rather than warming up.",
         "Hold run/sprint progression if symptoms persist 48 hours later.",
-        "These are reference instructions only; the app does not ask you to score or log symptoms.",
-        "No diagnosis, treatment, or medical-clearance advice is provided.",
+        "The app does not collect the history required to calculate these rules automatically.",
     )
 
     val deload = listOf(
-        "Deload activation is manual and reference-driven.",
-        "Deload duration is 5–7 days when used.",
-        "Resistance work uses the canonical reduced-set overlay while preserving the approved muscle-accounting floors.",
-        "Speed deload: prescribed warm-up plus 4 × 20 m relaxed acceleration at approximately 80–85% with 2:00 recovery.",
-        "Engine deload: 20:00 easy treadmill or stationary cycle at RPE 3–4/10.",
+        "Deload activation is manual and reference-driven; duration remains 5–7 days when used.",
+        "Resistance work uses the canonical reduced-set overlay (117.5 fractional total).",
+        "During deload, stay short of failure, remove sprint/special-endurance work, and keep running easy.",
         "The app does not score recovery state, collect performance data, or automatically trigger a deload.",
+    )
+
+    val hypertrophyProtection = listOf(
+        "Productive resistance training is the structural foundation of ARES Performance.",
+        "Normal Weeks 1–31 retain the 148.0 fractional hypertrophy chassis and at least two meaningful resistance exposures per canonical muscle group.",
+        "Conditioning receives 0 hypertrophy credit.",
+        "Reduce avoidable conditioning fatigue before sacrificing productive hypertrophy work, except during the explicit Week 32 realization/taper.",
     )
 }
