@@ -8,6 +8,8 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeLeft
 import androidx.test.core.app.ApplicationProvider
 import com.jk.operatorperformance.state.ProgramStateStore
 import com.jk.operatorperformance.state.ProgramUiState
@@ -67,8 +69,16 @@ class ReferenceUiTest {
         composeRule.onNodeWithText("ZEUS — INTEGRATION / PEAK").assertExists()
         composeRule.onNodeWithTag("next_phase_status").assertExists()
         composeRule.onNodeWithText("NEXT PHASE • HERMES — DEVELOPMENT • POPULATED / APPROVED").assertExists()
-        composeRule.onNodeWithTag("program_screen").performScrollToNode(hasTestTag("program_week_32"))
-        composeRule.onNodeWithTag("program_week_32").performClick()
+
+        // The 32-week selector is intentionally horizontal. Drive that LazyRow directly
+        // rather than asking the outer vertical LazyColumn to compose an off-screen chip.
+        composeRule.onNodeWithTag("program_screen").performScrollToNode(hasTestTag("program_week_1"))
+        composeRule.onNodeWithTag("program_week_1").performTouchInput {
+            repeat(12) { swipeLeft() }
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("program_week_32").assertIsDisplayed().performClick()
+
         composeRule.onNodeWithText("ZEUS • INTEGRATION / PEAK").assertExists()
         composeRule.onNodeWithTag("program_screen").performScrollToNode(hasTestTag("program_day_32_3"))
         composeRule.onNodeWithTag("program_day_32_3").performClick()
