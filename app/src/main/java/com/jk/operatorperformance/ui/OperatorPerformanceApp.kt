@@ -365,7 +365,8 @@ private fun TodayWorkoutRowCard(
     onToggleAlternative: (String) -> Unit,
 ) {
     val selectedAlternative = progress?.selectedSubstitutions?.get(row.id)
-    val displayTitle = selectedAlternative ?: row.title
+    val displayTitle = displayTitle(row, selectedAlternative)
+    val displayPrescription = displayPrescription(row, selectedAlternative)
     val allComplete = progress != null && (1..row.effortCount).all { WorkoutProgress.isEffortComplete(progress, row.id, it) }
     val haptic = LocalHapticFeedback.current
     Card(
@@ -380,7 +381,30 @@ private fun TodayWorkoutRowCard(
                 if (allComplete) Text("✓", color = MaterialTheme.colorScheme.tertiary, fontWeight = FontWeight.Bold)
             }
             if (selectedAlternative != null) Text("ALTERNATIVE FOR ${row.title}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-            Text(row.prescription, style = MaterialTheme.typography.bodyLarge)
+            if (row.kind == SessionRowKind.CONDITIONING) {
+                Text(
+                    "${row.effortCount} ${if (row.effortCount == 1) row.effortLabel else row.effortLabel + "S"}",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    displayPrescription,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.testTag("conditioning_work_${row.id}"),
+                )
+                row.restSeconds?.let {
+                    Text(
+                        "RECOVERY ${formatRest(it)}",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.testTag("conditioning_rest_${row.id}"),
+                    )
+                }
+            } else {
+                Text(displayPrescription, style = MaterialTheme.typography.bodyLarge)
+            }
             if (row.optional) Text("OPTIONAL", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
             if (row.kind != SessionRowKind.REST) {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -400,7 +424,7 @@ private fun TodayWorkoutRowCard(
             }
             row.alternatives.singleOrNull()?.let { alternative ->
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Alternative • $alternative", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                    Text("Alternative • ${alternativeLabel(alternative)}", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
                     TextButton(
                         onClick = { onToggleAlternative(alternative) },
                         modifier = Modifier.heightIn(min = 48.dp).testTag("today_alt_${row.id}"),
@@ -428,7 +452,8 @@ private fun WorkoutModeScreen(
     val normalized = WorkoutProgress.normalize(progress, session)
     val currentRow = session.rows[normalized.movementIndex]
     val selectedSubstitution = normalized.selectedSubstitutions[currentRow.id]
-    val visibleMovement = selectedSubstitution ?: currentRow.title
+    val visibleMovement = displayTitle(currentRow, selectedSubstitution)
+    val visiblePrescription = displayPrescription(currentRow, selectedSubstitution)
     val resting = normalized.restTimerEndEpochMillis != null
     val completed = WorkoutProgress.completedEfforts(normalized, session)
     val total = WorkoutProgress.totalEfforts(session)
@@ -475,7 +500,7 @@ private fun WorkoutModeScreen(
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.testTag("workout_effort"),
                         )
-                        Text(currentRow.prescription, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.testTag("workout_prescription"))
+                        Text(visiblePrescription, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.testTag("workout_prescription"))
                         if (currentRow.optional) Text("OPTIONAL", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                         currentRow.note?.let { note ->
                             Text(note, style = MaterialTheme.typography.bodySmall, maxLines = if (noteExpanded) Int.MAX_VALUE else 3, overflow = TextOverflow.Ellipsis)
@@ -522,7 +547,7 @@ private fun WorkoutModeScreen(
                     }
                     if (currentRow.optional) {
                         TextButton(
-                            onClick = { onProgress(WorkoutProgress.advance(normalized, session)) },
+                            onClick = { onProgress(WorkoutProgress.skipOptional(normalized, session)) },
                             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("skip_optional"),
                         ) { Text("SKIP OPTIONAL") }
                     }
@@ -570,7 +595,7 @@ private fun WorkoutModeScreen(
                                 showSubstitution = false
                             },
                             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("substitution_0"),
-                        ) { Text("ALTERNATIVE • $it") }
+                        ) { Text("ALTERNATIVE • ${alternativeLabel(it)}") }
                     }
                 }
             },
@@ -784,9 +809,14 @@ private fun WorkoutRowCard(row: SessionRow) {
     ) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(row.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text(row.prescription, style = MaterialTheme.typography.bodyLarge)
+            if (row.kind == SessionRowKind.CONDITIONING) {
+                Text(row.prescription, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                row.restSeconds?.let { Text("RECOVERY ${formatRest(it)}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) }
+            } else {
+                Text(row.prescription, style = MaterialTheme.typography.bodyLarge)
+            }
             if (row.optional) Text("OPTIONAL", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
-            row.alternatives.singleOrNull()?.let { Text("Alternative • $it", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            row.alternatives.singleOrNull()?.let { Text("Alternative • ${alternativeLabel(it)}", color = MaterialTheme.colorScheme.onSurfaceVariant) }
             if (hasDetails) Text(if (expanded) "Hide details" else "Details", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
             if (expanded) row.note?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
         }
@@ -864,6 +894,21 @@ private fun DayReferenceDialog(
         }
     }
 }
+
+private fun displayTitle(row: SessionRow, selectedAlternative: String?): String {
+    if (selectedAlternative == null) return row.title
+    return if (row.kind == SessionRowKind.CONDITIONING) alternativeLabel(selectedAlternative) else selectedAlternative
+}
+
+private fun displayPrescription(row: SessionRow, selectedAlternative: String?): String {
+    if (row.kind != SessionRowKind.CONDITIONING || selectedAlternative == null) return row.prescription
+    val marker = " — "
+    return if (marker in selectedAlternative) selectedAlternative.substringAfter(marker) else row.prescription
+}
+
+private fun alternativeLabel(alternative: String): String = alternative.substringBefore(" — ")
+
+private fun formatRest(seconds: Int): String = "%d:%02d".format(seconds / 60, seconds % 60)
 
 private fun resolveSession(week: Int, day: Int, state: ProgramUiState): SessionReference =
     SessionResolver.resolve(
