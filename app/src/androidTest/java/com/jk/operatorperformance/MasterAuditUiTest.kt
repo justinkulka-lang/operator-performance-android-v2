@@ -3,11 +3,11 @@ package com.jk.operatorperformance
 import android.content.Context
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.platform.app.InstrumentationRegistry
@@ -39,14 +39,17 @@ class MasterAuditUiTest {
 
     @Test
     fun conditioningAlternativeUsesAlternativePrescriptionAndDistinctHierarchy() {
+        val alternativePrescription =
+            "25:00 continuous at RPE 3–4/10 with full-sentence speech. Use a smooth sustainable cadence; fan resistance self-scales. No intervals, no sprint finish, no added running."
         composeRule.onNodeWithTag("today_screen")
             .performScrollToNode(hasTestTag("conditioning_work_d1_easy_aerobic"))
         composeRule.onNodeWithTag("conditioning_work_d1_easy_aerobic").assertIsDisplayed()
         composeRule.onNodeWithTag("today_alt_d1_easy_aerobic").performClick()
-        composeRule.onNodeWithText("Air/fan bike").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText(
-            "25:00 continuous at RPE 3–4/10 with full-sentence speech. Use a smooth sustainable cadence; fan resistance self-scales. No intervals, no sprint finish, no added running.",
-        ).performScrollTo().assertIsDisplayed()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("today_screen").performScrollToNode(hasText("Air/fan bike"))
+        composeRule.onNodeWithText("Air/fan bike").assertIsDisplayed()
+        composeRule.onNodeWithTag("today_screen").performScrollToNode(hasText(alternativePrescription))
+        composeRule.onNodeWithText(alternativePrescription).assertIsDisplayed()
     }
 
     @Test
