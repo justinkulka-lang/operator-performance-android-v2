@@ -1,18 +1,14 @@
 package com.jk.operatorperformance.state
 
-import com.jk.operatorperformance.program.EngineVariant
-import com.jk.operatorperformance.program.SpeedVariant
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class ProgramUiStateTest {
     @Test
-    fun freshStateIsWeekOneDayOneWithAuthorizedReferenceDefaults() {
+    fun freshStateIsWeekOneDayOneWithoutManualConditioningSelectors() {
         val state = ProgramUiState()
         assertEquals(1, state.currentWeek)
         assertEquals(1, state.currentDay)
-        assertEquals(SpeedVariant.ACCELERATION, state.speedVariant)
-        assertEquals(EngineVariant.THRESHOLD, state.engineVariant)
     }
 
     @Test
