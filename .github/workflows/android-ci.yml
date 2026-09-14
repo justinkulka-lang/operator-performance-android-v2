@@ -88,7 +88,7 @@ jobs:
           test -f app/build/reports/program-weeks-1-32.csv
           test -f app/build/reports/program-conditioning-weeks-1-8.csv
           grep -q 'Quads,13.0,2,10.0,2' app/build/reports/program-matrix.csv
-          grep -q 'd1_squat,"Back squat","4 × 5–8 @ 2–3 RIR",4,4,180' app/build/reports/program-resistance-rows.csv
+          grep -Fq '1,"d1_squat","Back squat","4 × 5–8 @ 2–3 RIR",4,4,180' app/build/reports/program-resistance-rows.csv
           grep -q 'w1_accel' app/build/reports/program-conditioning-weeks-1-8.csv
           grep -q 'w8_engine' app/build/reports/program-conditioning-weeks-1-8.csv
           grep -q '^1,Block 1,POPULATED,"13 / 11.5 / 11.5 / 12 / 12 / 11 / 15 / 11.5 / 12 / 10 / 9 / 9.5 / 10",148.0,1.667$' app/build/reports/program-weeks-1-32.csv
