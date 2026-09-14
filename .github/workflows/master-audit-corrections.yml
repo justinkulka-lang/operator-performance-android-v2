@@ -1,4 +1,4 @@
-name: Operator Performance v5.4 Master Audit Corrections
+name: Operator Performance v5.6 Master Audit
 
 on:
   workflow_dispatch:
@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 jobs:
-  master-audit-corrections:
+  master-audit:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -64,14 +64,36 @@ jobs:
             grep -q "<exclude domain=\"$domain\" path=\"\.\"" app/src/main/res/xml/backup_rules.xml
           done
 
-      - name: Build current debug and unsigned release APKs
+      - name: Prepare persistent release signing when secrets are configured
+        shell: bash
+        env:
+          KEYSTORE_B64: ${{ secrets.OPERATOR_RELEASE_KEYSTORE_B64 }}
+          STORE_PASSWORD: ${{ secrets.OPERATOR_RELEASE_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.OPERATOR_RELEASE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.OPERATOR_RELEASE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$KEYSTORE_B64" && -n "$STORE_PASSWORD" && -n "$KEY_ALIAS" && -n "$KEY_PASSWORD" ]]; then
+            keystore="$RUNNER_TEMP/operator-release.jks"
+            printf '%s' "$KEYSTORE_B64" | base64 --decode > "$keystore"
+            chmod 600 "$keystore"
+            echo "OPERATOR_RELEASE_KEYSTORE_PATH=$keystore" >> "$GITHUB_ENV"
+            echo "OPERATOR_RELEASE_STORE_PASSWORD=$STORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "OPERATOR_RELEASE_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
+            echo "OPERATOR_RELEASE_KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
+            echo "RELEASE_SIGNING_CONFIGURED=true" >> "$GITHUB_ENV"
+          else
+            echo "RELEASE_SIGNING_CONFIGURED=false" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build current debug and release APKs
         run: gradle :app:assembleDebug :app:assembleRelease --stacktrace
 
       - name: Full internal source and APK boundary scan
         shell: bash
         run: |
           set -euo pipefail
-          source_pattern='ESTABLISH CURRENT CAPABILITY|Recent runs per week|Easy continuous run capacity|Next-day lower-leg soreness|Pain currently changes my gait|PROGRAM TRACKING|PERFORMANCE PROFILE|HEALTH CONNECT|READINESS|SESSION RESULT|EASY / GOOD / HARD / FAILED|POSITION [1-7]|bodyweight|progress-photo|benchmark result entry|RECOVERY MODE|HISTORY destination|sled push|sled pull|Speed \\+ sled|ProgramTrackingStore|ReadinessStore|BenchmarkStore|StrengthLog|RunStopwatchStore|ConditioningExecutionStore|ActiveSetProgressStore|actualLoad|actualReps|actualRir|performed load|performed reps|performed RIR|session score|workout rating|automatic progression|block recomposition'
+          source_pattern='ESTABLISH CURRENT CAPABILITY|Recent runs per week|Easy continuous run capacity|Next-day lower-leg soreness|Pain currently changes my gait|PROGRAM TRACKING|PERFORMANCE PROFILE|HEALTH CONNECT|READINESS|SESSION RESULT|EASY / GOOD / HARD / FAILED|POSITION [1-7]|bodyweight|progress-photo|benchmark result entry|RECOVERY MODE|HISTORY destination|sled push|sled pull|Speed \\+ sled|ProgramTrackingStore|ReadinessStore|BenchmarkStore|StrengthLog|RunStopwatchStore|ConditioningExecutionStore|ActiveSetProgressStore|actualLoad|actualReps|actualRir|performed load|performed reps|performed RIR|session score|workout rating|automatic progression|block recomposition|300 m baseline|1.5-mile baseline|SPEED REFERENCE|ENGINE REFERENCE|OperatorProgramV54|SpeedVariant|EngineVariant'
           if grep -RniE "$source_pattern" app/src/main/java app/src/main/res; then
             echo "Stale/prohibited runtime architecture reference found in production source" >&2
             exit 1
@@ -91,14 +113,27 @@ jobs:
             fi
           done
 
-      - name: True process-death focus and timer restoration acceptance
+      - name: Verify release signing state
+        shell: bash
+        run: |
+          set -euo pipefail
+          apksigner="$ANDROID_HOME/build-tools/37.0.0/apksigner"
+          if [[ "$RELEASE_SIGNING_CONFIGURED" == "true" ]]; then
+            test -f app/build/outputs/apk/release/app-release.apk
+            "$apksigner" verify --verbose --print-certs app/build/outputs/apk/release/app-release.apk
+          else
+            test -f app/build/outputs/apk/release/app-release-unsigned.apk
+            echo "LIMITATION: persistent release signing secrets are not configured."
+          fi
+
+      - name: True process-death focus completion and timer restoration acceptance
         run: bash .github/scripts/process-death-acceptance.sh
 
-      - name: Upload master-audit correction evidence
+      - name: Upload v5.6 master-audit evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: Operator-Performance-Master-Audit-Corrections
+          name: Operator-Performance-v5.6-Master-Audit
           path: |
             app/build/outputs/apk/debug/*.apk
             app/build/outputs/apk/release/*.apk
