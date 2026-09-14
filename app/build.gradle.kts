@@ -16,6 +16,32 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    val releaseKeystorePath = System.getenv("OPERATOR_RELEASE_KEYSTORE_PATH")
+    val releaseStorePassword = System.getenv("OPERATOR_RELEASE_STORE_PASSWORD")
+    val releaseKeyAlias = System.getenv("OPERATOR_RELEASE_KEY_ALIAS")
+    val releaseKeyPassword = System.getenv("OPERATOR_RELEASE_KEY_PASSWORD")
+    val persistentReleaseSigningAvailable = listOf(
+        releaseKeystorePath,
+        releaseStorePassword,
+        releaseKeyAlias,
+        releaseKeyPassword,
+    ).all { !it.isNullOrBlank() }
+
+    signingConfigs {
+        if (persistentReleaseSigningAvailable) {
+            create("persistentRelease") {
+                storeFile = file(requireNotNull(releaseKeystorePath))
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
+                enableV4Signing = true
+            }
+        }
+    }
+
     buildTypes {
         getByName("release") {
             isMinifyEnabled = false
@@ -23,6 +49,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            if (persistentReleaseSigningAvailable) {
+                signingConfig = signingConfigs.getByName("persistentRelease")
+            }
         }
     }
 
