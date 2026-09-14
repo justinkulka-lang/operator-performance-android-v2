@@ -6,7 +6,6 @@ import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.core.app.ApplicationProvider
 import com.jk.operatorperformance.state.ProgramStateStore
@@ -75,10 +74,11 @@ class MasterAuditUiTest {
     @Test
     fun toolsExposeAllFourFinisherEquipmentOptions() {
         composeRule.onNodeWithTag("nav_TOOLS").performClick()
-        composeRule.onNodeWithTag("machine_inventory_tool").assertExists()
-        composeRule.onNodeWithTag("machine_AIR_FAN_BIKE").assertExists()
-        composeRule.onNodeWithTag("machine_STATIONARY_CYCLE").assertExists()
-        composeRule.onNodeWithTag("machine_ROW_ERG").assertExists()
-        composeRule.onNodeWithTag("machine_SKI_ERG").assertExists()
+        composeRule.onNodeWithTag("tools_screen").performScrollToNode(hasTestTag("machine_inventory_tool"))
+        composeRule.onNodeWithTag("machine_inventory_tool").assertIsDisplayed()
+        listOf("AIR_FAN_BIKE", "STATIONARY_CYCLE", "ROW_ERG", "SKI_ERG").forEach { modality ->
+            composeRule.onNodeWithTag("tools_screen").performScrollToNode(hasTestTag("machine_$modality"))
+            composeRule.onNodeWithTag("machine_$modality").assertExists()
+        }
     }
 }
