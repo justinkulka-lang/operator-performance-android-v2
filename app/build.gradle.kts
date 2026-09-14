@@ -11,8 +11,8 @@ android {
         applicationId = "com.jk.operatorperformance"
         minSdk = 28
         targetSdk = 36
-        versionCode = 44
-        versionName = "0.35.0"
+        versionCode = 45
+        versionName = "0.36.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -57,6 +57,7 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.ui:ui-tooling-preview")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
