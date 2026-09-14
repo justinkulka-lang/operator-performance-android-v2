@@ -70,11 +70,11 @@ class ReferenceUiTest {
         composeRule.onNodeWithTag("next_phase_status").assertExists()
         composeRule.onNodeWithText("NEXT PHASE • HERMES — DEVELOPMENT • POPULATED / APPROVED").assertExists()
 
-        // The 32-week selector is intentionally horizontal. Drive that LazyRow directly
-        // rather than asking the outer vertical LazyColumn to compose an off-screen chip.
+        // The 32-week selector is a horizontal LazyRow. A default swipeLeft on the W1
+        // chip traverses roughly one chip width, so drive it fully to the clamped end.
         composeRule.onNodeWithTag("program_screen").performScrollToNode(hasTestTag("program_week_1"))
         composeRule.onNodeWithTag("program_week_1").performTouchInput {
-            repeat(12) { swipeLeft() }
+            repeat(40) { swipeLeft() }
         }
         composeRule.waitForIdle()
         composeRule.onNodeWithTag("program_week_32").assertIsDisplayed().performClick()
