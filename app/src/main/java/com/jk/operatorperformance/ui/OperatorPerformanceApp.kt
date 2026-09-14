@@ -45,7 +45,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.jk.operatorperformance.program.EngineVariant
@@ -360,7 +367,7 @@ private fun WorkoutRowCard(
             }
             row.note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             if (row.alternatives.isNotEmpty()) {
-                TextButton(onClick = { showAlternatives = !showAlternatives }, modifier = Modifier.testTag("alternatives_${row.id}")) {
+                TextButton(onClick = { showAlternatives = !showAlternatives }, modifier = Modifier.heightIn(min = 48.dp).testTag("alternatives_${row.id}")) {
                     Text(if (showAlternatives) "HIDE ALTERNATIVES" else "ALTERNATIVES")
                 }
                 if (showAlternatives) row.alternatives.forEachIndexed { index, alternative ->
@@ -394,11 +401,17 @@ private fun WorkoutModeScreen(
     val normalized = WorkoutProgress.normalize(progress, session)
     val row = session.rows[normalized.movementIndex]
     val selected = normalized.selectedSubstitutions[row.id]
+    val haptic = LocalHapticFeedback.current
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(normalized.restTimerEndEpochMillis) {
-        while (normalized.restTimerEndEpochMillis != null && normalized.restTimerEndEpochMillis > System.currentTimeMillis()) {
+        val end = normalized.restTimerEndEpochMillis
+        while (end != null && end > System.currentTimeMillis()) {
             delay(1_000)
             now = System.currentTimeMillis()
+        }
+        if (end != null && end <= System.currentTimeMillis()) {
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            onProgress(WorkoutProgress.clearExpiredRest(normalized, System.currentTimeMillis()))
         }
     }
 
@@ -410,15 +423,29 @@ private fun WorkoutModeScreen(
         item {
             BrandHeader()
             Text("${session.phase.godName} • ${session.phase.name}", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-            Text("WEEK ${session.week} • DAY ${session.day} • ${session.title}", style = MaterialTheme.typography.labelLarge)
+            Text(
+                "WEEK ${session.week} • DAY ${session.day} • ${session.title}",
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.testTag("workout_context"),
+            )
             Text("MOVEMENT ${normalized.movementIndex + 1} / ${session.rows.size}", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         item {
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(selected ?: row.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                    Text("${row.effortLabel} ${normalized.effortIndex} / ${row.effortCount}", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                    Text(row.prescription, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        selected ?: row.title,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.testTag("workout_movement"),
+                    )
+                    Text(
+                        "${row.effortLabel} ${normalized.effortIndex} / ${row.effortCount}",
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.testTag("workout_effort"),
+                    )
+                    Text(row.prescription, style = MaterialTheme.typography.titleMedium, modifier = Modifier.testTag("workout_prescription"))
                     row.note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     row.alternatives.forEachIndexed { index, alternative ->
                         FilterChip(
@@ -437,12 +464,32 @@ private fun WorkoutModeScreen(
         if (normalized.restTimerEndEpochMillis != null) {
             item {
                 val seconds = WorkoutProgress.remainingRestSeconds(normalized, now)
-                Card(Modifier.fillMaxWidth()) {
+                Card(
+                    Modifier
+                        .fillMaxWidth()
+                        .testTag("workout_rest")
+                        .semantics {
+                            contentDescription = "Workout rest timer"
+                            stateDescription = "Rest timer remaining ${formatRest(seconds)}"
+                            liveRegion = LiveRegionMode.Polite
+                        },
+                ) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("REST • ${formatRest(seconds)}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                        Text(
+                            "REST • ${formatRest(seconds)}",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.testTag("workout_rest_countdown"),
+                        )
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            TextButton(onClick = { onProgress(WorkoutProgress.skipRest(normalized)) }) { Text("SKIP REST") }
-                            TextButton(onClick = { onProgress(WorkoutProgress.addRestSeconds(normalized, 30)) }) { Text("+30 SEC") }
+                            TextButton(
+                                onClick = { onProgress(WorkoutProgress.skipRest(normalized)) },
+                                modifier = Modifier.heightIn(min = 48.dp).testTag("workout_rest_skip"),
+                            ) { Text("SKIP REST") }
+                            TextButton(
+                                onClick = { onProgress(WorkoutProgress.addRestSeconds(normalized, 30)) },
+                                modifier = Modifier.heightIn(min = 48.dp).testTag("workout_rest_add_30"),
+                            ) { Text("+30 SEC") }
                         }
                     }
                 }
@@ -464,7 +511,10 @@ private fun WorkoutModeScreen(
                 }
             }
             if (normalized.canUndo) {
-                TextButton(onClick = { onProgress(WorkoutProgress.undo(normalized)) }, modifier = Modifier.fillMaxWidth().testTag("undo_workout")) { Text("UNDO") }
+                TextButton(
+                    onClick = { onProgress(WorkoutProgress.undo(normalized)) },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("undo_workout"),
+                ) { Text("UNDO") }
             }
             TextButton(onClick = onReturnToToday, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("return_today")) { Text("RETURN TO TODAY") }
         }
@@ -523,6 +573,7 @@ private fun ProgramScreen(
     val selectedPhase = OperatorProgramV56.blockForWeek(selectedWeek)
     val selectedSplit = splitForWeek(selectedWeek, state)
     val nextWeek = (state.currentWeek + 1).takeIf { it <= 32 }
+    val nextPhase = OperatorProgramV56.blocks.firstOrNull { it.startWeek > currentPhase.endWeek }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().testTag("program_screen"),
@@ -533,6 +584,13 @@ private fun ProgramScreen(
             BrandHeader()
             Text("32-WEEK ARES PROGRAM", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text("CURRENT • ${currentPhase.godName} — ${currentPhase.name} • Weeks ${currentPhase.startWeek}–${currentPhase.endWeek}", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, modifier = Modifier.testTag("current_phase"))
+            Text(
+                nextPhase?.let { "NEXT PHASE • ${it.godName} — ${it.name} • POPULATED / APPROVED" }
+                    ?: "NEXT PHASE • PROGRAM COMPLETE AT WEEK 32 • NO WEEK 33+ AUTHORIZED",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.testTag("next_phase_status"),
+            )
         }
         item {
             Text("PHASES", fontWeight = FontWeight.Bold)
@@ -540,7 +598,7 @@ private fun ProgramScreen(
                 Card(Modifier.fillMaxWidth().padding(top = 6.dp)) {
                     Column(Modifier.padding(14.dp)) {
                         Text("${phase.godName} — ${phase.name}", fontWeight = FontWeight.Bold)
-                        Text("Weeks ${phase.startWeek}–${phase.endWeek}", color = MaterialTheme.colorScheme.primary)
+                        Text("Weeks ${phase.startWeek}–${phase.endWeek} • POPULATED / APPROVED", color = MaterialTheme.colorScheme.primary)
                         Text(phase.purpose, style = MaterialTheme.typography.bodySmall)
                     }
                 }
@@ -583,11 +641,17 @@ private fun ProgramScreen(
 
 @Composable
 private fun ToolsScreen(state: ProgramUiState, onStateChanged: (ProgramUiState) -> Unit) {
+    val haptic = LocalHapticFeedback.current
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(state.utilityRestTimerEndEpochMillis) {
-        while (state.utilityRestTimerEndEpochMillis != null && state.utilityRestTimerEndEpochMillis > System.currentTimeMillis()) {
+        val end = state.utilityRestTimerEndEpochMillis
+        while (end != null && end > System.currentTimeMillis()) {
             delay(1_000)
             now = System.currentTimeMillis()
+        }
+        if (end != null && end <= System.currentTimeMillis()) {
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            onStateChanged(state.copy(utilityRestTimerEndEpochMillis = null))
         }
     }
     val timerRemaining = state.utilityRestTimerEndEpochMillis?.let { ((it - now).coerceAtLeast(0L) / 1_000L).toInt() } ?: 0
@@ -646,12 +710,27 @@ private fun ToolsScreen(state: ProgramUiState, onStateChanged: (ProgramUiState) 
                                 selected = state.restTimerSeconds == seconds,
                                 onClick = { onStateChanged(state.copy(restTimerSeconds = seconds)) },
                                 label = { Text(formatRest(seconds)) },
+                                modifier = Modifier.heightIn(min = 48.dp),
                             )
                         }
                     }
                     if (state.utilityRestTimerEndEpochMillis != null && timerRemaining > 0) {
-                        Text("RUNNING • ${formatRest(timerRemaining)}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        TextButton(onClick = { onStateChanged(state.copy(utilityRestTimerEndEpochMillis = null)) }) { Text("STOP TIMER") }
+                        Text(
+                            "RUNNING • ${formatRest(timerRemaining)}",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier
+                                .testTag("utility_rest_countdown")
+                                .semantics {
+                                    contentDescription = "Rest timer countdown"
+                                    stateDescription = "Rest timer remaining ${formatRest(timerRemaining)}"
+                                    liveRegion = LiveRegionMode.Polite
+                                },
+                        )
+                        TextButton(
+                            onClick = { onStateChanged(state.copy(utilityRestTimerEndEpochMillis = null)) },
+                            modifier = Modifier.heightIn(min = 48.dp).testTag("rest_timer_cancel"),
+                        ) { Text("STOP TIMER") }
                     } else {
                         Button(
                             enabled = state.restTimerSeconds != null,
@@ -659,7 +738,7 @@ private fun ToolsScreen(state: ProgramUiState, onStateChanged: (ProgramUiState) 
                                 val seconds = state.restTimerSeconds ?: return@Button
                                 onStateChanged(state.copy(utilityRestTimerEndEpochMillis = System.currentTimeMillis() + seconds * 1_000L))
                             },
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("rest_timer_start"),
                         ) { Text("START TIMER") }
                     }
                 }
@@ -692,15 +771,16 @@ private fun DayReferenceDialog(
                 items(session.rows, key = { it.id }) { row ->
                     Text(row.title, fontWeight = FontWeight.Bold)
                     Text(row.prescription)
+                    row.note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     row.alternatives.forEachIndexed { index, alt -> Text("ALT ${index + 1} • $alt", style = MaterialTheme.typography.bodySmall) }
                 }
             }
         },
         confirmButton = {
-            if (allowSetCurrent) TextButton(onClick = onRequestSetCurrent, modifier = Modifier.testTag("set_current_day")) { Text("SET CURRENT") }
-            else TextButton(onClick = onDismiss) { Text("CLOSE") }
+            if (allowSetCurrent) TextButton(onClick = onRequestSetCurrent, modifier = Modifier.heightIn(min = 48.dp).testTag("set_current_day")) { Text("SET CURRENT") }
+            else TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = 48.dp)) { Text("CLOSE") }
         },
-        dismissButton = if (allowSetCurrent) ({ TextButton(onClick = onDismiss) { Text("CLOSE") } }) else null,
+        dismissButton = if (allowSetCurrent) ({ TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = 48.dp)) { Text("CLOSE") } }) else null,
     )
 }
 
