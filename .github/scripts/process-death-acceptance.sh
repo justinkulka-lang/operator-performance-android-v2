@@ -4,8 +4,8 @@ set -euo pipefail
 package="com.jk.operatorperformance"
 activity="$package/.MainActivity"
 apk="app/build/outputs/apk/debug/app-debug.apk"
-emulator_log="$RUNNER_TEMP/operator-v56-process-death-emulator.log"
-avd_dir="$HOME/.android/avd/operator-v56-process-death-api35.avd"
+emulator_log="$RUNNER_TEMP/ares-v57-process-death-emulator.log"
+avd_dir="$HOME/.android/avd/ares-v57-process-death-api35.avd"
 
 cleanup() {
   if [[ -n "${emulator_pid:-}" ]]; then
@@ -18,12 +18,12 @@ test -e /dev/kvm
 sudo chmod 666 /dev/kvm
 echo no | avdmanager create avd \
   --force \
-  --name operator-v56-process-death-api35 \
+  --name ares-v57-process-death-api35 \
   --package "system-images;android-35;default;x86_64" \
   --device "pixel_2"
 printf '\ndisk.dataPartition.size=2048M\n' >> "$avd_dir/config.ini"
 "$ANDROID_HOME/emulator/emulator" \
-  -avd operator-v56-process-death-api35 \
+  -avd ares-v57-process-death-api35 \
   -partition-size 2048 \
   -no-window -no-audio -no-boot-anim -no-snapshot-save \
   -gpu swiftshader_indirect -accel on > "$emulator_log" 2>&1 &
@@ -50,12 +50,16 @@ cat > "$state_file" <<EOF
     <int name="currentDay" value="1" />
     <boolean name="manualDeloadMode" value="false" />
     <boolean name="machineInventoryConfigured" value="false" />
+    <string name="aresSpeedVariant">ACCELERATION</string>
+    <string name="aresEngineVariant">THRESHOLD</string>
     <boolean name="workoutActive" value="true" />
-    <int name="workoutSchemaVersion" value="2" />
+    <int name="workoutSchemaVersion" value="3" />
     <int name="workoutWeek" value="1" />
     <int name="workoutDay" value="1" />
     <boolean name="workoutDeloadMode" value="false" />
     <boolean name="workoutMachineInventoryConfigured" value="false" />
+    <string name="workoutAresSpeedVariant">ACCELERATION</string>
+    <string name="workoutAresEngineVariant">THRESHOLD</string>
     <int name="workoutMovementIndex" value="0" />
     <int name="workoutEffortIndex" value="2" />
     <boolean name="workoutComplete" value="false" />
@@ -115,20 +119,6 @@ dump_ui() {
   return 1
 }
 
-echo "Launching seeded v5.6 focus state"
-adb shell am start -W -n "$activity" >/dev/null
-wait_for_activity
-sleep 1
-
-echo "Killing application process"
-adb shell am force-stop "$package"
-test -z "$(adb shell pidof "$package" 2>/dev/null | tr -d '\r')"
-
-echo "Relaunching after true process death"
-adb shell am start -W -n "$activity" >/dev/null
-wait_for_activity
-sleep 1
-
 find_text_and_tap() {
   local wanted="$1"
   local dump="$RUNNER_TEMP/window.xml"
@@ -156,6 +146,20 @@ PY
   adb shell input tap $coords
 }
 
+echo "Launching seeded ARES v5.7 focus state"
+adb shell am start -W -n "$activity" >/dev/null
+wait_for_activity
+sleep 1
+
+echo "Killing application process"
+adb shell am force-stop "$package"
+test -z "$(adb shell pidof "$package" 2>/dev/null | tr -d '\r')"
+
+echo "Relaunching after true process death"
+adb shell am start -W -n "$activity" >/dev/null
+wait_for_activity
+sleep 1
+
 find_text_and_tap "RESUME WORKOUT"
 sleep 1
 dump_ui "$RUNNER_TEMP/resumed.xml"
@@ -163,9 +167,10 @@ grep -q 'text="SET 2 OF 4"' "$RUNNER_TEMP/resumed.xml"
 grep -q 'text="REST"' "$RUNNER_TEMP/resumed.xml"
 
 restored_state="$(adb shell run-as "$package" cat "$remote_prefs" | tr -d '\r')"
+grep -q 'name="workoutSchemaVersion" value="3"' <<< "$restored_state"
 grep -q 'name="workoutMovementIndex" value="0"' <<< "$restored_state"
 grep -q 'name="workoutEffortIndex" value="2"' <<< "$restored_state"
 grep -q 'd1_squat#1' <<< "$restored_state"
 grep -q "name=\"workoutRestTimerEndEpochMillis\" value=\"$timer_end_ms\"" <<< "$restored_state"
 
-echo "True v5.6 process-death focus/completion/timer restoration passed."
+echo "True ARES v5.7 process-death focus/completion/timer restoration passed."
