@@ -65,14 +65,7 @@ object SessionResolver {
             else -> error("Unreachable day")
         }
 
-        return SessionReference(
-            week = week,
-            day = day,
-            title = title,
-            rows = rows,
-            deload = deload,
-            phase = OperatorProgramV56.blockForWeek(week),
-        )
+        return SessionReference(week, day, title, rows, deload, OperatorProgramV56.blockForWeek(week))
     }
 
     fun splitForWeek(
@@ -85,15 +78,7 @@ object SessionResolver {
     ): List<SessionReference> {
         require(week in 1..32) { "Only populated Weeks 1–32 may resolve." }
         return (1..7).map { day ->
-            resolve(
-                week = week,
-                day = day,
-                deload = deload,
-                machineInventoryConfigured = machineInventoryConfigured,
-                availableMachineModalities = availableMachineModalities,
-                speedVariant = speedVariant,
-                engineVariant = engineVariant,
-            )
+            resolve(week, day, deload, machineInventoryConfigured, availableMachineModalities, speedVariant, engineVariant)
         }
     }
 
@@ -105,19 +90,16 @@ object SessionResolver {
                 else -> slot.workingSets
             }
             if (sets == 0) return@mapNotNull null
-
             val taperNote = if (!deload && week == 32) {
                 OperatorProgramV56.week32RirFloor(day)?.let { floor -> "Week 32 realization: keep at least $floor RIR on every working set." }
             } else null
-            val note = listOfNotNull(slot.restGuidance, taperNote).joinToString(" ")
-
             SessionRow(
                 id = slot.id,
                 title = slot.movement,
                 prescription = doseWithSets(slot.dose, sets),
                 kind = SessionRowKind.RESISTANCE,
                 alternatives = slot.alternatives.sortedBy { it.rank }.map { it.name },
-                note = note,
+                note = listOfNotNull(slot.restGuidance, taperNote).joinToString(" "),
                 effortCount = sets,
                 effortLabel = "SET",
                 restSeconds = null,
@@ -154,7 +136,9 @@ object SessionResolver {
             ),
         )
         rows += plan.speed.map(::conditioningRow)
-        if (plan.allowsMachineFinisher) rows += machineFinisherRow(machineInventoryConfigured, availableMachineModalities)
+        if (plan.allowsMachineFinisher) {
+            machineFinisherRow(machineInventoryConfigured, availableMachineModalities)?.let(rows::add)
+        }
         rows += SessionRow(
             id = "d3_speed_cooldown",
             title = "Speed cooldown",
@@ -165,12 +149,10 @@ object SessionResolver {
         return rows
     }
 
-    private fun machineFinisherRow(
-        configured: Boolean,
-        available: Set<MachineModality>,
-    ): SessionRow {
+    private fun machineFinisherRow(configured: Boolean, available: Set<MachineModality>): SessionRow? {
         val finisher = OperatorProgramV56.machinePowerFinisher
         val selected = if (configured) finisher.hierarchy.firstOrNull { it in available } else null
+        if (configured && selected == null) return null
         val title = selected?.let { "Optional machine-power finisher — ${it.label}" } ?: "Optional machine-power finisher"
         val ranked = if (selected == null) finisher.hierarchy.map { it.label } else emptyList()
         val note = if (selected == null) {
@@ -206,17 +188,8 @@ object SessionResolver {
                 ),
             )
         }
-
         return buildList {
-            add(
-                SessionRow(
-                    id = "d6_engine_warmup",
-                    title = "Engine warm-up",
-                    prescription = OperatorProgramV56.engineWarmupPrescription,
-                    kind = SessionRowKind.CONDITIONING,
-                    effortLabel = "WARM-UP",
-                ),
-            )
+            add(SessionRow("d6_engine_warmup", "Engine warm-up", OperatorProgramV56.engineWarmupPrescription, SessionRowKind.CONDITIONING, effortLabel = "WARM-UP"))
             addAll(plan.engine.map(::conditioningRow))
             add(
                 SessionRow(
