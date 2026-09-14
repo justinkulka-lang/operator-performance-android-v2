@@ -32,6 +32,25 @@ object ProgramAudit {
         Muscle.CALVES to 2, Muscle.TRAPS to 3, Muscle.FOREARMS to 2, Muscle.ABS to 3,
     )
 
+    private val fractionalFloors = linkedMapOf(
+        Muscle.QUADS to 10.0, Muscle.GLUTES to 10.0, Muscle.HAMSTRINGS to 10.0,
+        Muscle.CHEST to 10.0, Muscle.LATS to 10.0, Muscle.UPPER_BACK to 10.0,
+        Muscle.DELTS to 10.0, Muscle.BICEPS to 9.0, Muscle.TRICEPS to 9.0,
+        Muscle.CALVES to 8.0,
+    )
+
+    private val directFloors = linkedMapOf(
+        Muscle.TRAPS to 6,
+        Muscle.FOREARMS to 4,
+        Muscle.ABS to 8,
+    )
+
+    private val week32SetOverrides = linkedMapOf(
+        "d1_squat" to 2, "d1_rdl" to 1, "d1_leg_press" to 1, "d1_leg_curl" to 1, "d1_calf" to 2, "d1_abs" to 1,
+        "d5_deadlift" to 2, "d5_hip" to 1, "d5_bss" to 1, "d5_extension" to 1, "d5_calf" to 2, "d5_abs" to 1, "d5_wrist" to 1,
+        "d6_incline" to 1, "d6_fly" to 1, "d6_pushdown" to 1, "d6_wrist" to 1, "d6_calf" to 1, "d6_abs" to 1,
+    )
+
     fun credits(deload: Boolean): Map<Muscle, Double> {
         val totals = Muscle.entries.associateWith { 0.0 }.toMutableMap()
         OperatorProgramV56.resistanceSlots.forEach { slot ->
@@ -90,6 +109,8 @@ object ProgramAudit {
         val deload = credits(true)
         val normalExposures = exposures(false)
         val deloadExposures = exposures(true)
+        val normalDirect = directSets(false)
+        val deloadDirect = directSets(true)
 
         if (OperatorProgramV56.AUTHORITY_VERSION != "5.7") errors += "Authority version must be 5.7."
         if (OperatorProgramV56.AUTHORITY_SHA256 != "867c468ba616a22185b871c649d8c026be5c1c61b3a7f690edac5b6169fc3d0a") {
@@ -106,6 +127,19 @@ object ProgramAudit {
         if (deload != expectedDeloadCredits) errors += "Deload fractional-credit vector mismatch: $deload"
         if (normalExposures != expectedNormalExposures) errors += "Normal exposure vector mismatch: $normalExposures"
         if (deloadExposures != expectedDeloadExposures) errors += "Deload exposure vector mismatch: $deloadExposures"
+
+        fractionalFloors.forEach { (muscle, floor) ->
+            if (normal.getValue(muscle) < floor) errors += "Normal fractional floor failed for ${muscle.label}."
+            if (deload.getValue(muscle) < floor) errors += "Deload fractional floor failed for ${muscle.label}."
+        }
+        directFloors.forEach { (muscle, floor) ->
+            if (normalDirect.getValue(muscle) < floor) errors += "Normal direct-set floor failed for ${muscle.label}."
+            if (deloadDirect.getValue(muscle) < floor) errors += "Deload direct-set floor failed for ${muscle.label}."
+        }
+        Muscle.entries.forEach { muscle ->
+            if (normalExposures.getValue(muscle) < 2) errors += "Normal exposure minimum failed for ${muscle.label}."
+            if (deloadExposures.getValue(muscle) < 2) errors += "Deload exposure minimum failed for ${muscle.label}."
+        }
 
         val normalTotal = normal.values.sum()
         val deloadTotal = deload.values.sum()
@@ -138,14 +172,32 @@ object ProgramAudit {
         if (OperatorProgramV56.conditioningForWeek(32).speed.single().title != "FINAL 300 M TEST") errors += "Week 32 300 m final missing."
         if (OperatorProgramV56.conditioningForWeek(32).engine.single().title != "FINAL 1.5-MILE TEST") errors += "Week 32 1.5-mile final missing."
 
+        val taperActual = week32SetOverrides.mapValues { (slotId, _) ->
+            val slot = OperatorProgramV56.resistanceSlots.singleOrNull { it.id == slotId }
+            if (slot == null) -1 else OperatorProgramV56.week32Sets(slotId, slot.workingSets)
+        }
+        if (taperActual != week32SetOverrides) errors += "Week 32 reduced-set prescription mismatch: $taperActual"
+        OperatorProgramV56.resistanceSlots
+            .filter { it.day in setOf(2, 4) }
+            .forEach { slot ->
+                if (OperatorProgramV56.week32Sets(slot.id, slot.workingSets) != slot.workingSets) {
+                    errors += "Week 32 ${slot.id}: D2/D4 must retain normal approved sets."
+                }
+            }
+        if (OperatorProgramV56.week32RirFloor(1) != 3 || OperatorProgramV56.week32RirFloor(2) != 1 ||
+            OperatorProgramV56.week32RirFloor(4) != 1 || OperatorProgramV56.week32RirFloor(5) != 3 ||
+            OperatorProgramV56.week32RirFloor(6) != 2
+        ) errors += "Week 32 RIR floors mismatch."
+
         val finisher = OperatorProgramV56.machinePowerFinisher
         if (finisher.efforts != 6 || finisher.hardSeconds != 10 || finisher.easySeconds != 80) errors += "Finisher must be 6×10/80."
         if (finisher.hierarchy != listOf(MachineModality.AIR_FAN_BIKE, MachineModality.STATIONARY_CYCLE, MachineModality.ROW_ERG, MachineModality.SKI_ERG)) {
             errors += "Finisher equipment hierarchy mismatch."
         }
-        if (sprintVolumeStatus(500) != SprintVolumeStatus.ALLOWED || sprintVolumeStatus(600) != SprintVolumeStatus.WARNING || sprintVolumeStatus(601) != SprintVolumeStatus.PROHIBITED) {
-            errors += "Sprint cap boundary mismatch."
-        }
+        if (sprintVolumeStatus(500) != SprintVolumeStatus.ALLOWED || sprintVolumeStatus(501) != SprintVolumeStatus.WARNING ||
+            sprintVolumeStatus(600) != SprintVolumeStatus.WARNING || sprintVolumeStatus(601) != SprintVolumeStatus.PROHIBITED
+        ) errors += "Sprint cap boundary mismatch."
+
         return errors
     }
 }
