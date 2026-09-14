@@ -8,8 +8,8 @@ import android.widget.TextView;
  * CI-only v0.34.0/code43 compatibility fixture.
  *
  * The package/version and persistence namespaces/keys mirror the verified historical app so CI can
- * prove package/signing install-over behavior and v5.4 pointer migration without shipping legacy
- * runtime architecture in the production app.
+ * prove package/signing install-over behavior and historical pointer migration without shipping
+ * legacy runtime architecture in the production app.
  */
 public final class MainActivity extends Activity {
     @Override

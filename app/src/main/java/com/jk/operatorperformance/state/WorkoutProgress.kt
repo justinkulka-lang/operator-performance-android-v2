@@ -13,11 +13,12 @@ object WorkoutProgress {
 
     fun effortId(rowId: String, effortIndex: Int): String = "$rowId#$effortIndex"
 
-    fun totalEfforts(session: SessionReference): Int = session.rows.sumOf { it.effortCount }
+    fun totalEfforts(session: SessionReference): Int =
+        session.rows.filterNot { it.optional }.sumOf { it.effortCount }
 
     fun completedEfforts(progress: ActiveWorkoutState, session: SessionReference): Int {
-        val valid = validEffortIds(session)
-        return progress.completedEffortIds.count { it in valid }
+        val required = requiredEffortIds(session)
+        return progress.completedEffortIds.count { it in required }
     }
 
     fun isEffortComplete(progress: ActiveWorkoutState, rowId: String, effortIndex: Int): Boolean =
@@ -30,14 +31,16 @@ object WorkoutProgress {
         }
         val validEffortIds = validEffortIds(session)
         val completed = progress.completedEffortIds.filterTo(linkedSetOf()) { it in validEffortIds }
-        val positions = positions(session)
-        val allComplete = positions.all { (rowIndex, effortIndex) ->
+        val ordered = positions(session)
+        val required = ordered.filterNot { (rowIndex, _) -> session.rows[rowIndex].optional }
+        val allRequiredComplete = required.all { (rowIndex, effortIndex) ->
             effortId(session.rows[rowIndex].id, effortIndex) in completed
         }
-        if (allComplete) {
+        if (allRequiredComplete) {
+            val finalRequired = required.lastOrNull() ?: ordered.last()
             return progress.copy(
-                movementIndex = session.rows.lastIndex,
-                effortIndex = session.rows.last().effortCount,
+                movementIndex = finalRequired.first,
+                effortIndex = finalRequired.second,
                 complete = true,
                 selectedSubstitutions = validSubstitutions,
                 completedEffortIds = completed,
@@ -51,7 +54,7 @@ object WorkoutProgress {
         val target = if (currentId !in completed) {
             movement to effort
         } else {
-            positions.first { (rowIndex, effortIndex) ->
+            ordered.first { (rowIndex, effortIndex) ->
                 effortId(session.rows[rowIndex].id, effortIndex) !in completed
             }
         }
@@ -82,12 +85,12 @@ object WorkoutProgress {
         } ?: ordered.take(currentPositionIndex).firstOrNull { (rowIndex, effortIndex) ->
             effortId(session.rows[rowIndex].id, effortIndex) !in completed
         }
-        val finished = next == null
+        val finished = requiredEffortIds(session).all { it in completed }
         val shouldRest = !finished && row.restSeconds != null &&
             (current.effortIndex < row.effortCount || row.restAfterLastEffort)
         val restEnd = if (shouldRest) nowMillis + requireNotNull(row.restSeconds).toLong() * 1_000L else null
 
-        return current.copy(
+        val seeded = current.copy(
             movementIndex = next?.first ?: current.movementIndex,
             effortIndex = next?.second ?: current.effortIndex,
             complete = finished,
@@ -99,6 +102,25 @@ object WorkoutProgress {
             undoRestTimerEndEpochMillis = current.restTimerEndEpochMillis,
             undoCompletedEffortIds = current.completedEffortIds,
         )
+        return if (finished) normalize(seeded, session) else seeded
+    }
+
+    fun skipOptional(progress: ActiveWorkoutState, session: SessionReference): ActiveWorkoutState {
+        val current = normalize(progress, session)
+        if (current.complete) return current
+        val row = session.rows[current.movementIndex]
+        require(row.optional) { "Only an optional workout row may be skipped." }
+        val skippedIds = (1..row.effortCount).mapTo(linkedSetOf()) { effortId(row.id, it) }
+        val skipped = current.copy(
+            completedEffortIds = current.completedEffortIds + skippedIds,
+            restTimerEndEpochMillis = null,
+            undoMovementIndex = current.movementIndex,
+            undoEffortIndex = current.effortIndex,
+            undoComplete = current.complete,
+            undoRestTimerEndEpochMillis = current.restTimerEndEpochMillis,
+            undoCompletedEffortIds = current.completedEffortIds,
+        )
+        return normalize(skipped, session)
     }
 
     fun toggleEffort(
@@ -118,7 +140,6 @@ object WorkoutProgress {
         val nextCompleted = normalized.completedEffortIds.toMutableSet().apply {
             if (wasComplete) remove(id) else add(id)
         }.toSet()
-        val wasCurrent = normalized.movementIndex == rowIndex && normalized.effortIndex == effortIndex
         val pointerSeed = if (wasComplete) {
             normalized.copy(movementIndex = rowIndex, effortIndex = effortIndex, complete = false)
         } else normalized
@@ -132,6 +153,7 @@ object WorkoutProgress {
             undoCompletedEffortIds = normalized.completedEffortIds,
         )
         val result = normalize(toggled, session)
+        val wasCurrent = normalized.movementIndex == rowIndex && normalized.effortIndex == effortIndex
         if (wasComplete || !wasCurrent || result.complete || row.restSeconds == null) return result
         val shouldRest = effortIndex < row.effortCount || row.restAfterLastEffort
         return if (shouldRest) {
@@ -198,6 +220,12 @@ object WorkoutProgress {
 
     private fun validEffortIds(session: SessionReference): Set<String> = buildSet {
         session.rows.forEach { row ->
+            (1..row.effortCount).forEach { effortIndex -> add(effortId(row.id, effortIndex)) }
+        }
+    }
+
+    private fun requiredEffortIds(session: SessionReference): Set<String> = buildSet {
+        session.rows.filterNot { it.optional }.forEach { row ->
             (1..row.effortCount).forEach { effortIndex -> add(effortId(row.id, effortIndex)) }
         }
     }

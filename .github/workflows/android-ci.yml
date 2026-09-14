@@ -50,7 +50,7 @@ jobs:
           test -f "$ANDROID_HOME/platforms/android-37.0/android.jar"
           test -f "$ANDROID_HOME/system-images/android-35/default/x86_64/system.img"
 
-      - name: Verify package, version, authority, and offline manifest
+      - name: Verify package, version, authority, dark theme, and offline manifest
         shell: bash
         run: |
           set -euo pipefail
@@ -58,7 +58,11 @@ jobs:
           grep -q 'versionCode = 45' app/build.gradle.kts
           grep -q 'versionName = "0.36.0"' app/build.gradle.kts
           grep -q 'AUTHORITY_VERSION = "5.6"' app/src/main/java/com/jk/operatorperformance/program/ProgramV56.kt
-          grep -q 'c48ae8c6b0585d809758d682abc872510645dca864992e36f837396c328ecf03' app/src/main/java/com/jk/operatorperformance/program/ProgramV56.kt
+          grep -q '7c220f57ac02bdb53fbbafb5b740219b03737ad848d7ce171d6b4b46ec4f8139' app/src/main/java/com/jk/operatorperformance/program/ProgramV56.kt
+          grep -q 'parent="android:style/Theme.Material.NoActionBar"' app/src/main/res/values/themes.xml
+          grep -q '<item name="android:windowBackground">#0B0F14</item>' app/src/main/res/values/themes.xml
+          grep -q '<item name="android:statusBarColor">#0B0F14</item>' app/src/main/res/values/themes.xml
+          grep -q '<item name="android:navigationBarColor">#0B0F14</item>' app/src/main/res/values/themes.xml
           grep -q 'applicationId = "com.jk.operatorperformance"' legacy-fixture/build.gradle.kts
           grep -q 'versionCode = 43' legacy-fixture/build.gradle.kts
           if grep -Eq 'android.permission.INTERNET|android.permission.health|HealthConnect|POST_NOTIFICATIONS' app/src/main/AndroidManifest.xml; then
@@ -73,6 +77,10 @@ jobs:
           pattern='ESTABLISH CURRENT CAPABILITY|Recent runs per week|Easy continuous run capacity|Next-day lower-leg soreness|Pain currently changes my gait|PROGRAM TRACKING|PERFORMANCE PROFILE|HEALTH CONNECT|READINESS|SESSION RESULT|EASY / GOOD / HARD / FAILED|POSITION [1-7]|bodyweight|progress-photo|benchmark result entry|RECOVERY MODE|HISTORY destination|sled push|sled pull|Speed \\+ sled|ProgramTrackingStore|ReadinessStore|BenchmarkStore|StrengthLog|RunStopwatchStore|ConditioningExecutionStore|ActiveSetProgressStore|actualLoad|actualReps|actualRir|performed load|performed reps|performed RIR|session score|workout rating|POST_NOTIFICATIONS|notification permission|automatic progression|block recomposition|300 m baseline|1.5-mile baseline|SPEED REFERENCE|ENGINE REFERENCE|OperatorProgramV54|SpeedVariant|EngineVariant'
           if grep -RniE "$pattern" app/src/main/java app/src/main/res; then
             echo "Stale/prohibited runtime architecture reference found in production source" >&2
+            exit 1
+          fi
+          if grep -RniE 'Operator Performance v5\.4|v5\.4 pointer migration' app legacy-fixture --exclude-dir=build; then
+            echo "Stale v5.4 construction comment found outside preserved preference-key compatibility state" >&2
             exit 1
           fi
 

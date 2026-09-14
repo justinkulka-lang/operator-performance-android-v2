@@ -7,10 +7,15 @@ import org.junit.Test
 
 class SessionResolverTest {
     @Test
-    fun weekOneSpeedIsFullWorkoutNotTest() {
+    fun weekOneSpeedIsFullWorkoutNotTestAndIncludesCooldown() {
         val session = SessionResolver.resolve(1, 3, deload = false)
-        assertEquals(listOf("d3_speed_warmup", "w1_accel", "d3_machine_power_finisher"), session.rows.map { it.id })
+        assertEquals(
+            listOf("d3_speed_warmup", "w1_accel", "d3_machine_power_finisher", "d3_speed_cooldown"),
+            session.rows.map { it.id },
+        )
         assertTrue(session.rows.single { it.id == "w1_accel" }.prescription.contains("6 × 30 m"))
+        assertTrue(session.rows.single { it.id == "w1_accel" }.note.orEmpty().contains("No incline sprinting"))
+        assertEquals("5:00 easy walk after the last sprint/finisher.", session.rows.last().prescription)
         assertFalse(session.rows.joinToString(" ") { it.prescription }.contains("baseline", ignoreCase = true))
     }
 
@@ -22,6 +27,9 @@ class SessionResolverTest {
         assertEquals(listOf("Stationary cycle ergometer"), finisher.alternatives)
         assertEquals(6, finisher.effortCount)
         assertEquals(80, finisher.restSeconds)
+        assertTrue(finisher.prescription.contains("maximal but smooth"))
+        assertTrue(finisher.prescription.contains("very easy"))
+        assertTrue(finisher.note.orEmpty().contains("light-to-moderate resistance"))
     }
 
     @Test
@@ -48,6 +56,7 @@ class SessionResolverTest {
             availableMachineModalities = setOf(MachineModality.ROW_ERG, MachineModality.SKI_ERG),
         )
         assertFalse(session.rows.any { it.id == "d3_machine_power_finisher" })
+        assertEquals("d3_speed_cooldown", session.rows.last().id)
     }
 
     @Test
@@ -61,6 +70,7 @@ class SessionResolverTest {
         )
         assertTrue(session.rows.any { it.id == "w5_speed_endurance" })
         assertFalse(session.rows.any { it.id == "d3_machine_power_finisher" })
+        assertEquals("d3_speed_cooldown", session.rows.last().id)
     }
 
     @Test
@@ -70,6 +80,10 @@ class SessionResolverTest {
         assertEquals("w1_engine", session.rows[1].id)
         assertEquals("d6_engine_cooldown", session.rows[2].id)
         assertEquals("d6_incline", session.rows[3].id)
+        assertEquals("Threshold intervals", session.rows[1].title)
+        assertTrue(session.rows[1].prescription.contains("Treadmill 0%"))
+        assertTrue(session.rows[1].prescription.contains("RECOVERY 2:00 EASY WALK/JOG"))
+        assertTrue(session.rows[2].note.orEmpty().contains("5–10 min transition"))
         assertFalse(session.rows.joinToString(" ") { it.prescription }.contains("time trial", ignoreCase = true))
     }
 
@@ -79,6 +93,7 @@ class SessionResolverTest {
         val week7 = SessionResolver.resolve(7, 6, deload = false)
         assertTrue(week2.rows.any { it.id == "w2_engine" && it.prescription.contains("8.5 mph") })
         assertTrue(week7.rows.any { it.id == "w7_engine" && it.prescription.contains("9.0 mph") })
+        assertEquals("VO₂ / goal-pace intervals", week7.rows.single { it.id == "w7_engine" }.title)
     }
 
     @Test
@@ -94,7 +109,10 @@ class SessionResolverTest {
             machineInventoryConfigured = true,
             availableMachineModalities = MachineModality.entries.toSet(),
         )
-        assertEquals(listOf("d3_deload_warmup", "d3_deload_relaxed_accel"), day3.rows.map { it.id })
+        assertEquals(
+            listOf("d3_deload_warmup", "d3_deload_relaxed_accel", "d3_speed_cooldown"),
+            day3.rows.map { it.id },
+        )
         assertFalse(day3.rows.any { it.id == "d3_machine_power_finisher" })
     }
 
@@ -103,8 +121,12 @@ class SessionResolverTest {
         val row = SessionResolver.resolve(1, 1, deload = false).rows.single { it.id == "d1_easy_aerobic" }
         assertTrue(row.prescription.contains("25:00"))
         assertTrue(row.prescription.contains("80–90 rpm"))
+        assertTrue(row.prescription.contains("lowest resistance"))
+        assertTrue(row.prescription.contains("increase resistance one machine level"))
+        assertTrue(row.prescription.contains("decrease one level"))
+        assertTrue(row.prescription.contains("No intervals, no sprint finish, no added running"))
         assertEquals(1, row.alternatives.size)
-        assertTrue(row.alternatives.single().contains("Air/fan bike"))
+        assertTrue(row.alternatives.single().startsWith("Air/fan bike — 25:00"))
     }
 
     @Test

@@ -21,7 +21,7 @@ class ProgramV56Test {
     @Test
     fun authorityIdentityMatchesApprovedDocument() {
         assertEquals("5.6", OperatorProgramV56.AUTHORITY_VERSION)
-        assertEquals("c48ae8c6b0585d809758d682abc872510645dca864992e36f837396c328ecf03", OperatorProgramV56.AUTHORITY_SHA256)
+        assertEquals("7c220f57ac02bdb53fbbafb5b740219b03737ad848d7ce171d6b4b46ec4f8139", OperatorProgramV56.AUTHORITY_SHA256)
     }
 
     @Test
@@ -75,6 +75,29 @@ class ProgramV56Test {
         assertEquals(80, finisher.easySeconds)
         assertEquals(MachineModality.AIR_FAN_BIKE, finisher.primary)
         assertEquals(MachineModality.STATIONARY_CYCLE, finisher.alternative)
+    }
+
+    @Test
+    fun exactConditioningExecutionRulesArePresent() {
+        val day1 = OperatorProgramV56.day1EasyAerobic.prescription
+        assertTrue(day1.contains("lowest resistance"))
+        assertTrue(day1.contains(">90 rpm"))
+        assertTrue(day1.contains("increase resistance one machine level"))
+        assertTrue(day1.contains("cadence falls <80 rpm"))
+        assertTrue(day1.contains("No intervals, no sprint finish, no added running"))
+
+        assertTrue(OperatorProgramV56.speedStopRule.contains("flat track or measured flat turf/straightaway"))
+        assertTrue(OperatorProgramV56.speedStopRule.contains("No incline sprinting"))
+        assertTrue(OperatorProgramV56.speedStopRule.contains("no machine substitute", ignoreCase = true))
+        assertEquals("5:00 easy walk after the last sprint/finisher.", OperatorProgramV56.speedCooldownPrescription)
+        assertTrue(OperatorProgramV56.engineWarmupPrescription.contains("40 s easy walk/jog"))
+
+        assertEquals("Threshold intervals", OperatorProgramV56.conditioningForWeek(1).engine.single().title)
+        assertTrue(OperatorProgramV56.conditioningForWeek(3).speed.single().prescription.contains("fly zone fast and smooth"))
+        assertTrue(OperatorProgramV56.conditioningForWeek(5).speed.single().prescription.contains("relaxed-fast, preserve mechanics"))
+        assertTrue(OperatorProgramV56.conditioningForWeek(6).speed.single().prescription.contains("even effort, preserve mechanics"))
+        assertTrue(OperatorProgramV56.conditioningForWeek(7).speed.single().prescription.contains("controlled first half, hold form home"))
+        assertEquals("Goal-pace intervals", OperatorProgramV56.conditioningForWeek(8).engine.single().title)
     }
 
     @Test
