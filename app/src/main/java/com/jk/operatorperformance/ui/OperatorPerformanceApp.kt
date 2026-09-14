@@ -40,6 +40,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -256,75 +257,77 @@ private fun TodayScreen(
     val isRestDay = state.currentDay == 7
     var confirmIncompleteAdvance by rememberSaveable(state.currentWeek, state.currentDay) { mutableStateOf(false) }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().testTag("today_screen"),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        item {
-            Text(
-                "WEEK ${session.week} • DAY ${session.day}",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.testTag("today_header"),
-            )
-            Text(session.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            if (state.deloadMode) Text("DELOAD MODE", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
-            if (!isRestDay) {
-                Spacer(Modifier.height(8.dp))
+    key(state.currentWeek, state.currentDay) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().testTag("today_screen"),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            item {
                 Text(
-                    if (progress == null) "$total SETS / SEGMENTS PLANNED" else "$completed / $total COMPLETE",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.testTag("today_progress"),
+                    "WEEK ${session.week} • DAY ${session.day}",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.testTag("today_header"),
                 )
-            }
-        }
-        items(session.rows, key = { it.id }) { row ->
-            TodayWorkoutRowCard(
-                row = row,
-                progress = progress,
-                onToggleEffort = { effort ->
-                    val base = progress ?: WorkoutProgress.start(state)
-                    onProgress(WorkoutProgress.toggleEffort(base, session, row.id, effort))
-                },
-                onToggleAlternative = { alternative ->
-                    val base = progress ?: WorkoutProgress.start(state)
-                    val nextChoice = if (base.selectedSubstitutions[row.id] == null) alternative else null
-                    onProgress(WorkoutProgress.selectSubstitution(base, session, row.id, nextChoice))
-                },
-            )
-        }
-        item {
-            if (!isRestDay) {
-                Button(
-                    onClick = onStartWorkout,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("start_resume_workout"),
-                ) { Text(if (progress == null) "START WORKOUT" else "RESUME WORKOUT", fontWeight = FontWeight.Bold) }
-                Spacer(Modifier.height(8.dp))
-            }
-            if (atEnd) {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                Text(session.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                if (state.deloadMode) Text("DELOAD MODE", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                if (!isRestDay) {
+                    Spacer(Modifier.height(8.dp))
                     Text(
-                        "BLOCK 1 COMPLETE • WEEKS 9–32 UNPOPULATED / NOT PROGRAMMED",
-                        modifier = Modifier.padding(16.dp),
-                        fontWeight = FontWeight.Bold,
+                        if (progress == null) "$total SETS / SEGMENTS PLANNED" else "$completed / $total COMPLETE",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.testTag("today_progress"),
                     )
                 }
-            } else {
-                Button(
-                    onClick = {
-                        if (isRestDay || progress?.complete == true) onAdvance() else confirmIncompleteAdvance = true
+            }
+            items(session.rows, key = { it.id }) { row ->
+                TodayWorkoutRowCard(
+                    row = row,
+                    progress = progress,
+                    onToggleEffort = { effort ->
+                        val base = progress ?: WorkoutProgress.start(state)
+                        onProgress(WorkoutProgress.toggleEffort(base, session, row.id, effort))
                     },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("complete_day"),
-                ) { Text("COMPLETE DAY / NEXT DAY") }
-                if (!isRestDay && progress?.complete != true) {
-                    Text(
-                        "$unfinished SETS / SEGMENTS REMAIN • ADVANCE REQUIRES CONFIRMATION",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    onToggleAlternative = { alternative ->
+                        val base = progress ?: WorkoutProgress.start(state)
+                        val nextChoice = if (base.selectedSubstitutions[row.id] == null) alternative else null
+                        onProgress(WorkoutProgress.selectSubstitution(base, session, row.id, nextChoice))
+                    },
+                )
+            }
+            item {
+                if (!isRestDay) {
+                    Button(
+                        onClick = onStartWorkout,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("start_resume_workout"),
+                    ) { Text(if (progress == null) "START WORKOUT" else "RESUME WORKOUT", fontWeight = FontWeight.Bold) }
+                    Spacer(Modifier.height(8.dp))
+                }
+                if (atEnd) {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            "BLOCK 1 COMPLETE • WEEKS 9–32 UNPOPULATED / NOT PROGRAMMED",
+                            modifier = Modifier.padding(16.dp),
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                } else {
+                    Button(
+                        onClick = {
+                            if (isRestDay || progress?.complete == true) onAdvance() else confirmIncompleteAdvance = true
+                        },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("complete_day"),
+                    ) { Text("COMPLETE DAY / NEXT DAY") }
+                    if (!isRestDay && progress?.complete != true) {
+                        Text(
+                            "$unfinished SETS / SEGMENTS REMAIN • ADVANCE REQUIRES CONFIRMATION",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
         }
@@ -834,9 +837,13 @@ private fun DayReferenceDialog(
         Surface(
             shape = MaterialTheme.shapes.large,
             tonalElevation = 6.dp,
-            modifier = Modifier.fillMaxWidth().fillMaxHeight(0.9f).testTag("reference_dialog"),
+            modifier = Modifier.fillMaxWidth().fillMaxHeight(0.9f),
         ) {
-            LazyColumn(contentPadding = PaddingValues(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            LazyColumn(
+                modifier = Modifier.testTag("reference_dialog"),
+                contentPadding = PaddingValues(18.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
                 item {
                     Text("WEEK ${session.week} • DAY ${session.day}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                     Text(session.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
