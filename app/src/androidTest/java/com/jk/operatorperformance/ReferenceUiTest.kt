@@ -50,6 +50,7 @@ class ReferenceUiTest {
             composeRule.onNodeWithTag("week_screen").performScrollToNode(hasTestTag("week_day_$day"))
             composeRule.onNodeWithTag("week_day_$day").assertExists()
         }
+        composeRule.onNodeWithTag("week_screen").performScrollToNode(hasTestTag("week_day_3"))
         composeRule.onNodeWithTag("week_day_3").performClick()
         composeRule.onNodeWithText("300 M BASELINE").assertExists()
         composeRule.onNodeWithText("CLOSE").performClick()
@@ -58,17 +59,19 @@ class ReferenceUiTest {
     }
 
     @Test
-    fun programDisplaysAllGreekPhaseLabelsAndThirtyTwoWeekBoundary() {
+    fun programDisplaysGreekPhasesNextPhaseStatusAndThirtyTwoWeekBoundary() {
         composeRule.onNodeWithTag("nav_PROGRAM").performClick()
         composeRule.onNodeWithText("HEPHAESTUS — FOUNDATION").assertExists()
         composeRule.onNodeWithText("HERMES — DEVELOPMENT").assertExists()
         composeRule.onNodeWithText("ARES — SPECIFIC DEVELOPMENT").assertExists()
         composeRule.onNodeWithText("ZEUS — INTEGRATION / PEAK").assertExists()
+        composeRule.onNodeWithTag("next_phase_status").assertExists()
+        composeRule.onNodeWithText("NEXT PHASE • HERMES — DEVELOPMENT • POPULATED / APPROVED").assertExists()
         composeRule.onNodeWithTag("program_screen").performScrollToNode(hasTestTag("program_week_32"))
         composeRule.onNodeWithTag("program_week_32").performClick()
         composeRule.onNodeWithText("ZEUS • INTEGRATION / PEAK").assertExists()
-        composeRule.onNodeWithTag("program_screen").performScrollToNode(hasTestTag("program_day_3_32"))
-        composeRule.onNodeWithTag("program_day_3_32").performClick()
+        composeRule.onNodeWithTag("program_screen").performScrollToNode(hasTestTag("program_day_32_3"))
+        composeRule.onNodeWithTag("program_day_32_3").performClick()
         composeRule.onNodeWithText("FINAL 300 M TEST").assertExists()
     }
 
