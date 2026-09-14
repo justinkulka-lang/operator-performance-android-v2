@@ -97,8 +97,9 @@ wait_for_activity() {
 dump_ui() {
   local destination="$1"
   local remote_dump="/sdcard/window.xml"
+  local dump_attempt
   rm -f "$destination"
-  for attempt in $(seq 1 15); do
+  for dump_attempt in $(seq 1 15); do
     adb shell rm -f "$remote_dump" >/dev/null 2>&1 || true
     adb shell input keyevent KEYCODE_WAKEUP >/dev/null 2>&1 || true
     adb shell wm dismiss-keyguard >/dev/null 2>&1 || true
@@ -108,7 +109,7 @@ dump_ui() {
        grep -q '<hierarchy' "$destination"; then
       return 0
     fi
-    echo "UI dump not ready (attempt $attempt/15); retrying..." >&2
+    echo "UI dump not ready (attempt $dump_attempt/15); retrying..." >&2
     sleep 1
   done
   echo "ERROR: UI hierarchy never became available." >&2
@@ -118,11 +119,39 @@ dump_ui() {
   return 1
 }
 
+screen_dimensions() {
+  local raw
+  raw="$(adb shell wm size | tr -d '\r')"
+  python3 - "$raw" <<'PY'
+import re, sys
+raw = sys.argv[1]
+matches = re.findall(r'(?:Physical|Override) size:\s*(\d+)x(\d+)', raw)
+if not matches:
+    matches = re.findall(r'(\d+)x(\d+)', raw)
+if not matches:
+    raise SystemExit('Unable to resolve emulator screen dimensions')
+# wm size prints physical then override; the last entry is the effective size.
+w, h = matches[-1]
+print(w, h)
+PY
+}
+
+scroll_content_up() {
+  local width height x y_start y_end
+  read -r width height <<< "$(screen_dimensions)"
+  x=$(( width / 2 ))
+  y_start=$(( height * 3 / 4 ))
+  y_end=$(( height / 4 ))
+  echo "Scrolling ${width}x${height} UI at x=$x from y=$y_start to y=$y_end" >&2
+  adb shell input swipe "$x" "$y_start" "$x" "$y_end" 250
+}
+
 find_text_and_tap() {
   local wanted="$1"
   local dump="$RUNNER_TEMP/window.xml"
   local coords=""
-  for attempt in $(seq 1 16); do
+  local search_attempt
+  for search_attempt in $(seq 1 16); do
     dump_ui "$dump"
     coords="$(python3 - "$dump" "$wanted" <<'PY'
 import re, sys, xml.etree.ElementTree as ET
@@ -140,8 +169,8 @@ for node in root.iter('node'):
 raise SystemExit(1)
 PY
     )" && break || true
-    echo "Waiting for '$wanted' (attempt $attempt/16); scrolling..." >&2
-    adb shell input swipe 540 1500 540 450 250
+    echo "Waiting for '$wanted' (attempt $search_attempt/16); scrolling..." >&2
+    scroll_content_up
     sleep 0.3
   done
   if [[ -z "$coords" ]]; then
