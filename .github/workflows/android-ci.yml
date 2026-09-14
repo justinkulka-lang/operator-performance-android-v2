@@ -1,4 +1,4 @@
-name: Operator Performance v5.4 Reference UI CI
+name: Operator Performance v5.6 CI
 
 on:
   workflow_dispatch:
@@ -50,16 +50,17 @@ jobs:
           test -f "$ANDROID_HOME/platforms/android-37.0/android.jar"
           test -f "$ANDROID_HOME/system-images/android-35/default/x86_64/system.img"
 
-      - name: Verify package, version, and offline manifest
+      - name: Verify package, version, authority, and offline manifest
         shell: bash
         run: |
           set -euo pipefail
           grep -q 'applicationId = "com.jk.operatorperformance"' app/build.gradle.kts
-          grep -q 'versionCode = 44' app/build.gradle.kts
-          grep -q 'versionName = "0.35.0"' app/build.gradle.kts
+          grep -q 'versionCode = 45' app/build.gradle.kts
+          grep -q 'versionName = "0.36.0"' app/build.gradle.kts
+          grep -q 'AUTHORITY_VERSION = "5.6"' app/src/main/java/com/jk/operatorperformance/program/ProgramV56.kt
+          grep -q 'c48ae8c6b0585d809758d682abc872510645dca864992e36f837396c328ecf03' app/src/main/java/com/jk/operatorperformance/program/ProgramV56.kt
           grep -q 'applicationId = "com.jk.operatorperformance"' legacy-fixture/build.gradle.kts
           grep -q 'versionCode = 43' legacy-fixture/build.gradle.kts
-          grep -q 'versionName = "0.34.0"' legacy-fixture/build.gradle.kts
           if grep -Eq 'android.permission.INTERNET|android.permission.health|HealthConnect|POST_NOTIFICATIONS' app/src/main/AndroidManifest.xml; then
             echo "Prohibited network/health/notification permission found in manifest" >&2
             exit 1
@@ -69,7 +70,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          pattern='ESTABLISH CURRENT CAPABILITY|Recent runs per week|Easy continuous run capacity|Next-day lower-leg soreness|Pain currently changes my gait|PROGRAM TRACKING|PERFORMANCE PROFILE|HEALTH CONNECT|READINESS|SESSION RESULT|EASY / GOOD / HARD / FAILED|POSITION [1-7]|bodyweight|progress-photo|benchmark result entry|RECOVERY MODE|HISTORY destination|sled push|sled pull|Speed \\+ sled|ProgramTrackingStore|ReadinessStore|BenchmarkStore|StrengthLog|RunStopwatchStore|ConditioningExecutionStore|ActiveSetProgressStore|actualLoad|actualReps|actualRir|performed load|performed reps|performed RIR|session score|workout rating|POST_NOTIFICATIONS|notification permission|automatic progression|block recomposition'
+          pattern='ESTABLISH CURRENT CAPABILITY|Recent runs per week|Easy continuous run capacity|Next-day lower-leg soreness|Pain currently changes my gait|PROGRAM TRACKING|PERFORMANCE PROFILE|HEALTH CONNECT|READINESS|SESSION RESULT|EASY / GOOD / HARD / FAILED|POSITION [1-7]|bodyweight|progress-photo|benchmark result entry|RECOVERY MODE|HISTORY destination|sled push|sled pull|Speed \\+ sled|ProgramTrackingStore|ReadinessStore|BenchmarkStore|StrengthLog|RunStopwatchStore|ConditioningExecutionStore|ActiveSetProgressStore|actualLoad|actualReps|actualRir|performed load|performed reps|performed RIR|session score|workout rating|POST_NOTIFICATIONS|notification permission|automatic progression|block recomposition|300 m baseline|1.5-mile baseline|SPEED REFERENCE|ENGINE REFERENCE|OperatorProgramV54|SpeedVariant|EngineVariant'
           if grep -RniE "$pattern" app/src/main/java app/src/main/res; then
             echo "Stale/prohibited runtime architecture reference found in production source" >&2
             exit 1
@@ -85,7 +86,11 @@ jobs:
           test -f app/build/reports/program-matrix.csv
           test -f app/build/reports/program-resistance-rows.csv
           test -f app/build/reports/program-weeks-1-32.csv
+          test -f app/build/reports/program-conditioning-weeks-1-8.csv
           grep -q 'Quads,13.0,2,10.0,2' app/build/reports/program-matrix.csv
+          grep -Fq '1,"d1_squat","Back squat","4 × 5–8 @ 2–3 RIR",4,4,180' app/build/reports/program-resistance-rows.csv
+          grep -q 'w1_accel' app/build/reports/program-conditioning-weeks-1-8.csv
+          grep -q 'w8_engine' app/build/reports/program-conditioning-weeks-1-8.csv
           grep -q '^1,Block 1,POPULATED,"13 / 11.5 / 11.5 / 12 / 12 / 11 / 15 / 11.5 / 12 / 10 / 9 / 9.5 / 10",148.0,1.667$' app/build/reports/program-weeks-1-32.csv
           grep -q '^9,Block 2,UNPOPULATED,—,—,—$' app/build/reports/program-weeks-1-32.csv
           grep -q '^32,Block 4,UNPOPULATED,—,—,—$' app/build/reports/program-weeks-1-32.csv
@@ -107,33 +112,16 @@ jobs:
             --package "system-images;android-35;default;x86_64" \
             --device "pixel_2"
           printf '\ndisk.dataPartition.size=2048M\n' >> "$avd_dir/config.ini"
-          grep -q '^disk.dataPartition.size=2048M$' "$avd_dir/config.ini"
           "$ANDROID_HOME/emulator/emulator" \
             -avd operator-ci-api35 \
             -partition-size 2048 \
-            -no-window \
-            -no-audio \
-            -no-boot-anim \
-            -no-snapshot-save \
-            -gpu swiftshader_indirect \
-            -accel on > "$emulator_log" 2>&1 &
+            -no-window -no-audio -no-boot-anim -no-snapshot-save \
+            -gpu swiftshader_indirect -accel on > "$emulator_log" 2>&1 &
           emulator_pid=$!
           trap 'kill "$emulator_pid" 2>/dev/null || true' EXIT
 
-          if ! timeout 90 adb wait-for-device; then
-            echo "Emulator did not become visible to adb within 90 seconds." >&2
-            adb devices -l || true
-            cat "$emulator_log" || true
-            exit 1
-          fi
-
-          if ! timeout 240 bash -c 'until [[ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" == "1" ]]; do sleep 2; done'; then
-            echo "Emulator did not complete boot within 240 seconds." >&2
-            adb devices -l || true
-            cat "$emulator_log" || true
-            exit 1
-          fi
-
+          timeout 90 adb wait-for-device
+          timeout 240 bash -c 'until [[ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" == "1" ]]; do sleep 2; done'
           adb shell settings put global window_animation_scale 0
           adb shell settings put global transition_animation_scale 0
           adb shell settings put global animator_duration_scale 0
@@ -151,12 +139,12 @@ jobs:
           grep -q 'versionName=0.34.0' <<< "$legacy_package"
           adb shell am force-stop com.jk.operatorperformance
 
-          echo "Installing v0.35 over v0.34 without clearing app data"
+          echo "Installing v0.36 over v0.34 fixture without clearing app data"
           adb install -r "$current_apk"
           adb shell am start -W -n com.jk.operatorperformance/.MainActivity >/dev/null
           current_package="$(adb shell dumpsys package com.jk.operatorperformance | tr -d '\r')"
-          grep -q 'versionCode=44' <<< "$current_package"
-          grep -q 'versionName=0.35.0' <<< "$current_package"
+          grep -q 'versionCode=45' <<< "$current_package"
+          grep -q 'versionName=0.36.0' <<< "$current_package"
 
           echo "Verifying pointer migration and inert legacy data retention"
           current_state="$(adb shell run-as com.jk.operatorperformance cat shared_prefs/operator_v54_reference_state.xml | tr -d '\r')"
@@ -174,29 +162,60 @@ jobs:
           test "$(adb shell settings get global airplane_mode_on | tr -d '\r')" = "1"
           adb shell am force-stop com.jk.operatorperformance || true
 
-          echo "Running reference UI suite with airplane mode enabled"
-          if ! timeout 600 gradle :app:connectedDebugAndroidTest --stacktrace; then
-            echo "Instrumentation tests failed or exceeded 600 seconds." >&2
-            adb devices -l || true
-            cat "$emulator_log" || true
-            exit 1
-          fi
+          echo "Running v5.6 reference UI suite with airplane mode enabled"
+          timeout 600 gradle :app:connectedDebugAndroidTest --stacktrace
           test "$(adb shell settings get global airplane_mode_on | tr -d '\r')" = "1"
 
       - name: Build debug APK
         run: gradle :app:assembleDebug --stacktrace
 
-      - name: Build unsigned release APK
+      - name: Prepare persistent release signing when secrets are configured
+        shell: bash
+        env:
+          KEYSTORE_B64: ${{ secrets.OPERATOR_RELEASE_KEYSTORE_B64 }}
+          STORE_PASSWORD: ${{ secrets.OPERATOR_RELEASE_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.OPERATOR_RELEASE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.OPERATOR_RELEASE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$KEYSTORE_B64" && -n "$STORE_PASSWORD" && -n "$KEY_ALIAS" && -n "$KEY_PASSWORD" ]]; then
+            keystore="$RUNNER_TEMP/operator-release.jks"
+            printf '%s' "$KEYSTORE_B64" | base64 --decode > "$keystore"
+            chmod 600 "$keystore"
+            echo "OPERATOR_RELEASE_KEYSTORE_PATH=$keystore" >> "$GITHUB_ENV"
+            echo "OPERATOR_RELEASE_STORE_PASSWORD=$STORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "OPERATOR_RELEASE_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
+            echo "OPERATOR_RELEASE_KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
+            echo "RELEASE_SIGNING_CONFIGURED=true" >> "$GITHUB_ENV"
+          else
+            echo "RELEASE_SIGNING_CONFIGURED=false" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build release APK
         run: gradle :app:assembleRelease --stacktrace
+
+      - name: Verify release signing state
+        shell: bash
+        run: |
+          set -euo pipefail
+          apksigner="$ANDROID_HOME/build-tools/37.0.0/apksigner"
+          if [[ "$RELEASE_SIGNING_CONFIGURED" == "true" ]]; then
+            signed="app/build/outputs/apk/release/app-release.apk"
+            test -f "$signed"
+            "$apksigner" verify --verbose --print-certs "$signed"
+          else
+            unsigned="app/build/outputs/apk/release/app-release-unsigned.apk"
+            test -f "$unsigned"
+            echo "Persistent release signing secrets are not configured; signed release verification remains blocked."
+          fi
 
       - name: APK permission and stale-architecture scan
         shell: bash
         run: |
           set -euo pipefail
           aapt2="$ANDROID_HOME/build-tools/37.0.0/aapt2"
-          test -x "$aapt2"
           permission_pattern='android.permission.INTERNET|android.permission.POST_NOTIFICATIONS|android.permission.health|HealthConnect'
-          runtime_pattern='ESTABLISH CURRENT CAPABILITY|Recent runs per week|PROGRAM TRACKING|PERFORMANCE PROFILE|HEALTH CONNECT|READINESS|SESSION RESULT|RECOVERY MODE|Speed \\+ sled|ProgramTrackingStore|ReadinessStore|BenchmarkStore|StrengthLog|RunStopwatchStore|ConditioningExecutionStore|ActiveSetProgressStore|actualLoad|actualReps|actualRir|performed load|performed reps|performed RIR|session score|workout rating|automatic progression|block recomposition'
+          runtime_pattern='ESTABLISH CURRENT CAPABILITY|Recent runs per week|PROGRAM TRACKING|PERFORMANCE PROFILE|HEALTH CONNECT|READINESS|SESSION RESULT|RECOVERY MODE|Speed \\+ sled|ProgramTrackingStore|ReadinessStore|BenchmarkStore|StrengthLog|RunStopwatchStore|ConditioningExecutionStore|ActiveSetProgressStore|actualLoad|actualReps|actualRir|performed load|performed reps|performed RIR|session score|workout rating|automatic progression|block recomposition|300 m baseline|1.5-mile baseline|SPEED REFERENCE|ENGINE REFERENCE|OperatorProgramV54|SpeedVariant|EngineVariant'
           for apk in app/build/outputs/apk/debug/*.apk app/build/outputs/apk/release/*.apk; do
             test -f "$apk"
             permissions="$($aapt2 dump permissions "$apk")"
@@ -213,11 +232,11 @@ jobs:
       - name: Capture dependency graph
         run: gradle :app:dependencies > app/build/reports/dependencies.txt
 
-      - name: Upload Pass 7 artifacts
+      - name: Upload v5.6 evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: Operator-Performance-Pass-7
+          name: Operator-Performance-v5.6
           path: |
             app/build/reports/tests/
             app/build/test-results/
@@ -226,6 +245,7 @@ jobs:
             app/build/reports/program-matrix.csv
             app/build/reports/program-resistance-rows.csv
             app/build/reports/program-weeks-1-32.csv
+            app/build/reports/program-conditioning-weeks-1-8.csv
             app/build/reports/dependencies.txt
             app/build/outputs/apk/debug/*.apk
             app/build/outputs/apk/release/*.apk

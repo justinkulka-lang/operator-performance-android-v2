@@ -58,16 +58,14 @@ private fun RestTimerCard(
     onConfiguredSecondsChanged: (Int?) -> Unit,
     onActiveEndChanged: (Long?) -> Unit,
 ) {
-    var draft by rememberSaveable(configuredSeconds) {
-        mutableStateOf(configuredSeconds?.toString().orEmpty())
-    }
+    var draft by rememberSaveable(configuredSeconds) { mutableStateOf(configuredSeconds?.toString().orEmpty()) }
     val parsed = draft.toIntOrNull()?.takeIf { it > 0 }
     val invalid = draft.isNotBlank() && parsed == null
 
     Card(modifier = Modifier.fillMaxWidth().testTag("rest_timer_tool")) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("REST TIMER", fontWeight = FontWeight.Bold)
-            Text("Optional independent timer. A saved duration may also auto-start after non-final resistance sets.")
+            Text("Optional independent utility timer. Workout rest uses the exact program prescription instead.")
             OutlinedTextField(
                 value = draft,
                 onValueChange = { value -> draft = value.filter(Char::isDigit) },
@@ -95,14 +93,12 @@ private fun RestTimerCard(
                     ) { Text("DISABLE") }
                 }
             }
-
             if (configuredSeconds != null && activeEndEpochMillis == null) {
                 Button(
                     onClick = { onActiveEndChanged(System.currentTimeMillis() + configuredSeconds.toLong() * 1_000L) },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("rest_timer_start"),
                 ) { Text("START TIMER") }
             }
-
             if (activeEndEpochMillis != null) {
                 RestCountdown(
                     endEpochMillis = activeEndEpochMillis,
@@ -122,25 +118,30 @@ private fun RestTimerCard(
 internal fun WorkoutRestPanel(
     endEpochMillis: Long,
     onFinished: () -> Unit,
+    onAdd30: () -> Unit,
     onSkip: () -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth().testTag("workout_rest")) {
         Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("REST", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             RestCountdown(endEpochMillis = endEpochMillis, testTag = "workout_rest_countdown", onFinished = onFinished)
-            TextButton(
-                onClick = onSkip,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("workout_rest_skip"),
-            ) { Text("SKIP REST") }
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(
+                    onClick = onAdd30,
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp).testTag("workout_rest_add_30"),
+                ) { Text("+30 SEC") }
+                TextButton(
+                    onClick = onSkip,
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp).testTag("workout_rest_skip"),
+                ) { Text("SKIP REST") }
+            }
         }
     }
 }
 
 @Composable
 private fun RestCountdown(endEpochMillis: Long, testTag: String, onFinished: () -> Unit) {
-    var remaining by remember(endEpochMillis) {
-        mutableIntStateOf(remainingSeconds(endEpochMillis, System.currentTimeMillis()))
-    }
+    var remaining by remember(endEpochMillis) { mutableIntStateOf(remainingSeconds(endEpochMillis, System.currentTimeMillis())) }
     val haptic = LocalHapticFeedback.current
 
     LaunchedEffect(endEpochMillis) {
@@ -164,11 +165,7 @@ private fun RestCountdown(endEpochMillis: Long, testTag: String, onFinished: () 
             .testTag(testTag)
             .semantics {
                 contentDescription = "Rest timer countdown"
-                stateDescription = if (remaining > 0) {
-                    "Rest timer remaining ${formatSeconds(remaining)}"
-                } else {
-                    "Rest timer complete"
-                }
+                stateDescription = if (remaining > 0) "Rest timer remaining ${formatSeconds(remaining)}" else "Rest timer complete"
                 liveRegion = LiveRegionMode.Polite
             },
     )

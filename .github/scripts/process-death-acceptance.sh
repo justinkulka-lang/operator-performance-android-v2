@@ -4,8 +4,8 @@ set -euo pipefail
 package="com.jk.operatorperformance"
 activity="$package/.MainActivity"
 apk="app/build/outputs/apk/debug/app-debug.apk"
-emulator_log="$RUNNER_TEMP/operator-master-audit-emulator.log"
-avd_dir="$HOME/.android/avd/operator-master-audit-api35.avd"
+emulator_log="$RUNNER_TEMP/operator-v56-process-death-emulator.log"
+avd_dir="$HOME/.android/avd/operator-v56-process-death-api35.avd"
 
 cleanup() {
   if [[ -n "${emulator_pid:-}" ]]; then
@@ -18,19 +18,15 @@ test -e /dev/kvm
 sudo chmod 666 /dev/kvm
 echo no | avdmanager create avd \
   --force \
-  --name operator-master-audit-api35 \
+  --name operator-v56-process-death-api35 \
   --package "system-images;android-35;default;x86_64" \
   --device "pixel_2"
 printf '\ndisk.dataPartition.size=2048M\n' >> "$avd_dir/config.ini"
 "$ANDROID_HOME/emulator/emulator" \
-  -avd operator-master-audit-api35 \
+  -avd operator-v56-process-death-api35 \
   -partition-size 2048 \
-  -no-window \
-  -no-audio \
-  -no-boot-anim \
-  -no-snapshot-save \
-  -gpu swiftshader_indirect \
-  -accel on > "$emulator_log" 2>&1 &
+  -no-window -no-audio -no-boot-anim -no-snapshot-save \
+  -gpu swiftshader_indirect -accel on > "$emulator_log" 2>&1 &
 emulator_pid=$!
 
 timeout 90 adb wait-for-device
@@ -50,26 +46,26 @@ cat > "$state_file" <<EOF
 <map>
     <int name="currentWeek" value="1" />
     <int name="currentDay" value="1" />
-    <string name="manualSpeedVariant">ACCELERATION</string>
-    <string name="manualEngineVariant">THRESHOLD</string>
     <boolean name="manualDeloadMode" value="false" />
-    <int name="manualRestTimerSeconds" value="120" />
     <boolean name="machineInventoryConfigured" value="false" />
     <boolean name="workoutActive" value="true" />
+    <int name="workoutSchemaVersion" value="2" />
     <int name="workoutWeek" value="1" />
     <int name="workoutDay" value="1" />
-    <string name="workoutSpeedVariant">ACCELERATION</string>
-    <string name="workoutEngineVariant">THRESHOLD</string>
     <boolean name="workoutDeloadMode" value="false" />
     <boolean name="workoutMachineInventoryConfigured" value="false" />
     <int name="workoutMovementIndex" value="0" />
     <int name="workoutEffortIndex" value="2" />
     <boolean name="workoutComplete" value="false" />
+    <set name="workoutCompletedEffortIds">
+        <string>d1_squat#1</string>
+    </set>
     <long name="workoutRestTimerEndEpochMillis" value="$timer_end_ms" />
     <boolean name="workoutHasUndo" value="true" />
     <int name="workoutUndoMovementIndex" value="0" />
     <int name="workoutUndoEffortIndex" value="1" />
     <boolean name="workoutUndoComplete" value="false" />
+    <set name="workoutUndoCompletedEffortIds" />
     <boolean name="migrationV54Complete" value="true" />
 </map>
 EOF
@@ -82,7 +78,7 @@ adb shell run-as "$package" mkdir -p "/data/user/0/$package/shared_prefs"
 adb shell run-as "$package" cp "$remote_seed" "$remote_prefs"
 adb shell run-as "$package" cat "$remote_prefs" | grep -q 'name="workoutEffortIndex" value="2"'
 
-echo "Launching seeded focus state"
+echo "Launching seeded v5.6 focus state"
 adb shell am start -W -n "$activity" >/dev/null
 sleep 1
 
@@ -132,6 +128,7 @@ grep -q 'text="REST"' "$RUNNER_TEMP/resumed.xml"
 restored_state="$(adb shell run-as "$package" cat "$remote_prefs" | tr -d '\r')"
 grep -q 'name="workoutMovementIndex" value="0"' <<< "$restored_state"
 grep -q 'name="workoutEffortIndex" value="2"' <<< "$restored_state"
+grep -q 'd1_squat#1' <<< "$restored_state"
 grep -q "name=\"workoutRestTimerEndEpochMillis\" value=\"$timer_end_ms\"" <<< "$restored_state"
 
-echo "True process-death focus/timer restoration passed."
+echo "True v5.6 process-death focus/completion/timer restoration passed."

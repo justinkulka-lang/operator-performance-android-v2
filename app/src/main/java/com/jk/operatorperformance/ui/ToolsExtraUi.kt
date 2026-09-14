@@ -32,7 +32,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.jk.operatorperformance.program.ProgramNotesV54
+import com.jk.operatorperformance.program.ProgramNotesV56
 import com.jk.operatorperformance.state.LegacyDataManager
 import com.jk.operatorperformance.state.ProgramStateStore
 import com.jk.operatorperformance.state.ToolsDataState
@@ -218,10 +218,10 @@ private fun ProgramNotesCard() {
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("program_notes_toggle"),
             ) { Text(if (expanded) "HIDE NOTES" else "SHOW NOTES") }
             if (expanded) {
-                NotesSection("INTERFERENCE", ProgramNotesV54.interference)
-                NotesSection("SPRINT VOLUME", ProgramNotesV54.sprintVolume)
-                NotesSection("RUN / IMPACT", ProgramNotesV54.runImpact)
-                NotesSection("DELOAD", ProgramNotesV54.deload)
+                NotesSection("INTERFERENCE", ProgramNotesV56.interference)
+                NotesSection("SPRINT VOLUME", ProgramNotesV56.sprintVolume)
+                NotesSection("RUN / IMPACT", ProgramNotesV56.runImpact)
+                NotesSection("DELOAD", ProgramNotesV56.deload)
             }
         }
     }
@@ -264,7 +264,7 @@ private fun DataControlsCard() {
             Button(
                 onClick = {
                     pendingExport = legacy.buildLocalExport()
-                    exportLauncher.launch("operator-performance-v5.4-export.json")
+                    exportLauncher.launch("operator-performance-v5.6-export.json")
                 },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("export_data"),
             ) { Text("EXPORT DATA") }

@@ -89,7 +89,7 @@ object ProgramAudit {
 
     fun credits(deload: Boolean): Map<Muscle, Double> {
         val totals = Muscle.entries.associateWith { 0.0 }.toMutableMap()
-        OperatorProgramV54.resistanceSlots.forEach { slot ->
+        OperatorProgramV56.resistanceSlots.forEach { slot ->
             val sets = if (deload) slot.deloadSets else slot.workingSets
             if (sets > 0) {
                 slot.roleMap.forEach { (muscle, role) ->
@@ -102,7 +102,7 @@ object ProgramAudit {
 
     fun exposures(deload: Boolean): Map<Muscle, Int> {
         val days = Muscle.entries.associateWith { linkedSetOf<Int>() }.toMutableMap()
-        OperatorProgramV54.resistanceSlots.forEach { slot ->
+        OperatorProgramV56.resistanceSlots.forEach { slot ->
             val sets = if (deload) slot.deloadSets else slot.workingSets
             if (sets > 0) slot.roleMap.keys.forEach { muscle -> days.getValue(muscle).add(slot.day) }
         }
@@ -111,7 +111,7 @@ object ProgramAudit {
 
     fun directSets(deload: Boolean): Map<Muscle, Int> {
         val totals = Muscle.entries.associateWith { 0 }.toMutableMap()
-        OperatorProgramV54.resistanceSlots.forEach { slot ->
+        OperatorProgramV56.resistanceSlots.forEach { slot ->
             val sets = if (deload) slot.deloadSets else slot.workingSets
             if (sets > 0) totals[slot.ownerMuscle] = totals.getValue(slot.ownerMuscle) + sets
         }
@@ -154,11 +154,15 @@ object ProgramAudit {
         val normalDirect = directSets(deload = false)
         val deloadDirect = directSets(deload = true)
 
+        if (OperatorProgramV56.AUTHORITY_VERSION != "5.6") errors += "Authority version must be 5.6."
+        if (OperatorProgramV56.AUTHORITY_SHA256 != "c48ae8c6b0585d809758d682abc872510645dca864992e36f837396c328ecf03") {
+            errors += "Authority SHA-256 does not match approved v5.6."
+        }
         if (Muscle.entries.size != 13) errors += "Canonical muscle count must be 13."
-        if (normal != expectedNormalCredits) errors += "Normal fractional-credit vector does not match v5.4. Actual=$normal"
-        if (deload != expectedDeloadCredits) errors += "Deload fractional-credit vector does not match v5.4. Actual=$deload"
-        if (normalExposures != expectedNormalExposures) errors += "Normal exposure vector does not match v5.4. Actual=$normalExposures"
-        if (deloadExposures != expectedDeloadExposures) errors += "Deload exposure vector does not match v5.4. Actual=$deloadExposures"
+        if (normal != expectedNormalCredits) errors += "Normal fractional-credit vector does not match v5.6. Actual=$normal"
+        if (deload != expectedDeloadCredits) errors += "Deload fractional-credit vector does not match v5.6. Actual=$deload"
+        if (normalExposures != expectedNormalExposures) errors += "Normal exposure vector does not match v5.6. Actual=$normalExposures"
+        if (deloadExposures != expectedDeloadExposures) errors += "Deload exposure vector does not match v5.6. Actual=$deloadExposures"
 
         val normalTotal = normal.values.sum()
         val deloadTotal = deload.values.sum()
@@ -182,40 +186,48 @@ object ProgramAudit {
             if (deloadDirect.getValue(muscle) < floor) errors += "Deload direct-set floor failed for ${muscle.label}."
         }
 
-        OperatorProgramV54.resistanceSlots.forEach { slot ->
+        OperatorProgramV56.resistanceSlots.forEach { slot ->
             val primeMuscles = slot.roleMap.filterValues { it == MuscleRole.PRIME }.keys
             if (primeMuscles.size != 1 || primeMuscles.singleOrNull() != slot.ownerMuscle) {
                 errors += "${slot.id}: ownerMuscle must be the unique PRIME muscle."
             }
-            if (slot.alternatives.size !in 2..4) errors += "${slot.id}: alternatives must contain 2–4 ranked choices."
-            if (slot.alternatives.map { it.rank } != (1..slot.alternatives.size).toList()) errors += "${slot.id}: alternative ranks are not contiguous from 1."
+            if (slot.alternatives.size != 1 || slot.alternatives.singleOrNull()?.rank != 1) {
+                errors += "${slot.id}: v5.6 requires exactly one approved alternative ranked 1."
+            }
+            if (slot.restSeconds !in setOf(90, 120, 180)) errors += "${slot.id}: rest must be 90, 120, or 180 seconds."
             if (slot.workingSets <= 0) errors += "${slot.id}: normal working sets must be positive."
             if (slot.deloadSets !in 0..slot.workingSets) errors += "${slot.id}: invalid deload set count."
-            val text = buildString {
-                append(slot.movement)
-                slot.alternatives.forEach { append(' ').append(it.name) }
-            }
+            val text = slot.movement + " " + slot.alternatives.single().name
             if (text.contains("sled", ignoreCase = true)) errors += "${slot.id}: sled reference is prohibited in resistance program data."
         }
 
-        if (OperatorProgramV54.weeks.map { it.week } != (1..8).toList()) errors += "Exactly Weeks 1–8 must be populated."
-        if ((9..32).any { OperatorProgramV54.weekOrNull(it) != null }) errors += "Weeks 9–32 must remain unpopulated."
-        if (!OperatorProgramV54.weeks.first().speedBaseline || !OperatorProgramV54.weeks.first().engineBaseline) errors += "Week 1 must be the speed/engine baseline microcycle."
-        if (OperatorProgramV54.weeks.drop(1).any { it.speedBaseline || it.engineBaseline }) errors += "Weeks 2–8 must use manually selected post-baseline references, not baseline sessions."
-        if (OperatorProgramV54.firstPostBaselineSpeedDefault != SpeedVariant.ACCELERATION) errors += "First post-baseline Speed display must default to ACCELERATION."
-        if (OperatorProgramV54.firstPostBaselineEngineDefault != EngineVariant.THRESHOLD) errors += "First post-baseline Engine display must default to THRESHOLD."
+        if (OperatorProgramV56.weeks.map { it.week } != (1..8).toList()) errors += "Exactly Weeks 1–8 must be populated."
+        if ((9..32).any { OperatorProgramV56.weekOrNull(it) != null }) errors += "Weeks 9–32 must remain unpopulated."
+        if (OperatorProgramV56.conditioningByWeek.map { it.week } != (1..8).toList()) errors += "Each populated week must have one fixed conditioning definition."
 
-        val finisher = OperatorProgramV54.machinePowerFinisher
-        if (finisher.efforts != 6 || finisher.hardSeconds != 10 || finisher.easySeconds != 80) errors += "Machine-power finisher must be 6 × 10 s hard / 80 s easy."
-        val expectedModalities = listOf(MachineModality.AIR_FAN_BIKE, MachineModality.STATIONARY_CYCLE, MachineModality.ROW_ERG, MachineModality.SKI_ERG)
-        if (finisher.rankedModalities != expectedModalities) errors += "Machine-power equipment hierarchy does not match v5.4."
-
-        OperatorProgramV54.speedOptions.forEach { option ->
-            option.qualifyingSprintMeters.forEach { meters ->
-                if (sprintVolumeStatus(meters) == SprintVolumeStatus.PROHIBITED) errors += "${option.variant}: built-in sprint option exceeds 600 m."
+        OperatorProgramV56.conditioningByWeek.forEach { week ->
+            if (week.speed.isEmpty()) errors += "Week ${week.week}: fixed Speed work is missing."
+            if (week.engine.isEmpty()) errors += "Week ${week.week}: fixed Engine work is missing."
+            val sprintMeters = week.speed.sumOf { it.qualifyingSprintMeters }
+            if (sprintVolumeStatus(sprintMeters) != SprintVolumeStatus.ALLOWED) {
+                errors += "Week ${week.week}: built-in qualifying sprint volume must be 0–500 m, got $sprintMeters."
             }
-            val shouldHaveFinisher = option.variant == SpeedVariant.ACCELERATION || option.variant == SpeedVariant.MAX_VELOCITY
-            if (option.includesMachinePowerFinisher != shouldHaveFinisher) errors += "${option.variant}: machine-power finisher eligibility is incorrect."
+            week.speed.forEach { segment ->
+                if (segment.effortCount < 1) errors += "${segment.id}: effort count must be positive."
+                if (segment.restSeconds != null && segment.restSeconds <= 0) errors += "${segment.id}: rest must be positive."
+            }
+            week.engine.forEach { segment ->
+                if (segment.effortCount < 1) errors += "${segment.id}: effort count must be positive."
+                if (segment.restSeconds != null && segment.restSeconds <= 0) errors += "${segment.id}: rest must be positive."
+            }
+        }
+
+        val finisher = OperatorProgramV56.machinePowerFinisher
+        if (finisher.efforts != 6 || finisher.hardSeconds != 10 || finisher.easySeconds != 80) {
+            errors += "Machine-power finisher must be 6 × 10 s hard / 80 s easy."
+        }
+        if (finisher.primary != MachineModality.AIR_FAN_BIKE || finisher.alternative != MachineModality.STATIONARY_CYCLE) {
+            errors += "Machine-power finisher must use air/fan bike primary and stationary cycle alternative."
         }
         if (sprintVolumeStatus(500) != SprintVolumeStatus.ALLOWED) errors += "500 m must be allowed."
         if (sprintVolumeStatus(501) != SprintVolumeStatus.WARNING) errors += ">500 m through 600 m must warn."

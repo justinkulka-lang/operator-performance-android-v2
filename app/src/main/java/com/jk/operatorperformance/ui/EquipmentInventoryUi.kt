@@ -16,7 +16,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.jk.operatorperformance.program.MachineModality
-import com.jk.operatorperformance.program.OperatorProgramV54
+import com.jk.operatorperformance.program.OperatorProgramV56
 
 @Composable
 internal fun MachineEquipmentInventoryCard(
@@ -24,28 +24,23 @@ internal fun MachineEquipmentInventoryCard(
     available: Set<MachineModality>,
     onChanged: (Boolean, Set<MachineModality>) -> Unit,
 ) {
-    val ranked = OperatorProgramV54.machinePowerFinisher.rankedModalities
-    val resolved = ranked.firstOrNull { it in available }
+    val finisher = OperatorProgramV56.machinePowerFinisher
+    val authorized = listOf(finisher.primary, finisher.alternative)
+    val resolved = authorized.firstOrNull { it in available }
 
     Card(modifier = Modifier.fillMaxWidth().testTag("machine_inventory_tool")) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("MACHINE POWER FINISHER EQUIPMENT", fontWeight = FontWeight.Bold)
-            Text("Used only after ACCELERATION or MAX VELOCITY. Priority is fixed by v5.4; equipment availability does not change the running prescription.")
-            Text(
-                "Priority: " + ranked.joinToString(" → ") { it.label },
-                style = MaterialTheme.typography.bodySmall,
-            )
+            Text("Used only in Weeks 1–4 after the fixed Acceleration / Maximum Velocity work. Equipment availability never changes the running prescription.")
+            Text("Priority: " + authorized.joinToString(" → ") { it.label }, style = MaterialTheme.typography.bodySmall)
 
             when {
-                !configured -> Text("STATUS • NOT CONFIGURED. The canonical equipment hierarchy remains visible for reference.")
+                !configured -> Text("STATUS • NOT CONFIGURED. The approved primary and alternative remain visible for reference.")
                 resolved == null -> Text("STATUS • CONFIGURED • NONE AVAILABLE. The optional machine finisher is omitted.")
                 else -> Text("STATUS • CONFIGURED • RESOLVED: ${resolved.label}")
             }
 
-            ranked.forEach { modality ->
+            authorized.forEach { modality ->
                 FilterChip(
                     selected = modality in available,
                     onClick = {
@@ -54,28 +49,19 @@ internal fun MachineEquipmentInventoryCard(
                         onChanged(true, next.toSet())
                     },
                     label = { Text(modality.label) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 48.dp)
-                        .testTag("machine_${modality.name}"),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("machine_${modality.name}"),
                 )
             }
 
             TextButton(
                 onClick = { onChanged(true, emptySet()) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 48.dp)
-                    .testTag("machine_none_available"),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("machine_none_available"),
             ) { Text("NONE AVAILABLE") }
 
             if (configured) {
                 TextButton(
                     onClick = { onChanged(false, emptySet()) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 48.dp)
-                        .testTag("machine_clear_configuration"),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("machine_clear_configuration"),
                 ) { Text("CLEAR CONFIGURATION") }
             }
         }

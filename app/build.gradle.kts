@@ -11,9 +11,35 @@ android {
         applicationId = "com.jk.operatorperformance"
         minSdk = 28
         targetSdk = 36
-        versionCode = 44
-        versionName = "0.35.0"
+        versionCode = 45
+        versionName = "0.36.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    val releaseKeystorePath = System.getenv("OPERATOR_RELEASE_KEYSTORE_PATH")
+    val releaseStorePassword = System.getenv("OPERATOR_RELEASE_STORE_PASSWORD")
+    val releaseKeyAlias = System.getenv("OPERATOR_RELEASE_KEY_ALIAS")
+    val releaseKeyPassword = System.getenv("OPERATOR_RELEASE_KEY_PASSWORD")
+    val persistentReleaseSigningAvailable = listOf(
+        releaseKeystorePath,
+        releaseStorePassword,
+        releaseKeyAlias,
+        releaseKeyPassword,
+    ).all { !it.isNullOrBlank() }
+
+    signingConfigs {
+        if (persistentReleaseSigningAvailable) {
+            create("persistentRelease") {
+                storeFile = file(requireNotNull(releaseKeystorePath))
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
+                enableV4Signing = true
+            }
+        }
     }
 
     buildTypes {
@@ -23,6 +49,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            if (persistentReleaseSigningAvailable) {
+                signingConfig = signingConfigs.getByName("persistentRelease")
+            }
         }
     }
 
@@ -57,6 +86,7 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.ui:ui-tooling-preview")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")

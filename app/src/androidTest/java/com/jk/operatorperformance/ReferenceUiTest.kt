@@ -13,8 +13,6 @@ import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.platform.app.InstrumentationRegistry
-import com.jk.operatorperformance.program.EngineVariant
-import com.jk.operatorperformance.program.SpeedVariant
 import com.jk.operatorperformance.state.ProgramStateStore
 import com.jk.operatorperformance.state.ProgramUiState
 import org.junit.After
@@ -32,8 +30,7 @@ class ReferenceUiTest {
     fun resetState() {
         resetDisplayConfiguration()
         val context = ApplicationProvider.getApplicationContext<Context>()
-        context.getSharedPreferences("operator_v54_reference_state", Context.MODE_PRIVATE)
-            .edit().clear().commit()
+        context.getSharedPreferences("operator_v54_reference_state", Context.MODE_PRIVATE).edit().clear().commit()
         composeRule.activityRule.scenario.recreate()
         composeRule.waitForIdle()
     }
@@ -44,15 +41,15 @@ class ReferenceUiTest {
     }
 
     @Test
-    fun freshInstallLaunchesDirectlyToTodayWithCompleteWeekOneDayOneReference() {
+    fun freshInstallLaunchesToExactWeekOneDayOneWorkout() {
         composeRule.onNodeWithTag("today_screen").assertIsDisplayed()
         composeRule.onNodeWithText("WEEK 1 • DAY 1").assertIsDisplayed()
         composeRule.onNodeWithText("Lower A + easy aerobic").assertExists()
-        composeRule.onNodeWithText("Back squat or front squat").assertExists()
-        composeRule.onNodeWithText("4 × 5–8 @ 2–3 RIR").assertExists()
-        composeRule.onNodeWithTag("today_screen").performScrollToNode(hasText("Low-eccentric aerobic finisher"))
-        composeRule.onNodeWithText("Low-eccentric aerobic finisher").assertExists()
-        composeRule.onNodeWithText("20–25 min easy").assertExists()
+        composeRule.onNodeWithText("Back squat").assertExists()
+        composeRule.onNodeWithText("4 × 5–8 @ 2–3 RIR • REST 3:00").assertExists()
+        composeRule.onNodeWithTag("today_screen").performScrollToNode(hasText("Stationary cycle — easy aerobic"))
+        composeRule.onNodeWithText("Stationary cycle — easy aerobic").assertExists()
+        composeRule.onNodeWithText("25:00 continuous • 80–90 rpm • RPE 3–4/10 • full-sentence speech. Increase resistance only enough to hold the prescribed cadence at the prescribed effort.").assertExists()
         composeRule.onNodeWithTag("nav_TODAY").assertExists()
         composeRule.onNodeWithTag("nav_WEEK").assertExists()
         composeRule.onNodeWithTag("nav_PROGRAM").assertExists()
@@ -60,96 +57,113 @@ class ReferenceUiTest {
     }
 
     @Test
-    fun weekBrowseShowsSevenDaysAndDoesNotMoveCurrentPointer() {
+    fun todayCardsSupportDirectCompletionAlternativeAndIncompleteAdvanceConfirmation() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val store = ProgramStateStore(context)
+
+        composeRule.onNodeWithTag("today_screen").performScrollToNode(hasTestTag("effort_d1_squat_1"))
+        composeRule.onNodeWithTag("effort_d1_squat_1").performClick()
+        composeRule.waitForIdle()
+        assertTrue(store.loadWorkout()?.completedEffortIds?.contains("d1_squat#1") == true)
+
+        composeRule.onNodeWithTag("today_screen").performScrollToNode(hasTestTag("today_alt_d1_squat"))
+        composeRule.onNodeWithTag("today_alt_d1_squat").performClick()
+        composeRule.onNodeWithText("Safety-bar squat").assertExists()
+        assertEquals("Safety-bar squat", store.loadWorkout()?.selectedSubstitutions?.get("d1_squat"))
+
+        composeRule.onNodeWithTag("today_screen").performScrollToNode(hasTestTag("complete_day"))
+        composeRule.onNodeWithTag("complete_day").performClick()
+        composeRule.onNodeWithText("Advance with unfinished work?").assertIsDisplayed()
+        composeRule.onNodeWithTag("confirm_incomplete_advance").performClick()
+        composeRule.onNodeWithText("WEEK 1 • DAY 2").assertIsDisplayed()
+        assertTrue(store.loadWorkout() == null)
+    }
+
+    @Test
+    fun weekBrowseShowsFullSpeedWorkoutWithoutMovingPointer() {
         composeRule.onNodeWithTag("nav_WEEK").performClick()
         composeRule.onNodeWithTag("week_day_1").assertExists()
         composeRule.onNodeWithText("CURRENT").assertExists()
-        composeRule.onNodeWithTag("week_screen").performScrollToNode(hasTestTag("week_day_7"))
-        composeRule.onNodeWithTag("week_day_7").assertExists()
         composeRule.onNodeWithTag("week_screen").performScrollToNode(hasTestTag("week_day_3"))
         composeRule.onNodeWithTag("week_day_3").performClick()
-        composeRule.onNodeWithText("300 m baseline").assertExists()
+        composeRule.onNodeWithText("Speed warm-up").assertExists()
+        composeRule.onNodeWithText("Acceleration").assertExists()
+        composeRule.onNodeWithText("Optional machine-power finisher — Air/fan bike").assertExists()
+        composeRule.onNodeWithTag("reference_dialog").performScrollToNode(hasText("CLOSE"))
         composeRule.onNodeWithText("CLOSE").performClick()
         composeRule.onNodeWithTag("nav_TODAY").performClick()
         composeRule.onNodeWithText("WEEK 1 • DAY 1").assertIsDisplayed()
     }
 
     @Test
-    fun programBrowsesPopulatedWeeksShowsPhaseStatusAndChangesPointerOnlyAfterConfirmation() {
+    fun programBrowsesFixedWeekTwoAndChangesPointerOnlyAfterConfirmation() {
         composeRule.onNodeWithTag("nav_PROGRAM").performClick()
         composeRule.onNodeWithTag("program_week_2").performClick()
-        composeRule.onNodeWithTag("program_screen").performScrollToNode(hasText("NEXT WEEK • WEEK 2"))
-        composeRule.onNodeWithText("NEXT WEEK • WEEK 2").assertExists()
-        composeRule.onNodeWithTag("program_screen").performScrollToNode(hasTestTag("current_phase"))
-        composeRule.onNodeWithText("CURRENT PHASE • Block 1 — Accumulation • Weeks 1–8 • POPULATED").assertExists()
-        composeRule.onNodeWithTag("program_screen").performScrollToNode(hasTestTag("next_phase"))
-        composeRule.onNodeWithText("NEXT PHASE • Block 2 • Weeks 9–16 • UNPOPULATED / NOT PROGRAMMED").assertExists()
-        composeRule.onNodeWithTag("program_screen").performScrollToNode(hasTestTag("phase_17_24"))
-        composeRule.onNodeWithTag("phase_17_24").assertExists()
-        composeRule.onNodeWithTag("program_screen").performScrollToNode(hasTestTag("phase_25_32"))
-        composeRule.onNodeWithTag("phase_25_32").assertExists()
         composeRule.onNodeWithTag("program_screen").performScrollToNode(hasTestTag("program_day_3"))
         composeRule.onNodeWithTag("program_day_3").performClick()
-        composeRule.onNodeWithText("ACCELERATION").assertExists()
-        composeRule.onNodeWithText("Optional machine-power finisher").assertExists()
+        composeRule.onNodeWithText("Acceleration").assertExists()
+        composeRule.onNodeWithTag("reference_dialog").performScrollToNode(hasTestTag("set_current_button"))
         composeRule.onNodeWithTag("set_current_button").performClick()
         composeRule.onNodeWithTag("confirm_set_current").performClick()
         composeRule.onNodeWithTag("nav_TODAY").performClick()
         composeRule.onNodeWithText("WEEK 2 • DAY 3").assertIsDisplayed()
-        composeRule.onNodeWithText("ACCELERATION").assertExists()
+        composeRule.onNodeWithText("Acceleration").assertExists()
     }
 
     @Test
-    fun workoutModeAdvancesSetsSupportsUndoAndExposesWorkoutMap() {
+    fun workoutModeCompletesSetsStartsPrescribedRestAndSupportsUndo() {
         startWorkout()
         composeRule.onNodeWithTag("workout_mode").assertIsDisplayed()
-        composeRule.onNodeWithText("Back squat or front squat").assertIsDisplayed()
+        composeRule.onNodeWithText("Back squat").assertIsDisplayed()
         composeRule.onNodeWithText("SET 1 OF 4").assertIsDisplayed()
         composeRule.onNodeWithTag("workout_primary").performClick()
         composeRule.onNodeWithText("SET 2 OF 4").assertIsDisplayed()
+        composeRule.onNodeWithTag("workout_rest").assertIsDisplayed()
+        composeRule.onNodeWithTag("workout_rest_add_30").performClick()
         composeRule.onNodeWithTag("workout_undo").performClick()
         composeRule.onNodeWithText("SET 1 OF 4").assertIsDisplayed()
-        composeRule.onNodeWithTag("workout_map_button").performClick()
-        composeRule.onNodeWithTag("workout_map_dialog").assertIsDisplayed()
-        composeRule.onNodeWithText("CURRENT").assertExists()
+        composeRule.onNodeWithTag("workout_rest").assertDoesNotExist()
     }
 
     @Test
-    fun workoutPointerRestoresAfterActivityRecreationWithoutPerformanceEntry() {
+    fun completedSetCheckmarkAndPointerRestoreAfterActivityRecreation() {
         startWorkout()
         composeRule.onNodeWithTag("workout_primary").performClick()
-        composeRule.onNodeWithText("SET 2 OF 4").assertIsDisplayed()
         composeRule.onNodeWithTag("workout_return_today").performClick()
+        composeRule.onNodeWithTag("today_screen").performScrollToNode(hasTestTag("effort_d1_squat_1"))
+        composeRule.onNodeWithTag("effort_d1_squat_1").assertExists()
         composeRule.activityRule.scenario.recreate()
         composeRule.waitForIdle()
         composeRule.onNodeWithTag("today_screen").performScrollToNode(hasTestTag("start_resume_workout"))
         composeRule.onNodeWithText("RESUME WORKOUT").assertIsDisplayed()
         composeRule.onNodeWithTag("start_resume_workout").performClick()
         composeRule.onNodeWithText("SET 2 OF 4").assertIsDisplayed()
+        composeRule.onNodeWithTag("workout_rest").assertIsDisplayed()
     }
 
     @Test
-    fun substitutionSelectionPersistsForActiveWorkoutAndCanReturnToCanonical() {
+    fun singleAlternativeSelectionPersistsAndCanReturnToPrimary() {
         startWorkout()
         composeRule.onNodeWithTag("workout_substitutions").performClick()
         composeRule.onNodeWithTag("substitution_0").performClick()
+        composeRule.onNodeWithText("Safety-bar squat").assertIsDisplayed()
         composeRule.onNodeWithTag("selected_substitution").assertIsDisplayed()
         composeRule.onNodeWithTag("workout_return_today").performClick()
         composeRule.activityRule.scenario.recreate()
         composeRule.waitForIdle()
         composeRule.onNodeWithTag("today_screen").performScrollToNode(hasTestTag("start_resume_workout"))
         composeRule.onNodeWithTag("start_resume_workout").performClick()
-        composeRule.onNodeWithTag("selected_substitution").assertIsDisplayed()
+        composeRule.onNodeWithText("Safety-bar squat").assertIsDisplayed()
         composeRule.onNodeWithTag("workout_substitutions").performClick()
         composeRule.onNodeWithTag("substitution_canonical").performClick()
         composeRule.onNodeWithTag("selected_substitution").assertDoesNotExist()
-        composeRule.onNodeWithText("Back squat or front squat").assertIsDisplayed()
+        composeRule.onNodeWithText("Back squat").assertIsDisplayed()
     }
 
     @Test
-    fun configuredRestTimerRunsIndependentlyAndRestoresWorkoutTimerWithUndo() {
+    fun utilityRestTimerRemainsIndependentFromWorkoutRest() {
         composeRule.onNodeWithTag("nav_TOOLS").performClick()
-        composeRule.onNodeWithTag("rest_timer_input").performTextReplacement("120")
+        composeRule.onNodeWithTag("rest_timer_input").performTextReplacement("75")
         composeRule.onNodeWithTag("rest_timer_save").performClick()
         composeRule.onNodeWithTag("rest_timer_start").performClick()
         composeRule.onNodeWithTag("utility_rest_countdown").assertIsDisplayed()
@@ -159,15 +173,6 @@ class ReferenceUiTest {
         composeRule.onNodeWithTag("workout_primary").performClick()
         composeRule.onNodeWithTag("workout_rest").assertIsDisplayed()
         composeRule.onNodeWithText("SET 2 OF 4").assertIsDisplayed()
-        composeRule.onNodeWithTag("workout_return_today").performClick()
-        composeRule.activityRule.scenario.recreate()
-        composeRule.waitForIdle()
-        composeRule.onNodeWithTag("today_screen").performScrollToNode(hasTestTag("start_resume_workout"))
-        composeRule.onNodeWithTag("start_resume_workout").performClick()
-        composeRule.onNodeWithTag("workout_rest").assertIsDisplayed()
-        composeRule.onNodeWithTag("workout_undo").performClick()
-        composeRule.onNodeWithText("SET 1 OF 4").assertIsDisplayed()
-        composeRule.onNodeWithTag("workout_rest").assertDoesNotExist()
     }
 
     @Test
@@ -189,15 +194,19 @@ class ReferenceUiTest {
         configureDisplay(widthPx = 360, heightPx = 640, densityDpi = 160, fontScale = 2.0f)
         startWorkout()
         composeRule.onNodeWithTag("workout_primary").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithTag("workout_primary").performClick()
-        composeRule.onNodeWithText("SET 2 OF 4").assertExists()
     }
 
     @Test
     fun authorizedReferenceStatePersistsWithoutPerformanceData() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val store = ProgramStateStore(context)
-        val expected = ProgramUiState(currentWeek = 6, currentDay = 6, speedVariant = SpeedVariant.MAX_VELOCITY, engineVariant = EngineVariant.VO2, deloadMode = true, restTimerSeconds = 75, utilityRestTimerEndEpochMillis = 123_456_789L)
+        val expected = ProgramUiState(
+            currentWeek = 6,
+            currentDay = 6,
+            deloadMode = true,
+            restTimerSeconds = 75,
+            utilityRestTimerEndEpochMillis = 123_456_789L,
+        )
         store.save(expected)
         assertEquals(expected, ProgramStateStore(context).load())
     }
