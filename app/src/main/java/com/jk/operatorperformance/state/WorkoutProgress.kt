@@ -1,93 +1,142 @@
 package com.jk.operatorperformance.state
 
 import com.jk.operatorperformance.program.SessionReference
-import com.jk.operatorperformance.program.SessionRowKind
 
 object WorkoutProgress {
     fun start(state: ProgramUiState): ActiveWorkoutState = ActiveWorkoutState(
         week = state.currentWeek,
         day = state.currentDay,
-        speedVariant = state.speedVariant,
-        engineVariant = state.engineVariant,
         deloadMode = state.deloadMode,
         machineInventoryConfigured = state.machineInventoryConfigured,
         availableMachineModalities = state.availableMachineModalities,
     )
+
+    fun effortId(rowId: String, effortIndex: Int): String = "$rowId#$effortIndex"
+
+    fun totalEfforts(session: SessionReference): Int = session.rows.sumOf { it.effortCount }
+
+    fun completedEfforts(progress: ActiveWorkoutState, session: SessionReference): Int {
+        val valid = validEffortIds(session)
+        return progress.completedEffortIds.count { it in valid }
+    }
+
+    fun isEffortComplete(progress: ActiveWorkoutState, rowId: String, effortIndex: Int): Boolean =
+        effortId(rowId, effortIndex) in progress.completedEffortIds
 
     fun normalize(progress: ActiveWorkoutState, session: SessionReference): ActiveWorkoutState {
         require(session.rows.isNotEmpty()) { "Workout session must contain at least one row." }
         val validSubstitutions = progress.selectedSubstitutions.filter { (rowId, choice) ->
             session.rows.any { row -> row.id == rowId && choice in row.alternatives }
         }
-        if (progress.complete) return progress.copy(
-            movementIndex = session.rows.lastIndex,
-            effortIndex = session.rows.last().effortCount,
-            selectedSubstitutions = validSubstitutions,
-            restTimerEndEpochMillis = null,
-        )
+        val validEffortIds = validEffortIds(session)
+        val completed = progress.completedEffortIds.filterTo(linkedSetOf()) { it in validEffortIds }
+        val positions = positions(session)
+        val allComplete = positions.all { (rowIndex, effortIndex) ->
+            effortId(session.rows[rowIndex].id, effortIndex) in completed
+        }
+        if (allComplete) {
+            return progress.copy(
+                movementIndex = session.rows.lastIndex,
+                effortIndex = session.rows.last().effortCount,
+                complete = true,
+                selectedSubstitutions = validSubstitutions,
+                completedEffortIds = completed,
+                restTimerEndEpochMillis = null,
+            )
+        }
+
         val movement = progress.movementIndex.coerceIn(0, session.rows.lastIndex)
         val effort = progress.effortIndex.coerceIn(1, session.rows[movement].effortCount)
+        val currentId = effortId(session.rows[movement].id, effort)
+        val target = if (currentId !in completed) {
+            movement to effort
+        } else {
+            positions.first { (rowIndex, effortIndex) ->
+                effortId(session.rows[rowIndex].id, effortIndex) !in completed
+            }
+        }
         return progress.copy(
-            movementIndex = movement,
-            effortIndex = effort,
+            movementIndex = target.first,
+            effortIndex = target.second,
+            complete = false,
             selectedSubstitutions = validSubstitutions,
+            completedEffortIds = completed,
         )
     }
 
     fun advance(
         progress: ActiveWorkoutState,
         session: SessionReference,
-        timerDurationSeconds: Int? = null,
         nowMillis: Long = System.currentTimeMillis(),
     ): ActiveWorkoutState {
-        require(timerDurationSeconds == null || timerDurationSeconds > 0) {
-            "timerDurationSeconds must be positive when configured."
-        }
         val current = normalize(progress, session)
         if (current.complete) return current
 
         val row = session.rows[current.movementIndex]
-        val previousMovement = current.movementIndex
-        val previousEffort = current.effortIndex
-        val previousComplete = current.complete
-        val previousRestTimerEnd = current.restTimerEndEpochMillis
-
-        val advanced = when {
-            current.effortIndex < row.effortCount -> current.copy(
-                effortIndex = current.effortIndex + 1,
-                undoMovementIndex = previousMovement,
-                undoEffortIndex = previousEffort,
-                undoComplete = previousComplete,
-            )
-            current.movementIndex < session.rows.lastIndex -> current.copy(
-                movementIndex = current.movementIndex + 1,
-                effortIndex = 1,
-                undoMovementIndex = previousMovement,
-                undoEffortIndex = previousEffort,
-                undoComplete = previousComplete,
-            )
-            else -> current.copy(
-                complete = true,
-                undoMovementIndex = previousMovement,
-                undoEffortIndex = previousEffort,
-                undoComplete = previousComplete,
-            )
+        val currentId = effortId(row.id, current.effortIndex)
+        val completed = current.completedEffortIds + currentId
+        val ordered = positions(session)
+        val currentPositionIndex = ordered.indexOf(current.movementIndex to current.effortIndex)
+        val next = ordered.drop(currentPositionIndex + 1).firstOrNull { (rowIndex, effortIndex) ->
+            effortId(session.rows[rowIndex].id, effortIndex) !in completed
+        } ?: ordered.take(currentPositionIndex).firstOrNull { (rowIndex, effortIndex) ->
+            effortId(session.rows[rowIndex].id, effortIndex) !in completed
         }
+        val finished = next == null
+        val shouldRest = !finished && row.restSeconds != null &&
+            (current.effortIndex < row.effortCount || row.restAfterLastEffort)
+        val restEnd = if (shouldRest) nowMillis + requireNotNull(row.restSeconds).toLong() * 1_000L else null
 
-        val autoRestEnd = if (
-            !advanced.complete &&
-            row.kind == SessionRowKind.RESISTANCE &&
-            timerDurationSeconds != null
-        ) {
-            nowMillis + timerDurationSeconds.toLong() * 1_000L
-        } else {
-            null
-        }
-
-        return advanced.copy(
-            restTimerEndEpochMillis = autoRestEnd,
-            undoRestTimerEndEpochMillis = previousRestTimerEnd,
+        return current.copy(
+            movementIndex = next?.first ?: current.movementIndex,
+            effortIndex = next?.second ?: current.effortIndex,
+            complete = finished,
+            completedEffortIds = completed,
+            restTimerEndEpochMillis = restEnd,
+            undoMovementIndex = current.movementIndex,
+            undoEffortIndex = current.effortIndex,
+            undoComplete = current.complete,
+            undoRestTimerEndEpochMillis = current.restTimerEndEpochMillis,
+            undoCompletedEffortIds = current.completedEffortIds,
         )
+    }
+
+    fun toggleEffort(
+        progress: ActiveWorkoutState,
+        session: SessionReference,
+        rowId: String,
+        effortIndex: Int,
+        nowMillis: Long = System.currentTimeMillis(),
+    ): ActiveWorkoutState {
+        val normalized = normalize(progress, session)
+        val rowIndex = session.rows.indexOfFirst { it.id == rowId }
+        require(rowIndex >= 0) { "Unknown workout row: $rowId" }
+        val row = session.rows[rowIndex]
+        require(effortIndex in 1..row.effortCount) { "Invalid effort index for $rowId: $effortIndex" }
+        val id = effortId(rowId, effortIndex)
+        val wasComplete = id in normalized.completedEffortIds
+        val nextCompleted = normalized.completedEffortIds.toMutableSet().apply {
+            if (wasComplete) remove(id) else add(id)
+        }.toSet()
+        val wasCurrent = normalized.movementIndex == rowIndex && normalized.effortIndex == effortIndex
+        val pointerSeed = if (wasComplete) {
+            normalized.copy(movementIndex = rowIndex, effortIndex = effortIndex, complete = false)
+        } else normalized
+        val toggled = pointerSeed.copy(
+            completedEffortIds = nextCompleted,
+            restTimerEndEpochMillis = null,
+            undoMovementIndex = normalized.movementIndex,
+            undoEffortIndex = normalized.effortIndex,
+            undoComplete = normalized.complete,
+            undoRestTimerEndEpochMillis = normalized.restTimerEndEpochMillis,
+            undoCompletedEffortIds = normalized.completedEffortIds,
+        )
+        val result = normalize(toggled, session)
+        if (wasComplete || !wasCurrent || result.complete || row.restSeconds == null) return result
+        val shouldRest = effortIndex < row.effortCount || row.restAfterLastEffort
+        return if (shouldRest) {
+            result.copy(restTimerEndEpochMillis = nowMillis + row.restSeconds.toLong() * 1_000L)
+        } else result
     }
 
     fun undo(progress: ActiveWorkoutState): ActiveWorkoutState {
@@ -96,16 +145,24 @@ object WorkoutProgress {
             movementIndex = requireNotNull(progress.undoMovementIndex),
             effortIndex = requireNotNull(progress.undoEffortIndex),
             complete = requireNotNull(progress.undoComplete),
+            completedEffortIds = requireNotNull(progress.undoCompletedEffortIds),
             restTimerEndEpochMillis = progress.undoRestTimerEndEpochMillis,
             undoMovementIndex = null,
             undoEffortIndex = null,
             undoComplete = null,
             undoRestTimerEndEpochMillis = null,
+            undoCompletedEffortIds = null,
         )
     }
 
     fun skipRest(progress: ActiveWorkoutState): ActiveWorkoutState =
         progress.copy(restTimerEndEpochMillis = null)
+
+    fun addRestSeconds(progress: ActiveWorkoutState, seconds: Int): ActiveWorkoutState {
+        require(seconds > 0)
+        val end = progress.restTimerEndEpochMillis ?: return progress
+        return progress.copy(restTimerEndEpochMillis = end + seconds.toLong() * 1_000L)
+    }
 
     fun clearExpiredRest(progress: ActiveWorkoutState, nowMillis: Long): ActiveWorkoutState {
         val end = progress.restTimerEndEpochMillis ?: return progress
@@ -124,15 +181,24 @@ object WorkoutProgress {
         rowId: String,
         alternative: String?,
     ): ActiveWorkoutState {
-        val row = session.rows.singleOrNull { it.id == rowId }
-            ?: error("Unknown workout row: $rowId")
+        val row = session.rows.singleOrNull { it.id == rowId } ?: error("Unknown workout row: $rowId")
         if (alternative != null) {
-            require(alternative in row.alternatives) {
-                "Substitution is not authorized for row $rowId: $alternative"
-            }
+            require(alternative in row.alternatives) { "Substitution is not authorized for row $rowId: $alternative" }
         }
         val next = progress.selectedSubstitutions.toMutableMap()
         if (alternative == null) next.remove(rowId) else next[rowId] = alternative
         return progress.copy(selectedSubstitutions = next.toMap())
+    }
+
+    private fun positions(session: SessionReference): List<Pair<Int, Int>> = buildList {
+        session.rows.forEachIndexed { rowIndex, row ->
+            (1..row.effortCount).forEach { effortIndex -> add(rowIndex to effortIndex) }
+        }
+    }
+
+    private fun validEffortIds(session: SessionReference): Set<String> = buildSet {
+        session.rows.forEach { row ->
+            (1..row.effortCount).forEach { effortIndex -> add(effortId(row.id, effortIndex)) }
+        }
     }
 }
