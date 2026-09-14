@@ -1,17 +1,21 @@
 package com.jk.operatorperformance
 
 import android.content.Context
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.platform.app.InstrumentationRegistry
+import com.jk.operatorperformance.state.ProgramStateStore
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -34,15 +38,43 @@ class AccessibilityUiTest {
     fun restoreDisplay() = resetDisplay()
 
     @Test
-    fun primaryWorkoutActionMeetsMinimumTouchTargetAndCoreContextIsReadable() {
+    fun focusModeExposesContextMovementSetPrescriptionAndPrimaryAction() {
         composeRule.onNodeWithTag("today_screen").performScrollToNode(hasTestTag("start_resume_workout"))
         composeRule.onNodeWithTag("start_resume_workout").performClick()
-        composeRule.onNodeWithText("WEEK 1 • DAY 1 • Lower A + easy aerobic").assertIsDisplayed()
-        composeRule.onNodeWithText("Back squat or front squat").assertIsDisplayed()
-        composeRule.onNodeWithText("SET 1 / 4").assertIsDisplayed()
-        composeRule.onNodeWithText("4 × 5–8 @ 2–3 RIR").assertIsDisplayed()
-        val target = composeRule.onNodeWithTag("set_done").fetchSemanticsNode().boundsInRoot
-        assertTrue("Primary workout target must be at least 48 dp high", target.height >= 48f)
+
+        val context = composeRule.onNodeWithTag("workout_context").fetchSemanticsNode()
+        val movement = composeRule.onNodeWithTag("workout_movement").fetchSemanticsNode()
+        val effort = composeRule.onNodeWithTag("workout_effort").fetchSemanticsNode()
+        val prescription = composeRule.onNodeWithTag("workout_prescription").fetchSemanticsNode()
+        val primary = composeRule.onNodeWithTag("set_done").fetchSemanticsNode()
+
+        assertTrue(context.config[SemanticsProperties.Text].joinToString(" ") { it.text }.contains("WEEK 1 • DAY 1"))
+        assertTrue(movement.config[SemanticsProperties.Text].joinToString(" ") { it.text }.contains("Back squat or front squat"))
+        assertTrue(effort.config[SemanticsProperties.Text].joinToString(" ") { it.text }.contains("SET 1 / 4"))
+        assertTrue(prescription.config[SemanticsProperties.Text].joinToString(" ") { it.text }.contains("4 × 5–8 @ 2–3 RIR"))
+        assertTrue(primary.config.contains(SemanticsActions.OnClick))
+        assertTrue("Primary workout target must be at least 48 dp high", primary.boundsInRoot.height >= 48f)
+    }
+
+    @Test
+    fun independentRestTimerPublishesTalkBackTimerState() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val store = ProgramStateStore(context)
+        store.save(
+            store.load().copy(
+                restTimerSeconds = 120,
+                utilityRestTimerEndEpochMillis = System.currentTimeMillis() + 120_000L,
+            ),
+        )
+        composeRule.activityRule.scenario.recreate()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("nav_TOOLS").performClick()
+        composeRule.onNodeWithTag("tools_screen").performScrollToNode(hasTestTag("utility_rest_countdown"))
+
+        val config = composeRule.onNodeWithTag("utility_rest_countdown").fetchSemanticsNode().config
+        assertEquals(listOf("Rest timer countdown"), config[SemanticsProperties.ContentDescription])
+        assertTrue(config[SemanticsProperties.StateDescription].startsWith("Rest timer remaining "))
+        assertEquals(LiveRegionMode.Polite, config[SemanticsProperties.LiveRegion])
     }
 
     @Test
