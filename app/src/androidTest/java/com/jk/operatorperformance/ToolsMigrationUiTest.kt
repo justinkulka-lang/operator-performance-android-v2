@@ -47,7 +47,6 @@ class ToolsMigrationUiTest {
             .putInt("week_index", 99)
             .putInt("session_index", -1)
             .commit()
-
         LegacyDataManager(context).migratePointerIfNeeded()
         val state = ProgramStateStore(context).load()
         assertEquals(1, state.currentWeek)
@@ -55,21 +54,21 @@ class ToolsMigrationUiTest {
     }
 
     @Test
-    fun exportContainsRetainedLegacyDataAndConfirmedDeletionClearsOnlyLegacyNamespaces() {
+    fun exportIdentifiesAresAuthorityAndDeletionClearsOnlyLegacyNamespaces() {
         val legacyTraining = context.getSharedPreferences("operator_performance_state", Context.MODE_PRIVATE)
         legacyTraining.edit().putString("session_history", "legacy-row").commit()
         LegacyDataManager(context).migratePointerIfNeeded()
-        ProgramStateStore(context).save(ProgramStateStore(context).load().withCurrentPointer(4, 6))
+        ProgramStateStore(context).save(ProgramStateStore(context).load().withCurrentPointer(32, 6))
 
         val manager = LegacyDataManager(context)
         val export = manager.buildLocalExport(exportedAtMillis = 1234L)
-        assertTrue(export.contains("\"authority\": \"Operator Performance v5.6\""))
+        assertTrue(export.contains("\"authority\": \"ARES Performance v5.7\""))
         assertTrue(export.contains("legacy-row"))
         assertTrue(export.contains("current_reference_state"))
         assertTrue(manager.deleteLegacyTrackingData())
         assertFalse(manager.hasLegacyTrackingData())
         val state = ProgramStateStore(context).load()
-        assertEquals(4, state.currentWeek)
+        assertEquals(32, state.currentWeek)
         assertEquals(6, state.currentDay)
     }
 }

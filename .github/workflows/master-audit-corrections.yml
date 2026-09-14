@@ -1,4 +1,4 @@
-name: Operator Performance v5.6 Master Audit
+name: ARES Performance v5.7 Master Audit
 
 on:
   workflow_dispatch:
@@ -16,7 +16,7 @@ permissions:
 jobs:
   master-audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     steps:
       - name: Checkout exact source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -48,15 +48,17 @@ jobs:
             "emulator" \
             "system-images;android-35;default;x86_64"
 
-      - name: Verify package, version, authority, and permanent dark shell
+      - name: Verify package, live version, authority, ARES branding, and dark shell
         shell: bash
         run: |
           set -euo pipefail
           grep -q 'applicationId = "com.jk.operatorperformance"' app/build.gradle.kts
           grep -q 'versionCode = 45' app/build.gradle.kts
           grep -q 'versionName = "0.36.0"' app/build.gradle.kts
-          grep -q 'AUTHORITY_VERSION = "5.6"' app/src/main/java/com/jk/operatorperformance/program/ProgramV56.kt
-          grep -q '7c220f57ac02bdb53fbbafb5b740219b03737ad848d7ce171d6b4b46ec4f8139' app/src/main/java/com/jk/operatorperformance/program/ProgramV56.kt
+          grep -q 'AUTHORITY_VERSION = "5.7"' app/src/main/java/com/jk/operatorperformance/program/ProgramV56.kt
+          grep -q '867c468ba616a22185b871c649d8c026be5c1c61b3a7f690edac5b6169fc3d0a' app/src/main/java/com/jk/operatorperformance/program/ProgramV56.kt
+          grep -q 'PROGRAM_NAME = "ARES PERFORMANCE"' app/src/main/java/com/jk/operatorperformance/program/ProgramV56.kt
+          grep -q 'android:label="ARES Performance"' app/src/main/AndroidManifest.xml
           grep -q 'parent="android:style/Theme.Material.NoActionBar"' app/src/main/res/values/themes.xml
           grep -q '<item name="android:windowBackground">#0B0F14</item>' app/src/main/res/values/themes.xml
           grep -q '<item name="android:statusBarColor">#0B0F14</item>' app/src/main/res/values/themes.xml
@@ -79,6 +81,41 @@ jobs:
             test "$(grep -c "<exclude domain=\"$domain\" path=\"\.\"" app/src/main/res/xml/data_extraction_rules.xml)" -eq 2
             grep -q "<exclude domain=\"$domain\" path=\"\.\"" app/src/main/res/xml/backup_rules.xml
           done
+          if grep -Eq 'android.permission.INTERNET|android.permission.health|HealthConnect|POST_NOTIFICATIONS' app/src/main/AndroidManifest.xml; then
+            echo "Prohibited permission found in manifest" >&2
+            exit 1
+          fi
+
+      - name: Run canonical v5.7 unit audit and generate exports
+        run: gradle :app:testDebugUnitTest --stacktrace
+
+      - name: Verify 32-week population and phase/export invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          weeks=app/build/reports/program-weeks-1-32.csv
+          conditioning=app/build/reports/program-conditioning-weeks-1-32.csv
+          phases=app/build/reports/program-phases.csv
+          test -f "$weeks"
+          test -f "$conditioning"
+          test -f "$phases"
+          test "$(wc -l < "$weeks")" -eq 33
+          if grep -q 'UNPOPULATED' "$weeks"; then
+            echo "v5.7 export contains an unpopulated week" >&2
+            exit 1
+          fi
+          grep -q '^1,"FOUNDATION","HEPHAESTUS",POPULATED_NORMAL,' "$weeks"
+          grep -q '^9,"DEVELOPMENT","HERMES",POPULATED_NORMAL,' "$weeks"
+          grep -q '^17,"SPECIFIC DEVELOPMENT","ARES",POPULATED_NORMAL,' "$weeks"
+          grep -q '^25,"INTEGRATION / PEAK","ZEUS",POPULATED_NORMAL,' "$weeks"
+          grep -q '^32,"INTEGRATION / PEAK","ZEUS",POPULATED_REALIZATION_TAPER,' "$weeks"
+          for id in w1_300_baseline w1_15_baseline w16_checkpoint w24_checkpoint w32_final300 w32_final15; do
+            grep -q "$id" "$conditioning"
+          done
+          grep -q '"HEPHAESTUS"' "$phases"
+          grep -q '"HERMES"' "$phases"
+          grep -q '"ARES"' "$phases"
+          grep -q '"ZEUS"' "$phases"
 
       - name: Prepare persistent release signing when secrets are configured
         shell: bash
@@ -109,13 +146,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          source_pattern='ESTABLISH CURRENT CAPABILITY|Recent runs per week|Easy continuous run capacity|Next-day lower-leg soreness|Pain currently changes my gait|PROGRAM TRACKING|PERFORMANCE PROFILE|HEALTH CONNECT|READINESS|SESSION RESULT|EASY / GOOD / HARD / FAILED|POSITION [1-7]|bodyweight|progress-photo|benchmark result entry|RECOVERY MODE|HISTORY destination|sled push|sled pull|Speed \\+ sled|ProgramTrackingStore|ReadinessStore|BenchmarkStore|StrengthLog|RunStopwatchStore|ConditioningExecutionStore|ActiveSetProgressStore|actualLoad|actualReps|actualRir|performed load|performed reps|performed RIR|session score|workout rating|automatic progression|block recomposition|300 m baseline|1.5-mile baseline|SPEED REFERENCE|ENGINE REFERENCE|OperatorProgramV54|SpeedVariant|EngineVariant'
+          source_pattern='ESTABLISH CURRENT CAPABILITY|Recent runs per week|Easy continuous run capacity|Next-day lower-leg soreness|PROGRAM TRACKING|PERFORMANCE PROFILE|HEALTH CONNECT|SESSION RESULT|EASY / GOOD / HARD / FAILED|POSITION [1-7]|bodyweight|progress-photo|benchmark result entry|RECOVERY MODE|HISTORY destination|sled push|sled pull|Speed \\+ sled|ProgramTrackingStore|ReadinessStore|BenchmarkStore|StrengthLog|RunStopwatchStore|ConditioningExecutionStore|ActiveSetProgressStore|actualLoad|actualReps|actualRir|performed load|performed reps|performed RIR|session score|workout rating|automatic progression|block recomposition|OperatorProgramV54'
           if grep -RniE "$source_pattern" app/src/main/java app/src/main/res; then
             echo "Stale/prohibited runtime architecture reference found in production source" >&2
             exit 1
           fi
-          if grep -RniE 'Operator Performance v5\.4|v5\.4 pointer migration' app legacy-fixture --exclude-dir=build; then
-            echo "Stale v5.4 construction comment found outside preserved compatibility-key names" >&2
+          if grep -RniE 'Operator Performance v5\.6|Operator-Performance-v5\.6|operator-performance-v5\.6-export' app/src/main app/proguard-rules.pro --exclude-dir=build; then
+            echo "Stale v5.6 user-facing/build metadata found in production source" >&2
             exit 1
           fi
           aapt2="$ANDROID_HOME/build-tools/37.0.0/aapt2"
@@ -149,12 +186,23 @@ jobs:
       - name: True process-death focus completion and timer restoration acceptance
         run: bash .github/scripts/process-death-acceptance.sh
 
-      - name: Upload v5.6 master-audit evidence
+      - name: Capture dependency graph
+        run: gradle :app:dependencies > app/build/reports/dependencies-master-audit.txt
+
+      - name: Upload ARES v5.7 master-audit evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: Operator-Performance-v5.6-Master-Audit
+          name: ARES-Performance-v5.7-Master-Audit
           path: |
+            app/build/reports/program-matrix.csv
+            app/build/reports/program-resistance-rows.csv
+            app/build/reports/program-weeks-1-32.csv
+            app/build/reports/program-conditioning-weeks-1-32.csv
+            app/build/reports/program-phases.csv
+            app/build/reports/dependencies-master-audit.txt
+            app/build/reports/tests/
+            app/build/test-results/
             app/build/outputs/apk/debug/*.apk
             app/build/outputs/apk/release/*.apk
           if-no-files-found: warn

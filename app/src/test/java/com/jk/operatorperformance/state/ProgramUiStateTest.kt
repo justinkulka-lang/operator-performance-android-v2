@@ -1,40 +1,43 @@
 package com.jk.operatorperformance.state
 
+import com.jk.operatorperformance.program.EngineVariant
+import com.jk.operatorperformance.program.SpeedVariant
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class ProgramUiStateTest {
     @Test
-    fun freshStateIsWeekOneDayOneWithoutManualConditioningSelectors() {
+    fun freshStateIsWeekOneDayOneWithApprovedReferenceDefaults() {
         val state = ProgramUiState()
         assertEquals(1, state.currentWeek)
         assertEquals(1, state.currentDay)
+        assertEquals(SpeedVariant.ACCELERATION, state.speedVariant)
+        assertEquals(EngineVariant.THRESHOLD, state.engineVariant)
     }
 
     @Test
-    fun advanceDayMovesWithinWeek() {
-        val next = ProgramUiState(currentWeek = 2, currentDay = 4).advanceDay()
-        assertEquals(2, next.currentWeek)
-        assertEquals(5, next.currentDay)
+    fun advanceDayMovesWithinAndAcrossAllPopulatedWeeks() {
+        assertEquals(ProgramUiState(currentWeek = 2, currentDay = 5), ProgramUiState(currentWeek = 2, currentDay = 4).advanceDay())
+        assertEquals(ProgramUiState(currentWeek = 9, currentDay = 1), ProgramUiState(currentWeek = 8, currentDay = 7).advanceDay())
+        assertEquals(ProgramUiState(currentWeek = 17, currentDay = 1), ProgramUiState(currentWeek = 16, currentDay = 7).advanceDay())
+        assertEquals(ProgramUiState(currentWeek = 25, currentDay = 1), ProgramUiState(currentWeek = 24, currentDay = 7).advanceDay())
     }
 
     @Test
-    fun advancingDaySevenMovesToNextPopulatedWeek() {
-        val next = ProgramUiState(currentWeek = 3, currentDay = 7).advanceDay()
-        assertEquals(4, next.currentWeek)
-        assertEquals(1, next.currentDay)
-    }
-
-    @Test
-    fun blockOneBoundaryNeverAdvancesIntoUnpopulatedWeekNine() {
-        val state = ProgramUiState(currentWeek = 8, currentDay = 7)
+    fun weekThirtyTwoDaySevenIsTerminal() {
+        val state = ProgramUiState(currentWeek = 32, currentDay = 7)
         assertEquals(state, state.advanceDay())
     }
 
     @Test
-    fun manualPointerChangeAcceptsOnlyPopulatedWeeks() {
-        val changed = ProgramUiState().withCurrentPointer(8, 7)
-        assertEquals(8, changed.currentWeek)
-        assertEquals(7, changed.currentDay)
+    fun manualPointerAcceptsAnyPopulatedWeekThroughThirtyTwo() {
+        val changed = ProgramUiState().withCurrentPointer(32, 6)
+        assertEquals(32, changed.currentWeek)
+        assertEquals(6, changed.currentDay)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun weekThirtyThreeIsRejected() {
+        ProgramUiState().withCurrentPointer(33, 1)
     }
 }

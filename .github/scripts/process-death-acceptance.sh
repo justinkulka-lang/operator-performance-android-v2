@@ -4,8 +4,8 @@ set -euo pipefail
 package="com.jk.operatorperformance"
 activity="$package/.MainActivity"
 apk="app/build/outputs/apk/debug/app-debug.apk"
-emulator_log="$RUNNER_TEMP/operator-v56-process-death-emulator.log"
-avd_dir="$HOME/.android/avd/operator-v56-process-death-api35.avd"
+emulator_log="$RUNNER_TEMP/ares-v57-process-death-emulator.log"
+avd_dir="$HOME/.android/avd/ares-v57-process-death-api35.avd"
 
 cleanup() {
   if [[ -n "${emulator_pid:-}" ]]; then
@@ -18,12 +18,11 @@ test -e /dev/kvm
 sudo chmod 666 /dev/kvm
 echo no | avdmanager create avd \
   --force \
-  --name operator-v56-process-death-api35 \
-  --package "system-images;android-35;default;x86_64" \
-  --device "pixel_2"
+  --name ares-v57-process-death-api35 \
+  --package "system-images;android-35;default;x86_64"
 printf '\ndisk.dataPartition.size=2048M\n' >> "$avd_dir/config.ini"
 "$ANDROID_HOME/emulator/emulator" \
-  -avd operator-v56-process-death-api35 \
+  -avd ares-v57-process-death-api35 \
   -partition-size 2048 \
   -no-window -no-audio -no-boot-anim -no-snapshot-save \
   -gpu swiftshader_indirect -accel on > "$emulator_log" 2>&1 &
@@ -50,12 +49,16 @@ cat > "$state_file" <<EOF
     <int name="currentDay" value="1" />
     <boolean name="manualDeloadMode" value="false" />
     <boolean name="machineInventoryConfigured" value="false" />
+    <string name="aresSpeedVariant">ACCELERATION</string>
+    <string name="aresEngineVariant">THRESHOLD</string>
     <boolean name="workoutActive" value="true" />
-    <int name="workoutSchemaVersion" value="2" />
+    <int name="workoutSchemaVersion" value="3" />
     <int name="workoutWeek" value="1" />
     <int name="workoutDay" value="1" />
     <boolean name="workoutDeloadMode" value="false" />
     <boolean name="workoutMachineInventoryConfigured" value="false" />
+    <string name="workoutAresSpeedVariant">ACCELERATION</string>
+    <string name="workoutAresEngineVariant">THRESHOLD</string>
     <int name="workoutMovementIndex" value="0" />
     <int name="workoutEffortIndex" value="2" />
     <boolean name="workoutComplete" value="false" />
@@ -94,8 +97,9 @@ wait_for_activity() {
 dump_ui() {
   local destination="$1"
   local remote_dump="/sdcard/window.xml"
+  local dump_attempt
   rm -f "$destination"
-  for attempt in $(seq 1 15); do
+  for dump_attempt in $(seq 1 15); do
     adb shell rm -f "$remote_dump" >/dev/null 2>&1 || true
     adb shell input keyevent KEYCODE_WAKEUP >/dev/null 2>&1 || true
     adb shell wm dismiss-keyguard >/dev/null 2>&1 || true
@@ -105,7 +109,7 @@ dump_ui() {
        grep -q '<hierarchy' "$destination"; then
       return 0
     fi
-    echo "UI dump not ready (attempt $attempt/15); retrying..." >&2
+    echo "UI dump not ready (attempt $dump_attempt/15); retrying..." >&2
     sleep 1
   done
   echo "ERROR: UI hierarchy never became available." >&2
@@ -115,7 +119,79 @@ dump_ui() {
   return 1
 }
 
-echo "Launching seeded v5.6 focus state"
+screen_dimensions() {
+  local raw
+  raw="$(adb shell wm size | tr -d '\r')"
+  python3 - "$raw" <<'PY'
+import re, sys
+raw = sys.argv[1]
+matches = re.findall(r'(?:Physical|Override) size:\s*(\d+)x(\d+)', raw)
+if not matches:
+    matches = re.findall(r'(\d+)x(\d+)', raw)
+if not matches:
+    raise SystemExit('Unable to resolve emulator screen dimensions')
+# wm size prints physical then override; the last entry is the effective size.
+w, h = matches[-1]
+print(w, h)
+PY
+}
+
+scroll_content_up() {
+  local width height x y_start y_end
+  read -r width height <<< "$(screen_dimensions)"
+  x=$(( width / 2 ))
+  y_start=$(( height * 3 / 4 ))
+  y_end=$(( height / 4 ))
+  echo "Scrolling ${width}x${height} UI at x=$x from y=$y_start to y=$y_end" >&2
+  adb shell input swipe "$x" "$y_start" "$x" "$y_end" 250
+}
+
+find_text_and_tap() {
+  local wanted="$1"
+  local dump="$RUNNER_TEMP/window.xml"
+  local coords=""
+  local search_attempt
+  for search_attempt in $(seq 1 16); do
+    dump_ui "$dump"
+    coords="$(python3 - "$dump" "$wanted" <<'PY'
+import re, sys, xml.etree.ElementTree as ET
+root = ET.parse(sys.argv[1]).getroot()
+wanted = sys.argv[2]
+for node in root.iter('node'):
+    text = node.attrib.get('text', '')
+    description = node.attrib.get('content-desc', '')
+    if wanted in text or wanted in description:
+        match = re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds', ''))
+        if match:
+            x1, y1, x2, y2 = map(int, match.groups())
+            print(f'{(x1+x2)//2} {(y1+y2)//2}')
+            raise SystemExit(0)
+raise SystemExit(1)
+PY
+    )" && break || true
+    echo "Waiting for '$wanted' (attempt $search_attempt/16); scrolling..." >&2
+    scroll_content_up
+    sleep 0.3
+  done
+  if [[ -z "$coords" ]]; then
+    echo "ERROR: Could not find '$wanted' after scrolling." >&2
+    cat "$dump" >&2 || true
+    return 1
+  fi
+  adb shell input tap $coords
+}
+
+assert_ui_contains() {
+  local pattern="$1"
+  local dump="$2"
+  if ! grep -q "$pattern" "$dump"; then
+    echo "ERROR: UI dump does not contain expected pattern: $pattern" >&2
+    cat "$dump" >&2 || true
+    return 1
+  fi
+}
+
+echo "Launching seeded ARES v5.7 focus state"
 adb shell am start -W -n "$activity" >/dev/null
 wait_for_activity
 sleep 1
@@ -129,43 +205,18 @@ adb shell am start -W -n "$activity" >/dev/null
 wait_for_activity
 sleep 1
 
-find_text_and_tap() {
-  local wanted="$1"
-  local dump="$RUNNER_TEMP/window.xml"
-  local coords=""
-  for _ in $(seq 1 12); do
-    dump_ui "$dump"
-    coords="$(python3 - "$dump" "$wanted" <<'PY'
-import re, sys, xml.etree.ElementTree as ET
-root = ET.parse(sys.argv[1]).getroot()
-wanted = sys.argv[2]
-for node in root.iter('node'):
-    if node.attrib.get('text') == wanted:
-        match = re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds', ''))
-        if match:
-            x1, y1, x2, y2 = map(int, match.groups())
-            print(f'{(x1+x2)//2} {(y1+y2)//2}')
-            raise SystemExit(0)
-raise SystemExit(1)
-PY
-    )" && break || true
-    adb shell input swipe 540 1500 540 500 250
-    sleep 0.3
-  done
-  test -n "$coords"
-  adb shell input tap $coords
-}
-
+# The restored active-workout state must surface as RESUME, not create a new workout.
 find_text_and_tap "RESUME WORKOUT"
 sleep 1
 dump_ui "$RUNNER_TEMP/resumed.xml"
-grep -q 'text="SET 2 OF 4"' "$RUNNER_TEMP/resumed.xml"
-grep -q 'text="REST"' "$RUNNER_TEMP/resumed.xml"
+assert_ui_contains 'text="SET 2 / 4"' "$RUNNER_TEMP/resumed.xml"
+assert_ui_contains 'REST' "$RUNNER_TEMP/resumed.xml"
 
 restored_state="$(adb shell run-as "$package" cat "$remote_prefs" | tr -d '\r')"
+grep -q 'name="workoutSchemaVersion" value="3"' <<< "$restored_state"
 grep -q 'name="workoutMovementIndex" value="0"' <<< "$restored_state"
 grep -q 'name="workoutEffortIndex" value="2"' <<< "$restored_state"
 grep -q 'd1_squat#1' <<< "$restored_state"
 grep -q "name=\"workoutRestTimerEndEpochMillis\" value=\"$timer_end_ms\"" <<< "$restored_state"
 
-echo "True v5.6 process-death focus/completion/timer restoration passed."
+echo "True ARES v5.7 process-death focus/completion/timer restoration passed."

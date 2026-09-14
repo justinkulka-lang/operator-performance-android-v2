@@ -1,4 +1,4 @@
-name: Operator Performance v5.6 CI
+name: ARES Performance v5.7 CI
 
 on:
   workflow_dispatch:
@@ -50,19 +50,19 @@ jobs:
           test -f "$ANDROID_HOME/platforms/android-37.0/android.jar"
           test -f "$ANDROID_HOME/system-images/android-35/default/x86_64/system.img"
 
-      - name: Verify package, version, authority, dark theme, and offline manifest
+      - name: Verify package, live version, v5.7 authority, branding, and offline manifest
         shell: bash
         run: |
           set -euo pipefail
           grep -q 'applicationId = "com.jk.operatorperformance"' app/build.gradle.kts
           grep -q 'versionCode = 45' app/build.gradle.kts
           grep -q 'versionName = "0.36.0"' app/build.gradle.kts
-          grep -q 'AUTHORITY_VERSION = "5.6"' app/src/main/java/com/jk/operatorperformance/program/ProgramV56.kt
-          grep -q '7c220f57ac02bdb53fbbafb5b740219b03737ad848d7ce171d6b4b46ec4f8139' app/src/main/java/com/jk/operatorperformance/program/ProgramV56.kt
+          grep -q 'AUTHORITY_VERSION = "5.7"' app/src/main/java/com/jk/operatorperformance/program/ProgramV56.kt
+          grep -q '867c468ba616a22185b871c649d8c026be5c1c61b3a7f690edac5b6169fc3d0a' app/src/main/java/com/jk/operatorperformance/program/ProgramV56.kt
+          grep -q 'PROGRAM_NAME = "ARES PERFORMANCE"' app/src/main/java/com/jk/operatorperformance/program/ProgramV56.kt
+          grep -q 'android:label="ARES Performance"' app/src/main/AndroidManifest.xml
           grep -q 'parent="android:style/Theme.Material.NoActionBar"' app/src/main/res/values/themes.xml
           grep -q '<item name="android:windowBackground">#0B0F14</item>' app/src/main/res/values/themes.xml
-          grep -q '<item name="android:statusBarColor">#0B0F14</item>' app/src/main/res/values/themes.xml
-          grep -q '<item name="android:navigationBarColor">#0B0F14</item>' app/src/main/res/values/themes.xml
           grep -q 'applicationId = "com.jk.operatorperformance"' legacy-fixture/build.gradle.kts
           grep -q 'versionCode = 43' legacy-fixture/build.gradle.kts
           if grep -Eq 'android.permission.INTERNET|android.permission.health|HealthConnect|POST_NOTIFICATIONS' app/src/main/AndroidManifest.xml; then
@@ -74,34 +74,49 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          pattern='ESTABLISH CURRENT CAPABILITY|Recent runs per week|Easy continuous run capacity|Next-day lower-leg soreness|Pain currently changes my gait|PROGRAM TRACKING|PERFORMANCE PROFILE|HEALTH CONNECT|READINESS|SESSION RESULT|EASY / GOOD / HARD / FAILED|POSITION [1-7]|bodyweight|progress-photo|benchmark result entry|RECOVERY MODE|HISTORY destination|sled push|sled pull|Speed \\+ sled|ProgramTrackingStore|ReadinessStore|BenchmarkStore|StrengthLog|RunStopwatchStore|ConditioningExecutionStore|ActiveSetProgressStore|actualLoad|actualReps|actualRir|performed load|performed reps|performed RIR|session score|workout rating|POST_NOTIFICATIONS|notification permission|automatic progression|block recomposition|300 m baseline|1.5-mile baseline|SPEED REFERENCE|ENGINE REFERENCE|OperatorProgramV54|SpeedVariant|EngineVariant'
+          pattern='ESTABLISH CURRENT CAPABILITY|Recent runs per week|Easy continuous run capacity|Next-day lower-leg soreness|PROGRAM TRACKING|PERFORMANCE PROFILE|HEALTH CONNECT|SESSION RESULT|EASY / GOOD / HARD / FAILED|POSITION [1-7]|bodyweight|progress-photo|benchmark result entry|RECOVERY MODE|HISTORY destination|sled push|sled pull|Speed \\+ sled|ProgramTrackingStore|ReadinessStore|BenchmarkStore|StrengthLog|RunStopwatchStore|ConditioningExecutionStore|ActiveSetProgressStore|actualLoad|actualReps|actualRir|performed load|performed reps|performed RIR|session score|workout rating|POST_NOTIFICATIONS|notification permission|automatic progression|block recomposition|OperatorProgramV54'
           if grep -RniE "$pattern" app/src/main/java app/src/main/res; then
             echo "Stale/prohibited runtime architecture reference found in production source" >&2
             exit 1
           fi
-          if grep -RniE 'Operator Performance v5\.4|v5\.4 pointer migration' app legacy-fixture --exclude-dir=build; then
-            echo "Stale v5.4 construction comment found outside preserved preference-key compatibility state" >&2
+          if grep -RniE 'Operator Performance v5\.6|Operator-Performance-v5\.6|operator-performance-v5\.6-export' app/src/main app/proguard-rules.pro --exclude-dir=build; then
+            echo "Stale v5.6 user-facing/build metadata found in production source" >&2
             exit 1
           fi
 
       - name: Run canonical program and reference-state unit tests
         run: gradle :app:testDebugUnitTest --stacktrace
 
-      - name: Verify computed program exports
+      - name: Verify computed v5.7 program exports
         shell: bash
         run: |
           set -euo pipefail
-          test -f app/build/reports/program-matrix.csv
-          test -f app/build/reports/program-resistance-rows.csv
-          test -f app/build/reports/program-weeks-1-32.csv
-          test -f app/build/reports/program-conditioning-weeks-1-8.csv
-          grep -q 'Quads,13.0,2,10.0,2' app/build/reports/program-matrix.csv
-          grep -Fq '1,"d1_squat","Back squat","4 × 5–8 @ 2–3 RIR",4,4,180' app/build/reports/program-resistance-rows.csv
-          grep -q 'w1_accel' app/build/reports/program-conditioning-weeks-1-8.csv
-          grep -q 'w8_engine' app/build/reports/program-conditioning-weeks-1-8.csv
-          grep -q '^1,Block 1,POPULATED,"13 / 11.5 / 11.5 / 12 / 12 / 11 / 15 / 11.5 / 12 / 10 / 9 / 9.5 / 10",148.0,1.667$' app/build/reports/program-weeks-1-32.csv
-          grep -q '^9,Block 2,UNPOPULATED,—,—,—$' app/build/reports/program-weeks-1-32.csv
-          grep -q '^32,Block 4,UNPOPULATED,—,—,—$' app/build/reports/program-weeks-1-32.csv
+          matrix=app/build/reports/program-matrix.csv
+          resistance=app/build/reports/program-resistance-rows.csv
+          weeks=app/build/reports/program-weeks-1-32.csv
+          conditioning=app/build/reports/program-conditioning-weeks-1-32.csv
+          phases=app/build/reports/program-phases.csv
+          for file in "$matrix" "$resistance" "$weeks" "$conditioning" "$phases"; do test -f "$file"; done
+          grep -q 'Quads,13.0,2,10.0,2' "$matrix"
+          grep -Fq '"d1_squat"' "$resistance"
+          grep -Fq '1:Safety-bar squat' "$resistance"
+          grep -Fq 'Rest ~2–3+ min' "$resistance"
+          grep -q 'w1_300_baseline' "$conditioning"
+          grep -q 'w16_checkpoint' "$conditioning"
+          grep -q 'w24_checkpoint' "$conditioning"
+          grep -q 'w32_final300' "$conditioning"
+          grep -q 'w32_final15' "$conditioning"
+          grep -q 'MANUAL_REFERENCE_DEFAULT' "$conditioning"
+          grep -q '^1,"FOUNDATION","HEPHAESTUS",POPULATED_NORMAL,' "$weeks"
+          grep -q '^9,"DEVELOPMENT","HERMES",POPULATED_NORMAL,' "$weeks"
+          grep -q '^17,"SPECIFIC DEVELOPMENT","ARES",POPULATED_NORMAL,' "$weeks"
+          grep -q '^25,"INTEGRATION / PEAK","ZEUS",POPULATED_NORMAL,' "$weeks"
+          grep -q '^32,"INTEGRATION / PEAK","ZEUS",POPULATED_REALIZATION_TAPER,' "$weeks"
+          test "$(wc -l < "$weeks")" -eq 33
+          grep -q '"HEPHAESTUS"' "$phases"
+          grep -q '"HERMES"' "$phases"
+          grep -q '"ARES"' "$phases"
+          grep -q '"ZEUS"' "$phases"
 
       - name: Build install-over compatibility fixture and current debug APK
         run: gradle :legacy-fixture:assembleDebug :app:assembleDebug --stacktrace
@@ -112,22 +127,21 @@ jobs:
           set -euo pipefail
           test -e /dev/kvm
           sudo chmod 666 /dev/kvm
-          emulator_log="$RUNNER_TEMP/operator-emulator.log"
-          avd_dir="$HOME/.android/avd/operator-ci-api35.avd"
+          emulator_log="$RUNNER_TEMP/ares-emulator.log"
+          avd_dir="$HOME/.android/avd/ares-ci-api35.avd"
           echo no | avdmanager create avd \
             --force \
-            --name operator-ci-api35 \
+            --name ares-ci-api35 \
             --package "system-images;android-35;default;x86_64" \
             --device "pixel_2"
           printf '\ndisk.dataPartition.size=2048M\n' >> "$avd_dir/config.ini"
           "$ANDROID_HOME/emulator/emulator" \
-            -avd operator-ci-api35 \
+            -avd ares-ci-api35 \
             -partition-size 2048 \
             -no-window -no-audio -no-boot-anim -no-snapshot-save \
             -gpu swiftshader_indirect -accel on > "$emulator_log" 2>&1 &
           emulator_pid=$!
           trap 'kill "$emulator_pid" 2>/dev/null || true' EXIT
-
           timeout 90 adb wait-for-device
           timeout 240 bash -c 'until [[ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" == "1" ]]; do sleep 2; done'
           adb shell settings put global window_animation_scale 0
@@ -147,7 +161,7 @@ jobs:
           grep -q 'versionName=0.34.0' <<< "$legacy_package"
           adb shell am force-stop com.jk.operatorperformance
 
-          echo "Installing v0.36 over v0.34 fixture without clearing app data"
+          echo "Installing live v0.36 app over v0.34 fixture without clearing app data"
           adb install -r "$current_apk"
           adb shell am start -W -n com.jk.operatorperformance/.MainActivity >/dev/null
           current_package="$(adb shell dumpsys package com.jk.operatorperformance | tr -d '\r')"
@@ -169,13 +183,9 @@ jobs:
           fi
           test "$(adb shell settings get global airplane_mode_on | tr -d '\r')" = "1"
           adb shell am force-stop com.jk.operatorperformance || true
-
-          echo "Running v5.6 reference UI suite with airplane mode enabled"
+          echo "Running ARES v5.7 reference UI suite with airplane mode enabled"
           timeout 600 gradle :app:connectedDebugAndroidTest --stacktrace
           test "$(adb shell settings get global airplane_mode_on | tr -d '\r')" = "1"
-
-      - name: Build debug APK
-        run: gradle :app:assembleDebug --stacktrace
 
       - name: Prepare persistent release signing when secrets are configured
         shell: bash
@@ -214,7 +224,7 @@ jobs:
           else
             unsigned="app/build/outputs/apk/release/app-release-unsigned.apk"
             test -f "$unsigned"
-            echo "Persistent release signing secrets are not configured; signed release verification remains blocked."
+            echo "Persistent release signing secrets are not configured; the release artifact is unsigned."
           fi
 
       - name: APK permission and stale-architecture scan
@@ -223,7 +233,7 @@ jobs:
           set -euo pipefail
           aapt2="$ANDROID_HOME/build-tools/37.0.0/aapt2"
           permission_pattern='android.permission.INTERNET|android.permission.POST_NOTIFICATIONS|android.permission.health|HealthConnect'
-          runtime_pattern='ESTABLISH CURRENT CAPABILITY|Recent runs per week|PROGRAM TRACKING|PERFORMANCE PROFILE|HEALTH CONNECT|READINESS|SESSION RESULT|RECOVERY MODE|Speed \\+ sled|ProgramTrackingStore|ReadinessStore|BenchmarkStore|StrengthLog|RunStopwatchStore|ConditioningExecutionStore|ActiveSetProgressStore|actualLoad|actualReps|actualRir|performed load|performed reps|performed RIR|session score|workout rating|automatic progression|block recomposition|300 m baseline|1.5-mile baseline|SPEED REFERENCE|ENGINE REFERENCE|OperatorProgramV54|SpeedVariant|EngineVariant'
+          runtime_pattern='ESTABLISH CURRENT CAPABILITY|PROGRAM TRACKING|PERFORMANCE PROFILE|HEALTH CONNECT|SESSION RESULT|RECOVERY MODE|Speed \\+ sled|ProgramTrackingStore|ReadinessStore|BenchmarkStore|StrengthLog|RunStopwatchStore|ConditioningExecutionStore|ActiveSetProgressStore|actualLoad|actualReps|actualRir|performed load|performed reps|performed RIR|session score|workout rating|automatic progression|block recomposition|OperatorProgramV54'
           for apk in app/build/outputs/apk/debug/*.apk app/build/outputs/apk/release/*.apk; do
             test -f "$apk"
             permissions="$($aapt2 dump permissions "$apk")"
@@ -240,11 +250,11 @@ jobs:
       - name: Capture dependency graph
         run: gradle :app:dependencies > app/build/reports/dependencies.txt
 
-      - name: Upload v5.6 evidence
+      - name: Upload ARES v5.7 evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: Operator-Performance-v5.6
+          name: ARES-Performance-v5.7
           path: |
             app/build/reports/tests/
             app/build/test-results/
@@ -253,7 +263,8 @@ jobs:
             app/build/reports/program-matrix.csv
             app/build/reports/program-resistance-rows.csv
             app/build/reports/program-weeks-1-32.csv
-            app/build/reports/program-conditioning-weeks-1-8.csv
+            app/build/reports/program-conditioning-weeks-1-32.csv
+            app/build/reports/program-phases.csv
             app/build/reports/dependencies.txt
             app/build/outputs/apk/debug/*.apk
             app/build/outputs/apk/release/*.apk

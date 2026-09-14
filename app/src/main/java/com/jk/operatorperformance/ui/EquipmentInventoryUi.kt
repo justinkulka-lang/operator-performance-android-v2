@@ -24,23 +24,22 @@ internal fun MachineEquipmentInventoryCard(
     available: Set<MachineModality>,
     onChanged: (Boolean, Set<MachineModality>) -> Unit,
 ) {
-    val finisher = OperatorProgramV56.machinePowerFinisher
-    val authorized = listOf(finisher.primary, finisher.alternative)
-    val resolved = authorized.firstOrNull { it in available }
+    val hierarchy = OperatorProgramV56.machinePowerFinisher.hierarchy
+    val resolved = hierarchy.firstOrNull { it in available }
 
     Card(modifier = Modifier.fillMaxWidth().testTag("machine_inventory_tool")) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("MACHINE POWER FINISHER EQUIPMENT", fontWeight = FontWeight.Bold)
-            Text("Used only in Weeks 1–4 after the fixed Acceleration / Maximum Velocity work. Equipment availability never changes the running prescription.")
-            Text("Priority: " + authorized.joinToString(" → ") { it.label }, style = MaterialTheme.typography.bodySmall)
+            Text("Optional only after approved Acceleration / Max-Velocity type Speed sessions. Availability never changes the running prescription.")
+            Text("Priority: " + hierarchy.joinToString(" → ") { it.label }, style = MaterialTheme.typography.bodySmall)
 
             when {
-                !configured -> Text("STATUS • NOT CONFIGURED. The approved primary and alternative remain visible for reference.")
-                resolved == null -> Text("STATUS • CONFIGURED • NONE AVAILABLE. The optional machine finisher is omitted.")
+                !configured -> Text("STATUS • NOT CONFIGURED. The full approved hierarchy remains visible for reference.")
+                resolved == null -> Text("STATUS • CONFIGURED • NONE AVAILABLE. The optional finisher is omitted.")
                 else -> Text("STATUS • CONFIGURED • RESOLVED: ${resolved.label}")
             }
 
-            authorized.forEach { modality ->
+            hierarchy.forEach { modality ->
                 FilterChip(
                     selected = modality in available,
                     onClick = {

@@ -7,139 +7,135 @@ import org.junit.Test
 
 class SessionResolverTest {
     @Test
-    fun weekOneSpeedIsFullWorkoutNotTestAndIncludesCooldown() {
-        val session = SessionResolver.resolve(1, 3, deload = false)
-        assertEquals(
-            listOf("d3_speed_warmup", "w1_accel", "d3_machine_power_finisher", "d3_speed_cooldown"),
-            session.rows.map { it.id },
-        )
-        assertTrue(session.rows.single { it.id == "w1_accel" }.prescription.contains("6 × 30 m"))
-        assertTrue(session.rows.single { it.id == "w1_accel" }.note.orEmpty().contains("No incline sprinting"))
-        assertEquals("5:00 easy walk after the last sprint/finisher.", session.rows.last().prescription)
-        assertFalse(session.rows.joinToString(" ") { it.prescription }.contains("baseline", ignoreCase = true))
+    fun weekOneUsesBaselineAndNoMachineFinisher() {
+        val speed = SessionResolver.resolve(1, 3, deload = false, machineInventoryConfigured = true, availableMachineModalities = MachineModality.entries.toSet())
+        assertTrue(speed.rows.any { it.id == "w1_300_baseline" })
+        assertFalse(speed.rows.any { it.id == "d3_machine_power_finisher" })
+        assertEquals("HEPHAESTUS", speed.phase.godName)
+
+        val engine = SessionResolver.resolve(1, 6, deload = false)
+        assertTrue(engine.rows.any { it.id == "w1_15_baseline" })
+        assertTrue(engine.rows.indexOfFirst { it.id == "w1_15_baseline" } < engine.rows.indexOfFirst { it.id == "d6_incline" })
     }
 
     @Test
-    fun unconfiguredEquipmentShowsOnlyApprovedFinisherPrimaryAndAlternative() {
-        val session = SessionResolver.resolve(2, 3, deload = false)
-        val finisher = session.rows.single { it.id == "d3_machine_power_finisher" }
-        assertEquals("Optional machine-power finisher — Air/fan bike", finisher.title)
-        assertEquals(listOf("Stationary cycle ergometer"), finisher.alternatives)
-        assertEquals(6, finisher.effortCount)
-        assertEquals(80, finisher.restSeconds)
-        assertTrue(finisher.prescription.contains("maximal but smooth"))
-        assertTrue(finisher.prescription.contains("very easy"))
-        assertTrue(finisher.note.orEmpty().contains("light-to-moderate resistance"))
+    fun foundationWeeksTwoThroughEightUseManualReferences() {
+        val defaultSpeed = SessionResolver.resolve(2, 3, deload = false)
+        assertTrue(defaultSpeed.rows.any { it.title == "ACCELERATION" })
+        assertTrue(defaultSpeed.rows.any { it.id == "d3_machine_power_finisher" })
+
+        val maxv = SessionResolver.resolve(6, 3, deload = false, speedVariant = SpeedVariant.MAX_VELOCITY)
+        assertTrue(maxv.rows.any { it.title == "MAX VELOCITY" })
+        assertTrue(maxv.rows.any { it.id == "d3_machine_power_finisher" })
+
+        val special = SessionResolver.resolve(8, 3, deload = false, speedVariant = SpeedVariant.SPECIAL_ENDURANCE)
+        assertTrue(special.rows.any { it.title == "SPECIAL ENDURANCE" })
+        assertFalse(special.rows.any { it.id == "d3_machine_power_finisher" })
+
+        val vo2 = SessionResolver.resolve(4, 6, deload = false, engineVariant = EngineVariant.VO2)
+        assertTrue(vo2.rows.any { it.title == "VO2" })
+        assertTrue(vo2.rows.first().id == "d6_engine_warmup")
+        assertTrue(vo2.rows.indexOfFirst { it.title == "VO2" } < vo2.rows.indexOfFirst { it.id == "d6_incline" })
     }
 
     @Test
-    fun configuredMachineInventoryUsesCycleWhenAirBikeUnavailable() {
+    fun populatedDevelopmentSpecificAndPeakWeeksResolveExactConditioning() {
+        val w10 = SessionResolver.resolve(10, 3, deload = false)
+        assertEquals("HERMES", w10.phase.godName)
+        assertTrue(w10.rows.any { it.id == "w10_maxv" })
+
+        val w21 = SessionResolver.resolve(21, 3, deload = false)
+        assertEquals("ARES", w21.phase.godName)
+        assertTrue(w21.rows.any { it.id == "w21_special" && it.prescription.contains("2 × 300 m") })
+
+        val w26 = SessionResolver.resolve(26, 6, deload = false)
+        assertEquals("ZEUS", w26.phase.godName)
+        assertTrue(w26.rows.any { it.id == "w26_goal" && it.prescription.contains("6 × 400 m") })
+    }
+
+    @Test
+    fun fullMachineHierarchyResolvesFirstAvailableAuthorizedOption() {
         val session = SessionResolver.resolve(
-            week = 2,
-            day = 3,
-            deload = false,
-            machineInventoryConfigured = true,
-            availableMachineModalities = setOf(MachineModality.STATIONARY_CYCLE, MachineModality.ROW_ERG),
-        )
-        val finisher = session.rows.single { it.id == "d3_machine_power_finisher" }
-        assertEquals("Optional machine-power finisher — Stationary cycle ergometer", finisher.title)
-        assertTrue(finisher.alternatives.isEmpty())
-    }
-
-    @Test
-    fun configuredInventoryOmitsFinisherWhenNeitherApprovedMachineExists() {
-        val session = SessionResolver.resolve(
-            week = 2,
+            week = 9,
             day = 3,
             deload = false,
             machineInventoryConfigured = true,
             availableMachineModalities = setOf(MachineModality.ROW_ERG, MachineModality.SKI_ERG),
         )
-        assertFalse(session.rows.any { it.id == "d3_machine_power_finisher" })
-        assertEquals("d3_speed_cooldown", session.rows.last().id)
+        val finisher = session.rows.single { it.id == "d3_machine_power_finisher" }
+        assertEquals("Optional machine-power finisher — Row ergometer", finisher.title)
+        assertEquals(6, finisher.effortCount)
+        assertEquals(80, finisher.restSeconds)
     }
 
     @Test
-    fun speedEnduranceWeeksNeverAppendMachineFinisher() {
-        val session = SessionResolver.resolve(
-            week = 5,
-            day = 3,
-            deload = false,
-            machineInventoryConfigured = true,
-            availableMachineModalities = MachineModality.entries.toSet(),
-        )
-        assertTrue(session.rows.any { it.id == "w5_speed_endurance" })
-        assertFalse(session.rows.any { it.id == "d3_machine_power_finisher" })
-        assertEquals("d3_speed_cooldown", session.rows.last().id)
+    fun specialEnduranceCheckpointAndFinalTestsNeverAppendFinisher() {
+        listOf(13, 19, 21, 23, 26, 28, 29, 16, 32).forEach { week ->
+            val session = SessionResolver.resolve(
+                week = week,
+                day = 3,
+                deload = false,
+                machineInventoryConfigured = true,
+                availableMachineModalities = MachineModality.entries.toSet(),
+            )
+            assertFalse("Week $week", session.rows.any { it.id == "d3_machine_power_finisher" })
+        }
     }
 
     @Test
-    fun weekOneEngineIsFixedWorkoutAndPrecedesShortUpper() {
-        val session = SessionResolver.resolve(1, 6, deload = false)
-        assertEquals("d6_engine_warmup", session.rows.first().id)
-        assertEquals("w1_engine", session.rows[1].id)
-        assertEquals("d6_engine_cooldown", session.rows[2].id)
-        assertEquals("d6_incline", session.rows[3].id)
-        assertEquals("Threshold intervals", session.rows[1].title)
-        assertTrue(session.rows[1].prescription.contains("Treadmill 0%"))
-        assertTrue(session.rows[1].prescription.contains("RECOVERY 2:00 EASY WALK/JOG"))
-        assertTrue(session.rows[2].note.orEmpty().contains("5–10 min transition"))
-        assertFalse(session.rows.joinToString(" ") { it.prescription }.contains("time trial", ignoreCase = true))
+    fun dayOneUsesWeekSpecificAerobicPrescription() {
+        val w9 = SessionResolver.resolve(9, 1, deload = false)
+        assertTrue(w9.rows.last().id == "w9_d1")
+        assertTrue(w9.rows.last().prescription.contains("25 min easy"))
+
+        val w17 = SessionResolver.resolve(17, 1, deload = false)
+        val run = w17.rows.last()
+        assertEquals("w17_d1", run.id)
+        assertTrue(run.prescription.contains("20 min easy continuous run"))
+        assertTrue(run.note.orEmpty().contains("110%"))
+        assertTrue(run.alternatives.single().contains("Stationary bike"))
     }
 
     @Test
-    fun eachWeekResolvesItsOwnFixedEngineSession() {
-        val week2 = SessionResolver.resolve(2, 6, deload = false)
-        val week7 = SessionResolver.resolve(7, 6, deload = false)
-        assertTrue(week2.rows.any { it.id == "w2_engine" && it.prescription.contains("8.5 mph") })
-        assertTrue(week7.rows.any { it.id == "w7_engine" && it.prescription.contains("9.0 mph") })
-        assertEquals("VO₂ / goal-pace intervals", week7.rows.single { it.id == "w7_engine" }.title)
+    fun weekThirtyTwoUsesExactTaperSetsAndRirFloors() {
+        val d1 = SessionResolver.resolve(32, 1, deload = false)
+        assertEquals(2, d1.rows.single { it.id == "d1_squat" }.effortCount)
+        assertEquals(1, d1.rows.single { it.id == "d1_rdl" }.effortCount)
+        assertTrue(d1.rows.single { it.id == "d1_squat" }.note.orEmpty().contains("at least 3 RIR"))
+
+        val d2 = SessionResolver.resolve(32, 2, deload = false)
+        assertEquals(4, d2.rows.single { it.id == "d2_bench" }.effortCount)
+        assertTrue(d2.rows.single { it.id == "d2_bench" }.note.orEmpty().contains("at least 1 RIR"))
+
+        val d6 = SessionResolver.resolve(32, 6, deload = false)
+        assertTrue(d6.rows.any { it.id == "w32_final15" })
+        assertEquals(1, d6.rows.single { it.id == "d6_incline" }.effortCount)
+        assertTrue(d6.rows.single { it.id == "d6_incline" }.note.orEmpty().contains("at least 2 RIR"))
     }
 
     @Test
-    fun deloadUsesFixedReducedPrescriptionsAndOmitsZeroSetRows() {
-        val day2 = SessionResolver.resolve(5, 2, deload = true)
-        assertFalse(day2.rows.any { it.id == "d2_abs" })
-        assertTrue(day2.rows.single { it.id == "d2_triceps" }.prescription.startsWith("1 × 10–12 @ 1 RIR"))
+    fun manualDeloadOverridesHardConditioningWithoutInventingPerformanceEntry() {
+        val d3 = SessionResolver.resolve(21, 3, deload = true)
+        assertEquals(listOf("d3_deload"), d3.rows.map { it.id })
+        assertFalse(d3.rows.joinToString(" ") { it.prescription }.contains("300 m"))
 
-        val day3 = SessionResolver.resolve(
-            week = 5,
-            day = 3,
-            deload = true,
-            machineInventoryConfigured = true,
-            availableMachineModalities = MachineModality.entries.toSet(),
-        )
-        assertEquals(
-            listOf("d3_deload_warmup", "d3_deload_relaxed_accel", "d3_speed_cooldown"),
-            day3.rows.map { it.id },
-        )
-        assertFalse(day3.rows.any { it.id == "d3_machine_power_finisher" })
+        val d6 = SessionResolver.resolve(29, 6, deload = true)
+        assertEquals("d6_deload_engine", d6.rows.first().id)
+        assertTrue(d6.rows.first().prescription.contains("Keep running easy"))
+        assertTrue(d6.rows.indexOfFirst { it.id == "d6_deload_engine" } < d6.rows.indexOfFirst { it.id == "d6_incline" })
     }
 
     @Test
-    fun dayOneAerobicIsSpecificAndHasOneAlternative() {
-        val row = SessionResolver.resolve(1, 1, deload = false).rows.single { it.id == "d1_easy_aerobic" }
-        assertTrue(row.prescription.contains("25:00"))
-        assertTrue(row.prescription.contains("80–90 rpm"))
-        assertTrue(row.prescription.contains("lowest resistance"))
-        assertTrue(row.prescription.contains("increase resistance one machine level"))
-        assertTrue(row.prescription.contains("decrease one level"))
-        assertTrue(row.prescription.contains("No intervals, no sprint finish, no added running"))
-        assertEquals(1, row.alternatives.size)
-        assertTrue(row.alternatives.single().startsWith("Air/fan bike — 25:00"))
-    }
-
-    @Test
-    fun daySevenIsRestReference() {
-        val session = SessionResolver.resolve(3, 7, deload = false)
-        assertEquals(1, session.rows.size)
-        assertEquals(SessionRowKind.REST, session.rows.single().kind)
-        assertTrue(session.rows.single().prescription.contains("No lifting"))
-        assertTrue(session.rows.single().prescription.contains("no running", ignoreCase = true))
+    fun allThirtyTwoWeeksResolveSevenDays() {
+        (1..32).forEach { week ->
+            val split = SessionResolver.splitForWeek(week, deload = false)
+            assertEquals("Week $week", 7, split.size)
+            assertEquals((1..7).toList(), split.map { it.day })
+        }
     }
 
     @Test(expected = IllegalArgumentException::class)
-    fun unpopulatedWeeksCannotResolve() {
-        SessionResolver.resolve(9, 1, deload = false)
+    fun weekThirtyThreeCannotResolve() {
+        SessionResolver.resolve(33, 1, deload = false)
     }
 }

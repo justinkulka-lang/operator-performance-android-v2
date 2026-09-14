@@ -1,10 +1,6 @@
 package com.jk.operatorperformance.program
 
-enum class SessionRowKind {
-    RESISTANCE,
-    CONDITIONING,
-    REST,
-}
+enum class SessionRowKind { RESISTANCE, CONDITIONING, REST }
 
 data class SessionRow(
     val id: String,
@@ -22,7 +18,7 @@ data class SessionRow(
     init {
         require(effortCount >= 1) { "effortCount must be at least 1." }
         require(restSeconds == null || restSeconds > 0) { "restSeconds must be positive when present." }
-        require(alternatives.size <= 1) { "v5.6 allows at most one approved alternative per row." }
+        require(alternatives.size <= 4) { "At most four ranked alternatives may be displayed." }
     }
 }
 
@@ -32,6 +28,7 @@ data class SessionReference(
     val title: String,
     val rows: List<SessionRow>,
     val deload: Boolean,
+    val phase: ProgramBlock = OperatorProgramV56.blockForWeek(week),
 )
 
 object SessionResolver {
@@ -41,18 +38,21 @@ object SessionResolver {
         deload: Boolean,
         machineInventoryConfigured: Boolean = false,
         availableMachineModalities: Set<MachineModality> = emptySet(),
+        speedVariant: SpeedVariant = SpeedVariant.ACCELERATION,
+        engineVariant: EngineVariant = EngineVariant.THRESHOLD,
     ): SessionReference {
-        require(week in 1..8) { "Only populated Weeks 1–8 may resolve." }
+        require(week in 1..32) { "Only populated Weeks 1–32 may resolve." }
         require(day in 1..7) { "Day must be 1–7." }
 
+        val plan = OperatorProgramV56.conditioningForWeek(week, speedVariant, engineVariant)
         val title = requireNotNull(OperatorProgramV56.dayTitles[day])
         val rows = when (day) {
-            1 -> resistanceRows(day, deload) + aerobicRow()
-            2 -> resistanceRows(day, deload)
-            3 -> speedRows(week, deload, machineInventoryConfigured, availableMachineModalities)
-            4 -> resistanceRows(day, deload)
-            5 -> resistanceRows(day, deload)
-            6 -> engineRows(week, deload) + resistanceRows(day, deload)
+            1 -> resistanceRows(day, week, deload) + plan.d1.map(::conditioningRow)
+            2 -> resistanceRows(day, week, deload)
+            3 -> speedRows(plan, deload, machineInventoryConfigured, availableMachineModalities)
+            4 -> resistanceRows(day, week, deload)
+            5 -> resistanceRows(day, week, deload)
+            6 -> engineRows(plan, deload) + resistanceRows(day, week, deload)
             7 -> listOf(
                 SessionRow(
                     id = "d7_rest",
@@ -65,13 +65,7 @@ object SessionResolver {
             else -> error("Unreachable day")
         }
 
-        return SessionReference(
-            week = week,
-            day = day,
-            title = title,
-            rows = rows,
-            deload = deload,
-        )
+        return SessionReference(week, day, title, rows, deload)
     }
 
     fun splitForWeek(
@@ -79,59 +73,58 @@ object SessionResolver {
         deload: Boolean,
         machineInventoryConfigured: Boolean = false,
         availableMachineModalities: Set<MachineModality> = emptySet(),
+        speedVariant: SpeedVariant = SpeedVariant.ACCELERATION,
+        engineVariant: EngineVariant = EngineVariant.THRESHOLD,
     ): List<SessionReference> {
-        require(week in 1..8) { "Only populated Weeks 1–8 may resolve." }
+        require(week in 1..32) { "Only populated Weeks 1–32 may resolve." }
         return (1..7).map { day ->
-            resolve(
-                week = week,
-                day = day,
-                deload = deload,
-                machineInventoryConfigured = machineInventoryConfigured,
-                availableMachineModalities = availableMachineModalities,
-            )
+            resolve(week, day, deload, machineInventoryConfigured, availableMachineModalities, speedVariant, engineVariant)
         }
     }
 
-    private fun resistanceRows(day: Int, deload: Boolean): List<SessionRow> =
+    private fun resistanceRows(day: Int, week: Int, deload: Boolean): List<SessionRow> =
         OperatorProgramV56.resistanceForDay(day).mapNotNull { slot ->
-            val sets = if (deload) slot.deloadSets else slot.workingSets
+            val sets = when {
+                deload -> slot.deloadSets
+                week == 32 -> OperatorProgramV56.week32Sets(slot.id, slot.workingSets)
+                else -> slot.workingSets
+            }
             if (sets == 0) return@mapNotNull null
+            val taperNote = if (!deload && week == 32) {
+                OperatorProgramV56.week32RirFloor(day)?.let { floor -> "Week 32 realization: keep at least $floor RIR on every working set." }
+            } else null
             SessionRow(
                 id = slot.id,
                 title = slot.movement,
-                prescription = "${doseWithSets(slot.dose, sets)} • REST ${formatRest(slot.restSeconds)}",
+                prescription = doseWithSets(slot.dose, sets),
                 kind = SessionRowKind.RESISTANCE,
-                alternatives = listOf(slot.alternatives.single().name),
+                alternatives = slot.alternatives.sortedBy { it.rank }.map { it.name },
+                note = listOfNotNull(slot.restGuidance, taperNote).joinToString(" "),
                 effortCount = sets,
                 effortLabel = "SET",
-                restSeconds = slot.restSeconds,
+                restSeconds = null,
             )
         }
 
-    private fun aerobicRow(): SessionRow {
-        val row = OperatorProgramV56.day1EasyAerobic
-        return SessionRow(
-            id = row.id,
-            title = row.title,
-            prescription = row.prescription,
-            kind = SessionRowKind.CONDITIONING,
-            alternatives = listOf(row.alternative),
-            effortLabel = "BLOCK",
-            note = "Low-eccentric aerobic work. The duration and effort anchors are exact; no universal brand-specific resistance number is prescribed.",
-        )
-    }
-
     private fun speedRows(
-        week: Int,
+        plan: WeekConditioning,
         deload: Boolean,
         machineInventoryConfigured: Boolean,
         availableMachineModalities: Set<MachineModality>,
     ): List<SessionRow> {
         if (deload) {
-            return OperatorProgramV56.deloadSpeedSegments.map(::conditioningRow) + speedCooldownRow()
+            return listOf(
+                SessionRow(
+                    id = "d3_deload",
+                    title = "Speed deload",
+                    prescription = "No sprint or special-endurance work. Keep conditioning easy only.",
+                    kind = SessionRowKind.CONDITIONING,
+                    effortLabel = "BLOCK",
+                    note = "Manual deload suppresses sprint/special-endurance work.",
+                ),
+            )
         }
 
-        val fixed = OperatorProgramV56.conditioningForWeek(week)
         val rows = mutableListOf(
             SessionRow(
                 id = "d3_speed_warmup",
@@ -142,44 +135,38 @@ object SessionResolver {
                 note = OperatorProgramV56.speedStopRule,
             ),
         )
-        rows += fixed.speed.map(::conditioningRow)
-
-        if (week in 1..4) {
-            resolveMachineFinisher(machineInventoryConfigured, availableMachineModalities)?.let(rows::add)
+        rows += plan.speed.map(::conditioningRow)
+        if (plan.allowsMachineFinisher) {
+            machineFinisherRow(machineInventoryConfigured, availableMachineModalities)?.let(rows::add)
         }
-        rows += speedCooldownRow()
+        rows += SessionRow(
+            id = "d3_speed_cooldown",
+            title = "Speed cooldown",
+            prescription = OperatorProgramV56.speedCooldownPrescription,
+            kind = SessionRowKind.CONDITIONING,
+            effortLabel = "COOLDOWN",
+        )
         return rows
     }
 
-    private fun speedCooldownRow(): SessionRow = SessionRow(
-        id = "d3_speed_cooldown",
-        title = "Speed cooldown",
-        prescription = OperatorProgramV56.speedCooldownPrescription,
-        kind = SessionRowKind.CONDITIONING,
-        effortLabel = "COOLDOWN",
-    )
-
-    private fun resolveMachineFinisher(
-        configured: Boolean,
-        available: Set<MachineModality>,
-    ): SessionRow? {
+    private fun machineFinisherRow(configured: Boolean, available: Set<MachineModality>): SessionRow? {
         val finisher = OperatorProgramV56.machinePowerFinisher
-        val resolved = when {
-            !configured -> null
-            finisher.primary in available -> finisher.primary
-            finisher.alternative in available -> finisher.alternative
-            else -> return null
+        val selected = if (configured) finisher.hierarchy.firstOrNull { it in available } else null
+        if (configured && selected == null) return null
+        val title = selected?.let { "Optional machine-power finisher — ${it.label}" } ?: "Optional machine-power finisher"
+        val ranked = if (selected == null) finisher.hierarchy.map { it.label } else emptyList()
+        val note = if (selected == null) {
+            "Equipment order: ${finisher.hierarchy.joinToString(" → ") { it.label }}. Use the first available. If none is available, omit the finisher. Never add replacement running."
+        } else {
+            "Selected from the approved equipment hierarchy. If unavailable, use the next approved machine or omit. Never add replacement running."
         }
-        val title = resolved?.let { "Optional machine-power finisher — ${it.label}" }
-            ?: "Optional machine-power finisher — ${finisher.primary.label}"
-        val alternatives = if (resolved == null) listOf(finisher.alternative.label) else emptyList()
         return SessionRow(
             id = "d3_machine_power_finisher",
             title = title,
-            prescription = "${finisher.efforts} × ${finisher.hardSeconds} s maximal but smooth / ${finisher.easySeconds} s very easy",
+            prescription = "${finisher.efforts} × ${finisher.hardSeconds} sec hard / ${finisher.easySeconds} sec easy",
             kind = SessionRowKind.CONDITIONING,
-            alternatives = alternatives,
-            note = "Use the air/fan bike first. If unavailable, use the stationary cycle ergometer with light-to-moderate resistance so cadence accelerates immediately rather than grinding. If neither is available, omit this optional finisher. Do not add running.",
+            alternatives = ranked,
+            note = note,
             effortCount = finisher.efforts,
             effortLabel = "EFFORT",
             restSeconds = finisher.easySeconds,
@@ -187,58 +174,55 @@ object SessionResolver {
         )
     }
 
-    private fun engineRows(week: Int, deload: Boolean): List<SessionRow> {
-        if (deload) return OperatorProgramV56.deloadEngineSegments.map(::conditioningRow)
-
-        val fixed = OperatorProgramV56.conditioningForWeek(week)
-        return buildList {
-            add(
+    private fun engineRows(plan: WeekConditioning, deload: Boolean): List<SessionRow> {
+        if (deload) {
+            return listOf(
                 SessionRow(
-                    id = "d6_engine_warmup",
-                    title = "Engine warm-up — treadmill",
-                    prescription = OperatorProgramV56.engineWarmupPrescription,
+                    id = "d6_deload_engine",
+                    title = "Easy engine",
+                    prescription = "Keep running easy. Omit threshold, VO2, goal-pace, checkpoint, and test work while manual deload is active.",
                     kind = SessionRowKind.CONDITIONING,
-                    alternatives = listOf("Measured flat track/outdoor — 5:00 easy walk, 5:00 easy jog, then 3 × 20 s progressive strides with 40 s easy walk/jog between strides."),
-                    effortLabel = "WARM-UP",
+                    alternatives = listOf("Stationary bike — easy conversational effort."),
+                    effortLabel = "BLOCK",
+                    note = OperatorProgramV56.engineStopRule,
                 ),
             )
-            addAll(fixed.engine.map(::conditioningRow))
+        }
+        return buildList {
+            add(SessionRow("d6_engine_warmup", "Engine warm-up", OperatorProgramV56.engineWarmupPrescription, SessionRowKind.CONDITIONING, effortLabel = "WARM-UP"))
+            addAll(plan.engine.map(::conditioningRow))
             add(
                 SessionRow(
                     id = "d6_engine_cooldown",
                     title = "Engine cooldown",
                     prescription = OperatorProgramV56.engineCooldownPrescription,
                     kind = SessionRowKind.CONDITIONING,
-                    alternatives = listOf("Measured flat track/outdoor — 5:00 easy walk/jog at RPE 1–2."),
                     effortLabel = "COOLDOWN",
-                    note = "After the cooldown, complete the mandatory short-upper sequence. A 5–10 min transition is allowed.",
+                    note = "After the cooldown, complete the prescribed short-upper resistance work.",
                 ),
             )
         }
     }
 
-    private fun conditioningRow(segment: ConditioningSegment): SessionRow = SessionRow(
-        id = segment.id,
-        title = segment.title,
-        prescription = buildString {
-            append(segment.prescription)
-            segment.restSeconds?.let { seconds ->
-                val recovery = when {
-                    segment.id == "w8_special_endurance_300" -> "AFTER 300 M BEFORE 150 M"
-                    segment.id.endsWith("_engine") -> "EASY WALK/JOG"
-                    else -> "BETWEEN REPS"
-                }
-                append(" • RECOVERY ").append(formatRest(seconds)).append(' ').append(recovery)
-            }
-        },
-        kind = SessionRowKind.CONDITIONING,
-        alternatives = segment.alternative?.let(::listOf).orEmpty(),
-        note = segment.note,
-        effortCount = segment.effortCount,
-        effortLabel = segment.effortLabel,
-        restSeconds = segment.restSeconds,
-        restAfterLastEffort = segment.restAfterLastEffort,
-    )
+    private fun conditioningRow(segment: ConditioningSegment): SessionRow {
+        val sprintWarning = when (ProgramAudit.sprintVolumeStatus(segment.qualifyingSprintMeters)) {
+            SprintVolumeStatus.WARNING -> "SPRINT VOLUME WARNING: this prescription exceeds 500 m of qualifying sprint work; 600 m is permitted with warning. Do not exceed 600 m."
+            SprintVolumeStatus.PROHIBITED -> error("Canonical conditioning segment exceeds the authorized sprint-volume cap: ${segment.id}")
+            SprintVolumeStatus.ALLOWED -> null
+        }
+        return SessionRow(
+            id = segment.id,
+            title = segment.title,
+            prescription = segment.prescription,
+            kind = SessionRowKind.CONDITIONING,
+            alternatives = segment.alternatives,
+            note = listOfNotNull(segment.note, sprintWarning).joinToString(" ").ifBlank { null },
+            effortCount = segment.effortCount,
+            effortLabel = segment.effortLabel,
+            restSeconds = segment.restSeconds,
+            restAfterLastEffort = segment.restAfterLastEffort,
+        )
+    }
 
     private fun doseWithSets(canonicalDose: String, sets: Int): String {
         val separator = " × "
@@ -246,6 +230,4 @@ object SessionResolver {
         require(index > 0) { "Canonical resistance dose must contain ' × ': $canonicalDose" }
         return sets.toString() + canonicalDose.substring(index)
     }
-
-    private fun formatRest(seconds: Int): String = "%d:%02d".format(seconds / 60, seconds % 60)
 }

@@ -1,7 +1,9 @@
 package com.jk.operatorperformance.state
 
 import android.content.Context
+import com.jk.operatorperformance.program.EngineVariant
 import com.jk.operatorperformance.program.MachineModality
+import com.jk.operatorperformance.program.SpeedVariant
 
 data class ProgramUiState(
     val currentWeek: Int = 1,
@@ -11,13 +13,13 @@ data class ProgramUiState(
     val utilityRestTimerEndEpochMillis: Long? = null,
     val machineInventoryConfigured: Boolean = false,
     val availableMachineModalities: Set<MachineModality> = emptySet(),
+    val speedVariant: SpeedVariant = SpeedVariant.ACCELERATION,
+    val engineVariant: EngineVariant = EngineVariant.THRESHOLD,
 ) {
     init {
-        require(currentWeek in 1..8) { "currentWeek must be 1–8." }
+        require(currentWeek in 1..32) { "currentWeek must be 1–32." }
         require(currentDay in 1..7) { "currentDay must be 1–7." }
-        require(restTimerSeconds == null || restTimerSeconds > 0) {
-            "restTimerSeconds must be positive when configured."
-        }
+        require(restTimerSeconds == null || restTimerSeconds > 0) { "restTimerSeconds must be positive when configured." }
         require(utilityRestTimerEndEpochMillis == null || utilityRestTimerEndEpochMillis > 0L) {
             "utilityRestTimerEndEpochMillis must be positive when active."
         }
@@ -25,12 +27,12 @@ data class ProgramUiState(
 
     fun advanceDay(): ProgramUiState = when {
         currentDay < 7 -> copy(currentDay = currentDay + 1)
-        currentWeek < 8 -> copy(currentWeek = currentWeek + 1, currentDay = 1)
+        currentWeek < 32 -> copy(currentWeek = currentWeek + 1, currentDay = 1)
         else -> this
     }
 
     fun withCurrentPointer(week: Int, day: Int): ProgramUiState {
-        require(week in 1..8) { "Only populated Weeks 1–8 may be current." }
+        require(week in 1..32) { "Only populated Weeks 1–32 may be current." }
         require(day in 1..7) { "Day must be 1–7." }
         return copy(currentWeek = week, currentDay = day)
     }
@@ -42,6 +44,8 @@ data class ActiveWorkoutState(
     val deloadMode: Boolean,
     val machineInventoryConfigured: Boolean = false,
     val availableMachineModalities: Set<MachineModality> = emptySet(),
+    val speedVariant: SpeedVariant = SpeedVariant.ACCELERATION,
+    val engineVariant: EngineVariant = EngineVariant.THRESHOLD,
     val movementIndex: Int = 0,
     val effortIndex: Int = 1,
     val complete: Boolean = false,
@@ -55,7 +59,7 @@ data class ActiveWorkoutState(
     val undoCompletedEffortIds: Set<String>? = null,
 ) {
     init {
-        require(week in 1..8) { "Workout week must be 1–8." }
+        require(week in 1..32) { "Workout week must be 1–32." }
         require(day in 1..7) { "Workout day must be 1–7." }
         require(movementIndex >= 0) { "movementIndex must be non-negative." }
         require(effortIndex >= 1) { "effortIndex must be at least 1." }
@@ -85,7 +89,7 @@ class ProgramStateStore(context: Context) {
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     fun load(): ProgramUiState = ProgramUiState(
-        currentWeek = prefs.getInt(KEY_WEEK, 1).coerceIn(1, 8),
+        currentWeek = prefs.getInt(KEY_WEEK, 1).coerceIn(1, 32),
         currentDay = prefs.getInt(KEY_DAY, 1).coerceIn(1, 7),
         deloadMode = prefs.getBoolean(KEY_DELOAD, false),
         restTimerSeconds = prefs.getInt(KEY_REST_TIMER_SECONDS, 0).takeIf { it > 0 },
@@ -94,6 +98,8 @@ class ProgramStateStore(context: Context) {
         availableMachineModalities = decodeMachineModalities(
             prefs.getStringSet(KEY_MACHINE_MODALITIES, emptySet()).orEmpty(),
         ),
+        speedVariant = decodeSpeedVariant(prefs.getString(KEY_SPEED_VARIANT, null)),
+        engineVariant = decodeEngineVariant(prefs.getString(KEY_ENGINE_VARIANT, null)),
     )
 
     fun save(state: ProgramUiState) {
@@ -103,8 +109,8 @@ class ProgramStateStore(context: Context) {
             .putBoolean(KEY_DELOAD, state.deloadMode)
             .putBoolean(KEY_MACHINE_INVENTORY_CONFIGURED, state.machineInventoryConfigured)
             .putStringSet(KEY_MACHINE_MODALITIES, state.availableMachineModalities.mapTo(linkedSetOf()) { it.name })
-            .remove(KEY_LEGACY_SPEED)
-            .remove(KEY_LEGACY_ENGINE)
+            .putString(KEY_SPEED_VARIANT, state.speedVariant.name)
+            .putString(KEY_ENGINE_VARIANT, state.engineVariant.name)
         state.restTimerSeconds?.let { editor.putInt(KEY_REST_TIMER_SECONDS, it) }
             ?: editor.remove(KEY_REST_TIMER_SECONDS)
         state.utilityRestTimerEndEpochMillis?.let { editor.putLong(KEY_UTILITY_REST_TIMER_END, it) }
@@ -120,13 +126,15 @@ class ProgramStateStore(context: Context) {
         }
         val hasUndo = prefs.getBoolean(KEY_WORKOUT_HAS_UNDO, false)
         return ActiveWorkoutState(
-            week = prefs.getInt(KEY_WORKOUT_WEEK, 1).coerceIn(1, 8),
+            week = prefs.getInt(KEY_WORKOUT_WEEK, 1).coerceIn(1, 32),
             day = prefs.getInt(KEY_WORKOUT_DAY, 1).coerceIn(1, 7),
             deloadMode = prefs.getBoolean(KEY_WORKOUT_DELOAD, false),
             machineInventoryConfigured = prefs.getBoolean(KEY_WORKOUT_MACHINE_INVENTORY_CONFIGURED, false),
             availableMachineModalities = decodeMachineModalities(
                 prefs.getStringSet(KEY_WORKOUT_MACHINE_MODALITIES, emptySet()).orEmpty(),
             ),
+            speedVariant = decodeSpeedVariant(prefs.getString(KEY_WORKOUT_SPEED_VARIANT, null)),
+            engineVariant = decodeEngineVariant(prefs.getString(KEY_WORKOUT_ENGINE_VARIANT, null)),
             movementIndex = prefs.getInt(KEY_WORKOUT_MOVEMENT, 0).coerceAtLeast(0),
             effortIndex = prefs.getInt(KEY_WORKOUT_EFFORT, 1).coerceAtLeast(1),
             complete = prefs.getBoolean(KEY_WORKOUT_COMPLETE, false),
@@ -154,14 +162,14 @@ class ProgramStateStore(context: Context) {
             .putBoolean(KEY_WORKOUT_DELOAD, state.deloadMode)
             .putBoolean(KEY_WORKOUT_MACHINE_INVENTORY_CONFIGURED, state.machineInventoryConfigured)
             .putStringSet(KEY_WORKOUT_MACHINE_MODALITIES, state.availableMachineModalities.mapTo(linkedSetOf()) { it.name })
+            .putString(KEY_WORKOUT_SPEED_VARIANT, state.speedVariant.name)
+            .putString(KEY_WORKOUT_ENGINE_VARIANT, state.engineVariant.name)
             .putInt(KEY_WORKOUT_MOVEMENT, state.movementIndex)
             .putInt(KEY_WORKOUT_EFFORT, state.effortIndex)
             .putBoolean(KEY_WORKOUT_COMPLETE, state.complete)
             .putStringSet(KEY_WORKOUT_SUBSTITUTIONS, encodeSubstitutions(state.selectedSubstitutions))
             .putStringSet(KEY_WORKOUT_COMPLETED_EFFORTS, state.completedEffortIds)
             .putBoolean(KEY_WORKOUT_HAS_UNDO, state.canUndo)
-            .remove(KEY_LEGACY_WORKOUT_SPEED)
-            .remove(KEY_LEGACY_WORKOUT_ENGINE)
         state.restTimerEndEpochMillis?.let { editor.putLong(KEY_WORKOUT_REST_TIMER_END, it) }
             ?: editor.remove(KEY_WORKOUT_REST_TIMER_END)
         if (state.canUndo) {
@@ -192,6 +200,8 @@ class ProgramStateStore(context: Context) {
             .remove(KEY_WORKOUT_DELOAD)
             .remove(KEY_WORKOUT_MACHINE_INVENTORY_CONFIGURED)
             .remove(KEY_WORKOUT_MACHINE_MODALITIES)
+            .remove(KEY_WORKOUT_SPEED_VARIANT)
+            .remove(KEY_WORKOUT_ENGINE_VARIANT)
             .remove(KEY_WORKOUT_MOVEMENT)
             .remove(KEY_WORKOUT_EFFORT)
             .remove(KEY_WORKOUT_COMPLETE)
@@ -204,8 +214,6 @@ class ProgramStateStore(context: Context) {
             .remove(KEY_WORKOUT_UNDO_COMPLETE)
             .remove(KEY_WORKOUT_UNDO_REST_TIMER_END)
             .remove(KEY_WORKOUT_UNDO_COMPLETED_EFFORTS)
-            .remove(KEY_LEGACY_WORKOUT_SPEED)
-            .remove(KEY_LEGACY_WORKOUT_ENGINE)
             .apply()
     }
 
@@ -222,8 +230,14 @@ class ProgramStateStore(context: Context) {
     private fun decodeMachineModalities(encoded: Set<String>): Set<MachineModality> =
         encoded.mapNotNullTo(linkedSetOf()) { raw -> MachineModality.entries.firstOrNull { it.name == raw } }
 
+    private fun decodeSpeedVariant(raw: String?): SpeedVariant =
+        SpeedVariant.entries.firstOrNull { it.name == raw } ?: SpeedVariant.ACCELERATION
+
+    private fun decodeEngineVariant(raw: String?): EngineVariant =
+        EngineVariant.entries.firstOrNull { it.name == raw } ?: EngineVariant.THRESHOLD
+
     companion object {
-        // Preserve the historical preference namespace so the v0.34 -> current pointer migration remains compatible.
+        // Preserve the historical preference namespace so existing installs keep pointer/config state.
         private const val PREFS_NAME = "operator_v54_reference_state"
         private const val KEY_WEEK = "currentWeek"
         private const val KEY_DAY = "currentDay"
@@ -232,10 +246,10 @@ class ProgramStateStore(context: Context) {
         private const val KEY_UTILITY_REST_TIMER_END = "utilityRestTimerEndEpochMillis"
         private const val KEY_MACHINE_INVENTORY_CONFIGURED = "machineInventoryConfigured"
         private const val KEY_MACHINE_MODALITIES = "availableMachineModalities"
-        private val KEY_LEGACY_SPEED = listOf("manual", "Speed", "Variant").joinToString("")
-        private val KEY_LEGACY_ENGINE = listOf("manual", "Engine", "Variant").joinToString("")
+        private const val KEY_SPEED_VARIANT = "aresSpeedVariant"
+        private const val KEY_ENGINE_VARIANT = "aresEngineVariant"
 
-        private const val WORKOUT_SCHEMA_VERSION = 2
+        private const val WORKOUT_SCHEMA_VERSION = 3
         private const val KEY_WORKOUT_ACTIVE = "workoutActive"
         private const val KEY_WORKOUT_SCHEMA = "workoutSchemaVersion"
         private const val KEY_WORKOUT_WEEK = "workoutWeek"
@@ -243,6 +257,8 @@ class ProgramStateStore(context: Context) {
         private const val KEY_WORKOUT_DELOAD = "workoutDeloadMode"
         private const val KEY_WORKOUT_MACHINE_INVENTORY_CONFIGURED = "workoutMachineInventoryConfigured"
         private const val KEY_WORKOUT_MACHINE_MODALITIES = "workoutAvailableMachineModalities"
+        private const val KEY_WORKOUT_SPEED_VARIANT = "workoutAresSpeedVariant"
+        private const val KEY_WORKOUT_ENGINE_VARIANT = "workoutAresEngineVariant"
         private const val KEY_WORKOUT_MOVEMENT = "workoutMovementIndex"
         private const val KEY_WORKOUT_EFFORT = "workoutEffortIndex"
         private const val KEY_WORKOUT_COMPLETE = "workoutComplete"
@@ -255,8 +271,6 @@ class ProgramStateStore(context: Context) {
         private const val KEY_WORKOUT_UNDO_COMPLETE = "workoutUndoComplete"
         private const val KEY_WORKOUT_UNDO_REST_TIMER_END = "workoutUndoRestTimerEndEpochMillis"
         private const val KEY_WORKOUT_UNDO_COMPLETED_EFFORTS = "workoutUndoCompletedEffortIds"
-        private val KEY_LEGACY_WORKOUT_SPEED = listOf("workout", "Speed", "Variant").joinToString("")
-        private val KEY_LEGACY_WORKOUT_ENGINE = listOf("workout", "Engine", "Variant").joinToString("")
         private const val SUBSTITUTION_SEPARATOR = "\u001F"
     }
 }

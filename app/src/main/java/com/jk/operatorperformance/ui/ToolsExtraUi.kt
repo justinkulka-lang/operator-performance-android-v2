@@ -222,6 +222,7 @@ private fun ProgramNotesCard() {
                 NotesSection("SPRINT VOLUME", ProgramNotesV56.sprintVolume)
                 NotesSection("RUN / IMPACT", ProgramNotesV56.runImpact)
                 NotesSection("DELOAD", ProgramNotesV56.deload)
+                NotesSection("HYPERTROPHY PROTECTION", ProgramNotesV56.hypertrophyProtection)
             }
         }
     }
@@ -264,7 +265,7 @@ private fun DataControlsCard() {
             Button(
                 onClick = {
                     pendingExport = legacy.buildLocalExport()
-                    exportLauncher.launch("operator-performance-v5.6-export.json")
+                    exportLauncher.launch("ares-performance-v5.7-export.json")
                 },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("export_data"),
             ) { Text("EXPORT DATA") }
