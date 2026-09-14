@@ -57,6 +57,29 @@ class ReferenceUiTest {
     }
 
     @Test
+    fun todayCardsSupportDirectCompletionAlternativeAndIncompleteAdvanceConfirmation() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val store = ProgramStateStore(context)
+
+        composeRule.onNodeWithTag("today_screen").performScrollToNode(hasTestTag("effort_d1_squat_1"))
+        composeRule.onNodeWithTag("effort_d1_squat_1").performClick()
+        composeRule.waitForIdle()
+        assertTrue(store.loadWorkout()?.completedEffortIds?.contains("d1_squat#1") == true)
+
+        composeRule.onNodeWithTag("today_screen").performScrollToNode(hasTestTag("today_alt_d1_squat"))
+        composeRule.onNodeWithTag("today_alt_d1_squat").performClick()
+        composeRule.onNodeWithText("Safety-bar squat").assertExists()
+        assertEquals("Safety-bar squat", store.loadWorkout()?.selectedSubstitutions?.get("d1_squat"))
+
+        composeRule.onNodeWithTag("today_screen").performScrollToNode(hasTestTag("complete_day"))
+        composeRule.onNodeWithTag("complete_day").performClick()
+        composeRule.onNodeWithText("Advance with unfinished work?").assertIsDisplayed()
+        composeRule.onNodeWithTag("confirm_incomplete_advance").performClick()
+        composeRule.onNodeWithText("WEEK 1 • DAY 2").assertIsDisplayed()
+        assertTrue(store.loadWorkout() == null)
+    }
+
+    @Test
     fun weekBrowseShowsFullSpeedWorkoutWithoutMovingPointer() {
         composeRule.onNodeWithTag("nav_WEEK").performClick()
         composeRule.onNodeWithTag("week_day_1").assertExists()

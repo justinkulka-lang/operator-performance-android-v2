@@ -251,8 +251,10 @@ private fun TodayScreen(
     val progress = activeWorkout?.let { WorkoutProgress.normalize(it, session) }
     val completed = progress?.let { WorkoutProgress.completedEfforts(it, session) } ?: 0
     val total = WorkoutProgress.totalEfforts(session)
+    val unfinished = (total - completed).coerceAtLeast(0)
     val atEnd = state.currentWeek == 8 && state.currentDay == 7
     val isRestDay = state.currentDay == 7
+    var confirmIncompleteAdvance by rememberSaveable(state.currentWeek, state.currentDay) { mutableStateOf(false) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().testTag("today_screen"),
@@ -280,7 +282,19 @@ private fun TodayScreen(
             }
         }
         items(session.rows, key = { it.id }) { row ->
-            TodayWorkoutRowCard(row = row, progress = progress, onProgress = onProgress, session = session)
+            TodayWorkoutRowCard(
+                row = row,
+                progress = progress,
+                onToggleEffort = { effort ->
+                    val base = progress ?: WorkoutProgress.start(state)
+                    onProgress(WorkoutProgress.toggleEffort(base, session, row.id, effort))
+                },
+                onToggleAlternative = { alternative ->
+                    val base = progress ?: WorkoutProgress.start(state)
+                    val nextChoice = if (base.selectedSubstitutions[row.id] == null) alternative else null
+                    onProgress(WorkoutProgress.selectSubstitution(base, session, row.id, nextChoice))
+                },
+            )
         }
         item {
             if (!isRestDay) {
@@ -300,15 +314,43 @@ private fun TodayScreen(
                 }
             } else {
                 Button(
-                    onClick = onAdvance,
-                    enabled = isRestDay || progress?.complete == true,
+                    onClick = {
+                        if (isRestDay || progress?.complete == true) onAdvance() else confirmIncompleteAdvance = true
+                    },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("complete_day"),
                 ) { Text("COMPLETE DAY / NEXT DAY") }
                 if (!isRestDay && progress?.complete != true) {
-                    Text("Finish the prescribed workout before advancing the current day.", style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        "$unfinished SETS / SEGMENTS REMAIN • ADVANCE REQUIRES CONFIRMATION",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
         }
+    }
+
+    if (confirmIncompleteAdvance) {
+        AlertDialog(
+            onDismissRequest = { confirmIncompleteAdvance = false },
+            title = { Text("Advance with unfinished work?") },
+            text = { Text("$unfinished prescribed sets/segments remain incomplete. Advance to the next day anyway?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmIncompleteAdvance = false
+                        onAdvance()
+                    },
+                    modifier = Modifier.heightIn(min = 48.dp).testTag("confirm_incomplete_advance"),
+                ) { Text("ADVANCE") }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { confirmIncompleteAdvance = false },
+                    modifier = Modifier.heightIn(min = 48.dp).testTag("cancel_incomplete_advance"),
+                ) { Text("CANCEL") }
+            },
+        )
     }
 }
 
@@ -316,12 +358,13 @@ private fun TodayScreen(
 private fun TodayWorkoutRowCard(
     row: SessionRow,
     progress: ActiveWorkoutState?,
-    onProgress: (ActiveWorkoutState) -> Unit,
-    session: SessionReference,
+    onToggleEffort: (Int) -> Unit,
+    onToggleAlternative: (String) -> Unit,
 ) {
     val selectedAlternative = progress?.selectedSubstitutions?.get(row.id)
     val displayTitle = selectedAlternative ?: row.title
     val allComplete = progress != null && (1..row.effortCount).all { WorkoutProgress.isEffortComplete(progress, row.id, it) }
+    val haptic = LocalHapticFeedback.current
     Card(
         modifier = Modifier.fillMaxWidth().testTag("row_${row.id}"),
         colors = CardDefaults.cardColors(
@@ -336,23 +379,31 @@ private fun TodayWorkoutRowCard(
             if (selectedAlternative != null) Text("ALTERNATIVE FOR ${row.title}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
             Text(row.prescription, style = MaterialTheme.typography.bodyLarge)
             if (row.optional) Text("OPTIONAL", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
-            if (row.effortCount > 1 || row.kind == SessionRowKind.RESISTANCE) {
+            if (row.kind != SessionRowKind.REST) {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items((1..row.effortCount).toList()) { effort ->
                         val done = progress?.let { WorkoutProgress.isEffortComplete(it, row.id, effort) } == true
                         FilterChip(
                             selected = done,
-                            enabled = progress != null,
                             onClick = {
-                                progress?.let { onProgress(WorkoutProgress.toggleEffort(it, session, row.id, effort)) }
+                                if (!done) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onToggleEffort(effort)
                             },
-                            label = { Text(if (done) "✓ $effort" else effort.toString()) },
+                            label = { Text(if (done) "✓ ${row.effortLabel} $effort" else "${row.effortLabel} $effort") },
                             modifier = Modifier.heightIn(min = 48.dp).testTag("effort_${row.id}_$effort"),
                         )
                     }
                 }
             }
-            row.alternatives.singleOrNull()?.let { Text("Alternative • $it", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            row.alternatives.singleOrNull()?.let { alternative ->
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Alternative • $alternative", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                    TextButton(
+                        onClick = { onToggleAlternative(alternative) },
+                        modifier = Modifier.heightIn(min = 48.dp).testTag("today_alt_${row.id}"),
+                    ) { Text(if (selectedAlternative == null) "ALT" else "PRIMARY") }
+                }
+            }
             row.note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
     }
