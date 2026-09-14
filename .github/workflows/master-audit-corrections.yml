@@ -1,0 +1,106 @@
+name: Operator Performance v5.4 Master Audit Corrections
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - 'construction/**'
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  master-audit-corrections:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 9.6
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
+        with:
+          cmdline-tools-version: 15859902
+          packages: platform-tools
+
+      - name: Install Android API and emulator support
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager --install \
+            "platforms;android-37.0" \
+            "build-tools;37.0.0" \
+            "emulator" \
+            "system-images;android-35;default;x86_64"
+
+      - name: Verify local-only privacy configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'android:allowBackup="false"' app/src/main/AndroidManifest.xml
+          grep -q 'android:dataExtractionRules="@xml/data_extraction_rules"' app/src/main/AndroidManifest.xml
+          grep -q 'android:fullBackupContent="@xml/backup_rules"' app/src/main/AndroidManifest.xml
+          test -f app/src/main/res/xml/data_extraction_rules.xml
+          test -f app/src/main/res/xml/backup_rules.xml
+          grep -q '<cloud-backup>' app/src/main/res/xml/data_extraction_rules.xml
+          grep -q '<device-transfer>' app/src/main/res/xml/data_extraction_rules.xml
+          for domain in root file database sharedpref external; do
+            test "$(grep -c "<exclude domain=\"$domain\" path=\"\.\"" app/src/main/res/xml/data_extraction_rules.xml)" -eq 2
+            grep -q "<exclude domain=\"$domain\" path=\"\.\"" app/src/main/res/xml/backup_rules.xml
+          done
+
+      - name: Build current debug and unsigned release APKs
+        run: gradle :app:assembleDebug :app:assembleRelease --stacktrace
+
+      - name: Full internal source and APK boundary scan
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_pattern='ESTABLISH CURRENT CAPABILITY|Recent runs per week|Easy continuous run capacity|Next-day lower-leg soreness|Pain currently changes my gait|PROGRAM TRACKING|PERFORMANCE PROFILE|HEALTH CONNECT|READINESS|SESSION RESULT|EASY / GOOD / HARD / FAILED|POSITION [1-7]|bodyweight|progress-photo|benchmark result entry|RECOVERY MODE|HISTORY destination|sled push|sled pull|Speed \\+ sled|ProgramTrackingStore|ReadinessStore|BenchmarkStore|StrengthLog|RunStopwatchStore|ConditioningExecutionStore|ActiveSetProgressStore|actualLoad|actualReps|actualRir|performed load|performed reps|performed RIR|session score|workout rating|automatic progression|block recomposition'
+          if grep -RniE "$source_pattern" app/src/main/java app/src/main/res; then
+            echo "Stale/prohibited runtime architecture reference found in production source" >&2
+            exit 1
+          fi
+          aapt2="$ANDROID_HOME/build-tools/37.0.0/aapt2"
+          permission_pattern='android.permission.INTERNET|android.permission.POST_NOTIFICATIONS|android.permission.health|HealthConnect'
+          for apk in app/build/outputs/apk/debug/*.apk app/build/outputs/apk/release/*.apk; do
+            test -f "$apk"
+            permissions="$($aapt2 dump permissions "$apk")"
+            if grep -Ei "$permission_pattern" <<< "$permissions"; then
+              echo "Prohibited permission found in APK manifest: $apk" >&2
+              exit 1
+            fi
+            if unzip -p "$apk" 'classes*.dex' 2>/dev/null | strings | grep -Ei "$source_pattern"; then
+              echo "Stale runtime architecture reference found in APK bytecode: $apk" >&2
+              exit 1
+            fi
+          done
+
+      - name: True process-death focus and timer restoration acceptance
+        run: bash .github/scripts/process-death-acceptance.sh
+
+      - name: Upload master-audit correction evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: Operator-Performance-Master-Audit-Corrections
+          path: |
+            app/build/outputs/apk/debug/*.apk
+            app/build/outputs/apk/release/*.apk
+          if-no-files-found: warn
+          retention-days: 14
