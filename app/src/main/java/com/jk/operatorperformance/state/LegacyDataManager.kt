@@ -48,7 +48,7 @@ class LegacyDataManager(context: Context) {
         namespaces.putAll(legacyNamespaces())
         return buildString {
             append("{\n  \"format_version\": 1,\n")
-            append("  \"authority\": \"Operator Performance v5.5\",\n")
+            append("  \"authority\": \"Operator Performance v5.6\",\n")
             append("  \"exported_at_millis\": ").append(exportedAtMillis).append(",\n")
             append("  \"namespaces\": {")
             namespaces.entries.forEachIndexed { namespaceIndex, (namespace, values) ->
@@ -96,6 +96,7 @@ class LegacyDataManager(context: Context) {
     }
 
     companion object {
+        // Namespace and migration keys intentionally retain their historical names for update compatibility.
         private const val CURRENT_PREFS = "operator_v54_reference_state"
         private const val LEGACY_TRAINING_PREFS = "operator_performance_state"
         private const val LEGACY_REFERENCE_PREFS = "operator_performance_references"
