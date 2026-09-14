@@ -33,6 +33,7 @@ data class ResistanceSlot(
     val dose: String,
     val workingSets: Int,
     val deloadSets: Int,
+    val restSeconds: Int,
     val ownerMuscle: Muscle,
     val roleMap: Map<Muscle, MuscleRole>,
     val alternatives: List<Alternative>,
@@ -43,8 +44,7 @@ data class AerobicRow(
     val day: Int,
     val title: String,
     val prescription: String,
-    val rankedModalities: List<String>,
-    val additionalOptions: List<String> = emptyList(),
+    val alternative: String,
 )
 
 enum class MachineModality(val label: String) {
@@ -58,38 +58,31 @@ data class MachinePowerFinisher(
     val efforts: Int,
     val hardSeconds: Int,
     val easySeconds: Int,
-    val rankedModalities: List<MachineModality>,
+    val primary: MachineModality,
+    val alternative: MachineModality,
 )
 
-enum class SpeedVariant {
-    ACCELERATION,
-    MAX_VELOCITY,
-    SPECIAL_ENDURANCE,
-}
-
-data class SpeedOption(
-    val variant: SpeedVariant,
-    val prescriptions: List<String>,
-    val qualifyingSprintMeters: List<Int>,
-    val guidance: String,
-    val includesMachinePowerFinisher: Boolean,
+data class ConditioningSegment(
+    val id: String,
+    val title: String,
+    val prescription: String,
+    val effortCount: Int = 1,
+    val effortLabel: String = "SEGMENT",
+    val restSeconds: Int? = null,
+    val restAfterLastEffort: Boolean = false,
+    val qualifyingSprintMeters: Int = 0,
+    val alternative: String? = null,
+    val note: String? = null,
 )
 
-enum class EngineVariant {
-    THRESHOLD,
-    VO2,
-}
-
-data class EngineOption(
-    val variant: EngineVariant,
-    val prescriptions: List<String>,
-    val guidance: String,
+data class WeekConditioning(
+    val week: Int,
+    val speed: List<ConditioningSegment>,
+    val engine: List<ConditioningSegment>,
 )
 
 data class WeekDefinition(
     val week: Int,
-    val speedBaseline: Boolean,
-    val engineBaseline: Boolean,
 )
 
 enum class BlockStatus {
