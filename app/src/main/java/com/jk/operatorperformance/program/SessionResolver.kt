@@ -28,7 +28,7 @@ data class SessionReference(
     val title: String,
     val rows: List<SessionRow>,
     val deload: Boolean,
-    val phase: ProgramBlock,
+    val phase: ProgramBlock = OperatorProgramV56.blockForWeek(week),
 )
 
 object SessionResolver {
@@ -65,7 +65,7 @@ object SessionResolver {
             else -> error("Unreachable day")
         }
 
-        return SessionReference(week, day, title, rows, deload, OperatorProgramV56.blockForWeek(week))
+        return SessionReference(week, day, title, rows, deload)
     }
 
     fun splitForWeek(
