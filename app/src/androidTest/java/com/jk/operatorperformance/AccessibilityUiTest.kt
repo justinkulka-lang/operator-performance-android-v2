@@ -9,7 +9,6 @@ import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.platform.app.InstrumentationRegistry
@@ -82,8 +81,13 @@ class AccessibilityUiTest {
         configureDisplay(widthPx = 360, heightPx = 640, densityDpi = 160, fontScale = 2.0f)
         composeRule.onNodeWithTag("today_screen").performScrollToNode(hasTestTag("start_resume_workout"))
         composeRule.onNodeWithTag("start_resume_workout").performClick()
-        composeRule.onNodeWithTag("set_done").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithTag("return_today").performScrollTo().assertIsDisplayed()
+
+        // Workout mode is a LazyColumn: off-screen controls are composed only after the
+        // owning scroll container is asked to bring them into view.
+        composeRule.onNodeWithTag("workout_mode").performScrollToNode(hasTestTag("set_done"))
+        composeRule.onNodeWithTag("set_done").assertIsDisplayed()
+        composeRule.onNodeWithTag("workout_mode").performScrollToNode(hasTestTag("return_today"))
+        composeRule.onNodeWithTag("return_today").assertIsDisplayed()
     }
 
     @Test
