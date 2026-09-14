@@ -204,18 +204,25 @@ object SessionResolver {
         }
     }
 
-    private fun conditioningRow(segment: ConditioningSegment): SessionRow = SessionRow(
-        id = segment.id,
-        title = segment.title,
-        prescription = segment.prescription,
-        kind = SessionRowKind.CONDITIONING,
-        alternatives = segment.alternatives,
-        note = segment.note,
-        effortCount = segment.effortCount,
-        effortLabel = segment.effortLabel,
-        restSeconds = segment.restSeconds,
-        restAfterLastEffort = segment.restAfterLastEffort,
-    )
+    private fun conditioningRow(segment: ConditioningSegment): SessionRow {
+        val sprintWarning = when (ProgramAudit.sprintVolumeStatus(segment.qualifyingSprintMeters)) {
+            SprintVolumeStatus.WARNING -> "SPRINT VOLUME WARNING: this prescription exceeds 500 m of qualifying sprint work; 600 m is permitted with warning. Do not exceed 600 m."
+            SprintVolumeStatus.PROHIBITED -> error("Canonical conditioning segment exceeds the authorized sprint-volume cap: ${segment.id}")
+            SprintVolumeStatus.ALLOWED -> null
+        }
+        return SessionRow(
+            id = segment.id,
+            title = segment.title,
+            prescription = segment.prescription,
+            kind = SessionRowKind.CONDITIONING,
+            alternatives = segment.alternatives,
+            note = listOfNotNull(segment.note, sprintWarning).joinToString(" ").ifBlank { null },
+            effortCount = segment.effortCount,
+            effortLabel = segment.effortLabel,
+            restSeconds = segment.restSeconds,
+            restAfterLastEffort = segment.restAfterLastEffort,
+        )
+    }
 
     private fun doseWithSets(canonicalDose: String, sets: Int): String {
         val separator = " × "
