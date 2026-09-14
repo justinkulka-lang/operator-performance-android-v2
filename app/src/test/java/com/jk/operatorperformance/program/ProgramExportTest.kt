@@ -12,13 +12,18 @@ class ProgramExportTest {
         val matrix = File(reports, "program-matrix.csv")
         val rows = File(reports, "program-resistance-rows.csv")
         val weeks = File(reports, "program-weeks-1-32.csv")
+        val conditioning = File(reports, "program-conditioning-weeks-1-8.csv")
         matrix.writeText(ProgramExport.programMatrixCsv())
         rows.writeText(ProgramExport.resistanceRowsCsv())
         weeks.writeText(ProgramExport.programWeeksCsv())
+        conditioning.writeText(ProgramExport.conditioningRowsCsv())
 
         assertTrue(matrix.readText().contains("Quads,13.0,2,10.0,2"))
         assertTrue(rows.readText().contains("d5_deadlift"))
         assertTrue(rows.readText().contains("Trap-bar deadlift"))
+        assertTrue(rows.readText().contains(",180,"))
+        assertTrue(conditioning.readText().contains("w1_accel"))
+        assertTrue(conditioning.readText().contains("w8_engine"))
 
         val weekLines = weeks.readLines()
         assertEquals(33, weekLines.size)
