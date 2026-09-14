@@ -117,7 +117,7 @@ object SessionResolver {
             kind = SessionRowKind.CONDITIONING,
             alternatives = listOf(row.alternative),
             effortLabel = "BLOCK",
-            note = "Low-eccentric aerobic work. Do not turn the prescribed easy effort into intervals.",
+            note = "Low-eccentric aerobic work. The duration and effort anchors are exact; no universal brand-specific resistance number is prescribed.",
         )
     }
 
@@ -127,7 +127,9 @@ object SessionResolver {
         machineInventoryConfigured: Boolean,
         availableMachineModalities: Set<MachineModality>,
     ): List<SessionRow> {
-        if (deload) return OperatorProgramV56.deloadSpeedSegments.map(::conditioningRow)
+        if (deload) {
+            return OperatorProgramV56.deloadSpeedSegments.map(::conditioningRow) + speedCooldownRow()
+        }
 
         val fixed = OperatorProgramV56.conditioningForWeek(week)
         val rows = mutableListOf(
@@ -137,6 +139,7 @@ object SessionResolver {
                 prescription = OperatorProgramV56.speedWarmupPrescription,
                 kind = SessionRowKind.CONDITIONING,
                 effortLabel = "WARM-UP",
+                note = OperatorProgramV56.speedStopRule,
             ),
         )
         rows += fixed.speed.map(::conditioningRow)
@@ -144,8 +147,17 @@ object SessionResolver {
         if (week in 1..4) {
             resolveMachineFinisher(machineInventoryConfigured, availableMachineModalities)?.let(rows::add)
         }
+        rows += speedCooldownRow()
         return rows
     }
+
+    private fun speedCooldownRow(): SessionRow = SessionRow(
+        id = "d3_speed_cooldown",
+        title = "Speed cooldown",
+        prescription = OperatorProgramV56.speedCooldownPrescription,
+        kind = SessionRowKind.CONDITIONING,
+        effortLabel = "COOLDOWN",
+    )
 
     private fun resolveMachineFinisher(
         configured: Boolean,
@@ -164,10 +176,10 @@ object SessionResolver {
         return SessionRow(
             id = "d3_machine_power_finisher",
             title = title,
-            prescription = "${finisher.efforts} × ${finisher.hardSeconds} s hard / ${finisher.easySeconds} s easy",
+            prescription = "${finisher.efforts} × ${finisher.hardSeconds} s maximal but smooth / ${finisher.easySeconds} s very easy",
             kind = SessionRowKind.CONDITIONING,
             alternatives = alternatives,
-            note = "Use the air/fan bike first. If unavailable, use the stationary cycle ergometer. If neither is available, omit this optional finisher. Do not add running.",
+            note = "Use the air/fan bike first. If unavailable, use the stationary cycle ergometer with light-to-moderate resistance so cadence accelerates immediately rather than grinding. If neither is available, omit this optional finisher. Do not add running.",
             effortCount = finisher.efforts,
             effortLabel = "EFFORT",
             restSeconds = finisher.easySeconds,
@@ -186,7 +198,7 @@ object SessionResolver {
                     title = "Engine warm-up — treadmill",
                     prescription = OperatorProgramV56.engineWarmupPrescription,
                     kind = SessionRowKind.CONDITIONING,
-                    alternatives = listOf("Measured flat track/outdoor — use the same durations and progressive effort structure."),
+                    alternatives = listOf("Measured flat track/outdoor — 5:00 easy walk, 5:00 easy jog, then 3 × 20 s progressive strides with 40 s easy walk/jog between strides."),
                     effortLabel = "WARM-UP",
                 ),
             )
@@ -199,6 +211,7 @@ object SessionResolver {
                     kind = SessionRowKind.CONDITIONING,
                     alternatives = listOf("Measured flat track/outdoor — 5:00 easy walk/jog at RPE 1–2."),
                     effortLabel = "COOLDOWN",
+                    note = "After the cooldown, complete the mandatory short-upper sequence. A 5–10 min transition is allowed.",
                 ),
             )
         }
@@ -209,7 +222,14 @@ object SessionResolver {
         title = segment.title,
         prescription = buildString {
             append(segment.prescription)
-            segment.restSeconds?.let { append(" • RECOVERY ").append(formatRest(it)) }
+            segment.restSeconds?.let { seconds ->
+                val recovery = when {
+                    segment.id == "w8_special_endurance_300" -> "AFTER 300 M BEFORE 150 M"
+                    segment.id.endsWith("_engine") -> "EASY WALK/JOG"
+                    else -> "BETWEEN REPS"
+                }
+                append(" • RECOVERY ").append(formatRest(seconds)).append(' ').append(recovery)
+            }
         },
         kind = SessionRowKind.CONDITIONING,
         alternatives = segment.alternative?.let(::listOf).orEmpty(),
