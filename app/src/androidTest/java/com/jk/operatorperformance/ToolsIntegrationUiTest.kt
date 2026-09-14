@@ -3,6 +3,7 @@ package com.jk.operatorperformance
 import android.content.Context
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -35,19 +36,20 @@ class ToolsIntegrationUiTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
 
         composeRule.onNodeWithTag("nav_TOOLS").performClick()
-        composeRule.onNodeWithTag("tools_screen").performScrollToNode(hasTestTag("machine_ROW_ERG"))
-        composeRule.onNodeWithTag("machine_ROW_ERG").performClick()
+        composeRule.onNodeWithTag("tools_screen").performScrollToNode(hasTestTag("machine_STATIONARY_CYCLE"))
+        composeRule.onNodeWithTag("machine_STATIONARY_CYCLE").performClick()
         composeRule.waitForIdle()
 
         val configured = ProgramStateStore(context).load()
         assertTrue(configured.machineInventoryConfigured)
-        assertEquals(setOf(MachineModality.ROW_ERG), configured.availableMachineModalities)
+        assertEquals(setOf(MachineModality.STATIONARY_CYCLE), configured.availableMachineModalities)
 
         composeRule.onNodeWithTag("nav_PROGRAM").performClick()
         composeRule.onNodeWithTag("program_week_2").performClick()
         composeRule.onNodeWithTag("program_screen").performScrollToNode(hasTestTag("program_day_3"))
         composeRule.onNodeWithTag("program_day_3").performClick()
-        composeRule.onNodeWithText("Optional machine-power finisher — Row ergometer").assertIsDisplayed()
+        composeRule.onNodeWithText("Optional machine-power finisher — Stationary cycle ergometer").assertIsDisplayed()
+        composeRule.onNodeWithTag("reference_dialog").performScrollToNode(hasText("CLOSE"))
         composeRule.onNodeWithText("CLOSE").performClick()
 
         composeRule.onNodeWithTag("nav_TOOLS").performClick()

@@ -6,6 +6,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
@@ -86,11 +87,9 @@ class ReleaseReadinessUiTest {
         composeRule.activityRule.scenario.recreate()
         composeRule.waitForIdle()
         composeRule.onNodeWithTag("nav_TODAY").performClick()
-        composeRule.onNodeWithTag("today_screen").performScrollToNode(hasTestTag("start_resume_workout"))
-        composeRule.onNodeWithTag("start_resume_workout").performClick()
-        composeRule.onNodeWithTag("workout_primary").performScrollTo().performClick()
-        composeRule.onNodeWithTag("workout_complete").performScrollTo().assertIsDisplayed().performClick()
-        composeRule.onNodeWithTag("today_screen").assertIsDisplayed()
+        composeRule.onNodeWithTag("today_screen").performScrollToNode(hasTestTag("complete_day"))
+        composeRule.onNodeWithTag("complete_day").assertIsDisplayed().performClick()
+        composeRule.onNodeWithText("WEEK 2 • DAY 1").assertIsDisplayed()
     }
 
     private fun configureDisplay(widthPx: Int, heightPx: Int, densityDpi: Int, fontScale: Float) {

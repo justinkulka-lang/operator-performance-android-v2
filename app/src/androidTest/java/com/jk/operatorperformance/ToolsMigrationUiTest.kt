@@ -63,7 +63,7 @@ class ToolsMigrationUiTest {
 
         val manager = LegacyDataManager(context)
         val export = manager.buildLocalExport(exportedAtMillis = 1234L)
-        assertTrue(export.contains("\"authority\": \"Operator Performance v5.5\""))
+        assertTrue(export.contains("\"authority\": \"Operator Performance v5.6\""))
         assertTrue(export.contains("legacy-row"))
         assertTrue(export.contains("current_reference_state"))
         assertTrue(manager.deleteLegacyTrackingData())

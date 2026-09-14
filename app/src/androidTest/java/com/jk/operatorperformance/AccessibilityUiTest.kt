@@ -44,7 +44,7 @@ class AccessibilityUiTest {
         val primaryNode = composeRule.onNodeWithTag("workout_primary").fetchSemanticsNode()
 
         assertTrue(semanticsText(contextNode.config).contains("WEEK 1 • DAY 1"))
-        assertTrue(semanticsText(movementNode.config).contains("Back squat or front squat"))
+        assertTrue(semanticsText(movementNode.config).contains("Back squat"))
         assertTrue(semanticsText(effortNode.config).contains("SET 1 OF 4"))
         assertTrue(semanticsText(prescriptionNode.config).contains("4 × 5–8 @ 2–3 RIR"))
         assertTrue(primaryNode.config.contains(SemanticsActions.OnClick))
