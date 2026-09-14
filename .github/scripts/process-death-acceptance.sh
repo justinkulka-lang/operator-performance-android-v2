@@ -34,6 +34,8 @@ timeout 240 bash -c 'until [[ "$(adb shell getprop sys.boot_completed 2>/dev/nul
 adb shell settings put global window_animation_scale 0
 adb shell settings put global transition_animation_scale 0
 adb shell settings put global animator_duration_scale 0
+adb shell input keyevent KEYCODE_WAKEUP || true
+adb shell wm dismiss-keyguard || true
 
 test -f "$apk"
 adb install "$apk"
@@ -78,8 +80,44 @@ adb shell run-as "$package" mkdir -p "/data/user/0/$package/shared_prefs"
 adb shell run-as "$package" cp "$remote_seed" "$remote_prefs"
 adb shell run-as "$package" cat "$remote_prefs" | grep -q 'name="workoutEffortIndex" value="2"'
 
+wait_for_activity() {
+  for _ in $(seq 1 20); do
+    if adb shell dumpsys activity activities 2>/dev/null | grep -q "$package/.MainActivity"; then
+      return 0
+    fi
+    sleep 0.5
+  done
+  echo "ERROR: MainActivity did not become active." >&2
+  return 1
+}
+
+dump_ui() {
+  local destination="$1"
+  local remote_dump="/sdcard/window.xml"
+  rm -f "$destination"
+  for attempt in $(seq 1 15); do
+    adb shell rm -f "$remote_dump" >/dev/null 2>&1 || true
+    adb shell input keyevent KEYCODE_WAKEUP >/dev/null 2>&1 || true
+    adb shell wm dismiss-keyguard >/dev/null 2>&1 || true
+    if adb shell uiautomator dump "$remote_dump" >/dev/null 2>&1 && \
+       adb shell test -s "$remote_dump" && \
+       adb pull "$remote_dump" "$destination" >/dev/null 2>&1 && \
+       grep -q '<hierarchy' "$destination"; then
+      return 0
+    fi
+    echo "UI dump not ready (attempt $attempt/15); retrying..." >&2
+    sleep 1
+  done
+  echo "ERROR: UI hierarchy never became available." >&2
+  adb shell dumpsys window windows >&2 || true
+  adb shell dumpsys activity activities >&2 || true
+  tail -n 120 "$emulator_log" >&2 || true
+  return 1
+}
+
 echo "Launching seeded v5.6 focus state"
 adb shell am start -W -n "$activity" >/dev/null
+wait_for_activity
 sleep 1
 
 echo "Killing application process"
@@ -88,6 +126,7 @@ test -z "$(adb shell pidof "$package" 2>/dev/null | tr -d '\r')"
 
 echo "Relaunching after true process death"
 adb shell am start -W -n "$activity" >/dev/null
+wait_for_activity
 sleep 1
 
 find_text_and_tap() {
@@ -95,8 +134,7 @@ find_text_and_tap() {
   local dump="$RUNNER_TEMP/window.xml"
   local coords=""
   for _ in $(seq 1 12); do
-    adb shell uiautomator dump /sdcard/window.xml >/dev/null
-    adb pull /sdcard/window.xml "$dump" >/dev/null
+    dump_ui "$dump"
     coords="$(python3 - "$dump" "$wanted" <<'PY'
 import re, sys, xml.etree.ElementTree as ET
 root = ET.parse(sys.argv[1]).getroot()
@@ -120,8 +158,7 @@ PY
 
 find_text_and_tap "RESUME WORKOUT"
 sleep 1
-adb shell uiautomator dump /sdcard/window.xml >/dev/null
-adb pull /sdcard/window.xml "$RUNNER_TEMP/resumed.xml" >/dev/null
+dump_ui "$RUNNER_TEMP/resumed.xml"
 grep -q 'text="SET 2 OF 4"' "$RUNNER_TEMP/resumed.xml"
 grep -q 'text="REST"' "$RUNNER_TEMP/resumed.xml"
 
