@@ -1,1 +1,1 @@
-# Operator Performance v5.6 — no custom shrinker rules required.
+# ARES Performance v5.7 — no custom shrinker rules required.
