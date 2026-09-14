@@ -1,16 +1,11 @@
 package com.jk.operatorperformance.state
 
 import android.content.Context
-import com.jk.operatorperformance.program.EngineVariant
 import com.jk.operatorperformance.program.MachineModality
-import com.jk.operatorperformance.program.OperatorProgramV54
-import com.jk.operatorperformance.program.SpeedVariant
 
 data class ProgramUiState(
     val currentWeek: Int = 1,
     val currentDay: Int = 1,
-    val speedVariant: SpeedVariant = OperatorProgramV54.firstPostBaselineSpeedDefault,
-    val engineVariant: EngineVariant = OperatorProgramV54.firstPostBaselineEngineDefault,
     val deloadMode: Boolean = false,
     val restTimerSeconds: Int? = null,
     val utilityRestTimerEndEpochMillis: Long? = null,
@@ -44,8 +39,6 @@ data class ProgramUiState(
 data class ActiveWorkoutState(
     val week: Int,
     val day: Int,
-    val speedVariant: SpeedVariant,
-    val engineVariant: EngineVariant,
     val deloadMode: Boolean,
     val machineInventoryConfigured: Boolean = false,
     val availableMachineModalities: Set<MachineModality> = emptySet(),
@@ -53,11 +46,13 @@ data class ActiveWorkoutState(
     val effortIndex: Int = 1,
     val complete: Boolean = false,
     val selectedSubstitutions: Map<String, String> = emptyMap(),
+    val completedEffortIds: Set<String> = emptySet(),
     val restTimerEndEpochMillis: Long? = null,
     val undoMovementIndex: Int? = null,
     val undoEffortIndex: Int? = null,
     val undoComplete: Boolean? = null,
     val undoRestTimerEndEpochMillis: Long? = null,
+    val undoCompletedEffortIds: Set<String>? = null,
 ) {
     init {
         require(week in 1..8) { "Workout week must be 1–8." }
@@ -67,20 +62,20 @@ data class ActiveWorkoutState(
         require(restTimerEndEpochMillis == null || restTimerEndEpochMillis > 0L) {
             "restTimerEndEpochMillis must be positive when active."
         }
-        require(selectedSubstitutions.keys.none { it.isBlank() }) {
-            "Substitution row ids must be non-blank."
-        }
-        require(selectedSubstitutions.values.none { it.isBlank() }) {
-            "Substitution choices must be non-blank."
-        }
-        val undoParts = listOf(undoMovementIndex, undoEffortIndex, undoComplete)
-        require(undoParts.all { it == null } || undoParts.none { it == null }) {
+        require(selectedSubstitutions.keys.none { it.isBlank() }) { "Substitution row ids must be non-blank." }
+        require(selectedSubstitutions.values.none { it.isBlank() }) { "Substitution choices must be non-blank." }
+        require(completedEffortIds.none { it.isBlank() }) { "Completed effort ids must be non-blank." }
+        val pointerUndoParts = listOf(undoMovementIndex, undoEffortIndex, undoComplete)
+        val pointerUndoPresent = pointerUndoParts.none { it == null }
+        require(pointerUndoParts.all { it == null } || pointerUndoPresent) {
             "Undo pointer state must be fully present or fully absent."
+        }
+        require(pointerUndoPresent == (undoCompletedEffortIds != null)) {
+            "Undo completion state must match undo pointer state."
         }
     }
 
-    val canUndo: Boolean
-        get() = undoMovementIndex != null
+    val canUndo: Boolean get() = undoMovementIndex != null
 
     fun matchesPointer(state: ProgramUiState): Boolean =
         week == state.currentWeek && day == state.currentDay
@@ -89,41 +84,27 @@ data class ActiveWorkoutState(
 class ProgramStateStore(context: Context) {
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    fun load(): ProgramUiState {
-        val week = prefs.getInt(KEY_WEEK, 1).coerceIn(1, 8)
-        val day = prefs.getInt(KEY_DAY, 1).coerceIn(1, 7)
-        val speed = enumOrDefault(
-            prefs.getString(KEY_SPEED, null),
-            OperatorProgramV54.firstPostBaselineSpeedDefault,
-        )
-        val engine = enumOrDefault(
-            prefs.getString(KEY_ENGINE, null),
-            OperatorProgramV54.firstPostBaselineEngineDefault,
-        )
-        return ProgramUiState(
-            currentWeek = week,
-            currentDay = day,
-            speedVariant = speed,
-            engineVariant = engine,
-            deloadMode = prefs.getBoolean(KEY_DELOAD, false),
-            restTimerSeconds = prefs.getInt(KEY_REST_TIMER_SECONDS, 0).takeIf { it > 0 },
-            utilityRestTimerEndEpochMillis = prefs.getLong(KEY_UTILITY_REST_TIMER_END, 0L).takeIf { it > 0L },
-            machineInventoryConfigured = prefs.getBoolean(KEY_MACHINE_INVENTORY_CONFIGURED, false),
-            availableMachineModalities = decodeMachineModalities(
-                prefs.getStringSet(KEY_MACHINE_MODALITIES, emptySet()).orEmpty(),
-            ),
-        )
-    }
+    fun load(): ProgramUiState = ProgramUiState(
+        currentWeek = prefs.getInt(KEY_WEEK, 1).coerceIn(1, 8),
+        currentDay = prefs.getInt(KEY_DAY, 1).coerceIn(1, 7),
+        deloadMode = prefs.getBoolean(KEY_DELOAD, false),
+        restTimerSeconds = prefs.getInt(KEY_REST_TIMER_SECONDS, 0).takeIf { it > 0 },
+        utilityRestTimerEndEpochMillis = prefs.getLong(KEY_UTILITY_REST_TIMER_END, 0L).takeIf { it > 0L },
+        machineInventoryConfigured = prefs.getBoolean(KEY_MACHINE_INVENTORY_CONFIGURED, false),
+        availableMachineModalities = decodeMachineModalities(
+            prefs.getStringSet(KEY_MACHINE_MODALITIES, emptySet()).orEmpty(),
+        ),
+    )
 
     fun save(state: ProgramUiState) {
         val editor = prefs.edit()
             .putInt(KEY_WEEK, state.currentWeek)
             .putInt(KEY_DAY, state.currentDay)
-            .putString(KEY_SPEED, state.speedVariant.name)
-            .putString(KEY_ENGINE, state.engineVariant.name)
             .putBoolean(KEY_DELOAD, state.deloadMode)
             .putBoolean(KEY_MACHINE_INVENTORY_CONFIGURED, state.machineInventoryConfigured)
             .putStringSet(KEY_MACHINE_MODALITIES, state.availableMachineModalities.mapTo(linkedSetOf()) { it.name })
+            .remove(KEY_LEGACY_SPEED)
+            .remove(KEY_LEGACY_ENGINE)
         state.restTimerSeconds?.let { editor.putInt(KEY_REST_TIMER_SECONDS, it) }
             ?: editor.remove(KEY_REST_TIMER_SECONDS)
         state.utilityRestTimerEndEpochMillis?.let { editor.putLong(KEY_UTILITY_REST_TIMER_END, it) }
@@ -133,18 +114,14 @@ class ProgramStateStore(context: Context) {
 
     fun loadWorkout(): ActiveWorkoutState? {
         if (!prefs.getBoolean(KEY_WORKOUT_ACTIVE, false)) return null
+        if (prefs.getInt(KEY_WORKOUT_SCHEMA, 0) != WORKOUT_SCHEMA_VERSION) {
+            clearWorkout()
+            return null
+        }
         val hasUndo = prefs.getBoolean(KEY_WORKOUT_HAS_UNDO, false)
         return ActiveWorkoutState(
             week = prefs.getInt(KEY_WORKOUT_WEEK, 1).coerceIn(1, 8),
             day = prefs.getInt(KEY_WORKOUT_DAY, 1).coerceIn(1, 7),
-            speedVariant = enumOrDefault(
-                prefs.getString(KEY_WORKOUT_SPEED, null),
-                OperatorProgramV54.firstPostBaselineSpeedDefault,
-            ),
-            engineVariant = enumOrDefault(
-                prefs.getString(KEY_WORKOUT_ENGINE, null),
-                OperatorProgramV54.firstPostBaselineEngineDefault,
-            ),
             deloadMode = prefs.getBoolean(KEY_WORKOUT_DELOAD, false),
             machineInventoryConfigured = prefs.getBoolean(KEY_WORKOUT_MACHINE_INVENTORY_CONFIGURED, false),
             availableMachineModalities = decodeMachineModalities(
@@ -156,25 +133,24 @@ class ProgramStateStore(context: Context) {
             selectedSubstitutions = decodeSubstitutions(
                 prefs.getStringSet(KEY_WORKOUT_SUBSTITUTIONS, emptySet()).orEmpty(),
             ),
+            completedEffortIds = prefs.getStringSet(KEY_WORKOUT_COMPLETED_EFFORTS, emptySet()).orEmpty().toSet(),
             restTimerEndEpochMillis = prefs.getLong(KEY_WORKOUT_REST_TIMER_END, 0L).takeIf { it > 0L },
             undoMovementIndex = if (hasUndo) prefs.getInt(KEY_WORKOUT_UNDO_MOVEMENT, 0).coerceAtLeast(0) else null,
             undoEffortIndex = if (hasUndo) prefs.getInt(KEY_WORKOUT_UNDO_EFFORT, 1).coerceAtLeast(1) else null,
             undoComplete = if (hasUndo) prefs.getBoolean(KEY_WORKOUT_UNDO_COMPLETE, false) else null,
-            undoRestTimerEndEpochMillis = if (hasUndo) {
-                prefs.getLong(KEY_WORKOUT_UNDO_REST_TIMER_END, 0L).takeIf { it > 0L }
-            } else {
-                null
-            },
+            undoRestTimerEndEpochMillis = if (hasUndo) prefs.getLong(KEY_WORKOUT_UNDO_REST_TIMER_END, 0L).takeIf { it > 0L } else null,
+            undoCompletedEffortIds = if (hasUndo) {
+                prefs.getStringSet(KEY_WORKOUT_UNDO_COMPLETED_EFFORTS, emptySet()).orEmpty().toSet()
+            } else null,
         )
     }
 
     fun saveWorkout(state: ActiveWorkoutState) {
         val editor = prefs.edit()
             .putBoolean(KEY_WORKOUT_ACTIVE, true)
+            .putInt(KEY_WORKOUT_SCHEMA, WORKOUT_SCHEMA_VERSION)
             .putInt(KEY_WORKOUT_WEEK, state.week)
             .putInt(KEY_WORKOUT_DAY, state.day)
-            .putString(KEY_WORKOUT_SPEED, state.speedVariant.name)
-            .putString(KEY_WORKOUT_ENGINE, state.engineVariant.name)
             .putBoolean(KEY_WORKOUT_DELOAD, state.deloadMode)
             .putBoolean(KEY_WORKOUT_MACHINE_INVENTORY_CONFIGURED, state.machineInventoryConfigured)
             .putStringSet(KEY_WORKOUT_MACHINE_MODALITIES, state.availableMachineModalities.mapTo(linkedSetOf()) { it.name })
@@ -182,7 +158,10 @@ class ProgramStateStore(context: Context) {
             .putInt(KEY_WORKOUT_EFFORT, state.effortIndex)
             .putBoolean(KEY_WORKOUT_COMPLETE, state.complete)
             .putStringSet(KEY_WORKOUT_SUBSTITUTIONS, encodeSubstitutions(state.selectedSubstitutions))
+            .putStringSet(KEY_WORKOUT_COMPLETED_EFFORTS, state.completedEffortIds)
             .putBoolean(KEY_WORKOUT_HAS_UNDO, state.canUndo)
+            .remove(KEY_LEGACY_WORKOUT_SPEED)
+            .remove(KEY_LEGACY_WORKOUT_ENGINE)
         state.restTimerEndEpochMillis?.let { editor.putLong(KEY_WORKOUT_REST_TIMER_END, it) }
             ?: editor.remove(KEY_WORKOUT_REST_TIMER_END)
         if (state.canUndo) {
@@ -190,15 +169,16 @@ class ProgramStateStore(context: Context) {
                 .putInt(KEY_WORKOUT_UNDO_MOVEMENT, requireNotNull(state.undoMovementIndex))
                 .putInt(KEY_WORKOUT_UNDO_EFFORT, requireNotNull(state.undoEffortIndex))
                 .putBoolean(KEY_WORKOUT_UNDO_COMPLETE, requireNotNull(state.undoComplete))
-            state.undoRestTimerEndEpochMillis?.let {
-                editor.putLong(KEY_WORKOUT_UNDO_REST_TIMER_END, it)
-            } ?: editor.remove(KEY_WORKOUT_UNDO_REST_TIMER_END)
+                .putStringSet(KEY_WORKOUT_UNDO_COMPLETED_EFFORTS, requireNotNull(state.undoCompletedEffortIds))
+            state.undoRestTimerEndEpochMillis?.let { editor.putLong(KEY_WORKOUT_UNDO_REST_TIMER_END, it) }
+                ?: editor.remove(KEY_WORKOUT_UNDO_REST_TIMER_END)
         } else {
             editor
                 .remove(KEY_WORKOUT_UNDO_MOVEMENT)
                 .remove(KEY_WORKOUT_UNDO_EFFORT)
                 .remove(KEY_WORKOUT_UNDO_COMPLETE)
                 .remove(KEY_WORKOUT_UNDO_REST_TIMER_END)
+                .remove(KEY_WORKOUT_UNDO_COMPLETED_EFFORTS)
         }
         editor.apply()
     }
@@ -206,10 +186,9 @@ class ProgramStateStore(context: Context) {
     fun clearWorkout() {
         prefs.edit()
             .remove(KEY_WORKOUT_ACTIVE)
+            .remove(KEY_WORKOUT_SCHEMA)
             .remove(KEY_WORKOUT_WEEK)
             .remove(KEY_WORKOUT_DAY)
-            .remove(KEY_WORKOUT_SPEED)
-            .remove(KEY_WORKOUT_ENGINE)
             .remove(KEY_WORKOUT_DELOAD)
             .remove(KEY_WORKOUT_MACHINE_INVENTORY_CONFIGURED)
             .remove(KEY_WORKOUT_MACHINE_MODALITIES)
@@ -217,19 +196,21 @@ class ProgramStateStore(context: Context) {
             .remove(KEY_WORKOUT_EFFORT)
             .remove(KEY_WORKOUT_COMPLETE)
             .remove(KEY_WORKOUT_SUBSTITUTIONS)
+            .remove(KEY_WORKOUT_COMPLETED_EFFORTS)
             .remove(KEY_WORKOUT_REST_TIMER_END)
             .remove(KEY_WORKOUT_HAS_UNDO)
             .remove(KEY_WORKOUT_UNDO_MOVEMENT)
             .remove(KEY_WORKOUT_UNDO_EFFORT)
             .remove(KEY_WORKOUT_UNDO_COMPLETE)
             .remove(KEY_WORKOUT_UNDO_REST_TIMER_END)
+            .remove(KEY_WORKOUT_UNDO_COMPLETED_EFFORTS)
+            .remove(KEY_LEGACY_WORKOUT_SPEED)
+            .remove(KEY_LEGACY_WORKOUT_ENGINE)
             .apply()
     }
 
     private fun encodeSubstitutions(substitutions: Map<String, String>): Set<String> =
-        substitutions.mapTo(linkedSetOf()) { (rowId, choice) ->
-            rowId + SUBSTITUTION_SEPARATOR + choice
-        }
+        substitutions.mapTo(linkedSetOf()) { (rowId, choice) -> rowId + SUBSTITUTION_SEPARATOR + choice }
 
     private fun decodeSubstitutions(encoded: Set<String>): Map<String, String> =
         encoded.mapNotNull { item ->
@@ -241,26 +222,24 @@ class ProgramStateStore(context: Context) {
     private fun decodeMachineModalities(encoded: Set<String>): Set<MachineModality> =
         encoded.mapNotNullTo(linkedSetOf()) { raw -> MachineModality.entries.firstOrNull { it.name == raw } }
 
-    private inline fun <reified T : Enum<T>> enumOrDefault(raw: String?, fallback: T): T =
-        enumValues<T>().firstOrNull { it.name == raw } ?: fallback
-
     companion object {
+        // Preserve the historical preference namespace so the v0.34 -> current pointer migration remains compatible.
         private const val PREFS_NAME = "operator_v54_reference_state"
         private const val KEY_WEEK = "currentWeek"
         private const val KEY_DAY = "currentDay"
-        private const val KEY_SPEED = "manualSpeedVariant"
-        private const val KEY_ENGINE = "manualEngineVariant"
         private const val KEY_DELOAD = "manualDeloadMode"
         private const val KEY_REST_TIMER_SECONDS = "manualRestTimerSeconds"
         private const val KEY_UTILITY_REST_TIMER_END = "utilityRestTimerEndEpochMillis"
         private const val KEY_MACHINE_INVENTORY_CONFIGURED = "machineInventoryConfigured"
         private const val KEY_MACHINE_MODALITIES = "availableMachineModalities"
+        private const val KEY_LEGACY_SPEED = "manualSpeedVariant"
+        private const val KEY_LEGACY_ENGINE = "manualEngineVariant"
 
+        private const val WORKOUT_SCHEMA_VERSION = 2
         private const val KEY_WORKOUT_ACTIVE = "workoutActive"
+        private const val KEY_WORKOUT_SCHEMA = "workoutSchemaVersion"
         private const val KEY_WORKOUT_WEEK = "workoutWeek"
         private const val KEY_WORKOUT_DAY = "workoutDay"
-        private const val KEY_WORKOUT_SPEED = "workoutSpeedVariant"
-        private const val KEY_WORKOUT_ENGINE = "workoutEngineVariant"
         private const val KEY_WORKOUT_DELOAD = "workoutDeloadMode"
         private const val KEY_WORKOUT_MACHINE_INVENTORY_CONFIGURED = "workoutMachineInventoryConfigured"
         private const val KEY_WORKOUT_MACHINE_MODALITIES = "workoutAvailableMachineModalities"
@@ -268,12 +247,16 @@ class ProgramStateStore(context: Context) {
         private const val KEY_WORKOUT_EFFORT = "workoutEffortIndex"
         private const val KEY_WORKOUT_COMPLETE = "workoutComplete"
         private const val KEY_WORKOUT_SUBSTITUTIONS = "workoutSubstitutions"
+        private const val KEY_WORKOUT_COMPLETED_EFFORTS = "workoutCompletedEffortIds"
         private const val KEY_WORKOUT_REST_TIMER_END = "workoutRestTimerEndEpochMillis"
         private const val KEY_WORKOUT_HAS_UNDO = "workoutHasUndo"
         private const val KEY_WORKOUT_UNDO_MOVEMENT = "workoutUndoMovementIndex"
         private const val KEY_WORKOUT_UNDO_EFFORT = "workoutUndoEffortIndex"
         private const val KEY_WORKOUT_UNDO_COMPLETE = "workoutUndoComplete"
         private const val KEY_WORKOUT_UNDO_REST_TIMER_END = "workoutUndoRestTimerEndEpochMillis"
+        private const val KEY_WORKOUT_UNDO_COMPLETED_EFFORTS = "workoutUndoCompletedEffortIds"
+        private const val KEY_LEGACY_WORKOUT_SPEED = "workoutSpeedVariant"
+        private const val KEY_LEGACY_WORKOUT_ENGINE = "workoutEngineVariant"
         private const val SUBSTITUTION_SEPARATOR = "\u001F"
     }
 }
