@@ -257,12 +257,7 @@ private fun TodayScreen(
     ) {
         item {
             BrandHeader()
-            Text(
-                "${session.phase.godName} • ${session.phase.name}",
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.testTag("today_phase"),
-            )
+            PhaseIdentityLine(session.phase, Modifier.testTag("today_phase"))
             Text(
                 "WEEK ${session.week} • DAY ${session.day}",
                 style = MaterialTheme.typography.labelLarge,
@@ -348,7 +343,7 @@ private fun WorkoutRowCard(
         colors = CardDefaults.cardColors(containerColor = if (allDone) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface),
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            VisualRowTitle(row = row, title = title, style = MaterialTheme.typography.titleMedium)
             if (selected != null) Text("ALTERNATIVE FOR ${row.title}", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
             Text(row.prescription, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.testTag("prescription_${row.id}"))
             if (row.optional) Text("OPTIONAL", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
@@ -422,7 +417,7 @@ private fun WorkoutModeScreen(
     ) {
         item {
             BrandHeader()
-            Text("${session.phase.godName} • ${session.phase.name}", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+            PhaseIdentityLine(session.phase)
             Text(
                 "WEEK ${session.week} • DAY ${session.day} • ${session.title}",
                 style = MaterialTheme.typography.labelLarge,
@@ -433,10 +428,10 @@ private fun WorkoutModeScreen(
         item {
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        selected ?: row.title,
+                    VisualRowTitle(
+                        row = row,
+                        title = selected ?: row.title,
                         style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
                         modifier = Modifier.testTag("workout_movement"),
                     )
                     Text(
@@ -544,6 +539,7 @@ private fun WeekScreen(state: ProgramUiState, onOpenDay: (SessionReference) -> U
         item {
             BrandHeader()
             val phase = OperatorProgramV56.blockForWeek(state.currentWeek)
+            PhaseIdentityLine(phase)
             Text("WEEK ${state.currentWeek} • ${phase.godName} • ${phase.name}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         }
         items(split, key = { it.day }) { session ->
@@ -552,11 +548,12 @@ private fun WeekScreen(state: ProgramUiState, onOpenDay: (SessionReference) -> U
                 colors = CardDefaults.cardColors(containerColor = if (session.day == state.currentDay) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface),
                 onClick = { onOpenDay(session) },
             ) {
-                Column(Modifier.padding(16.dp)) {
-                    Text("DAY ${session.day}${if (session.day == state.currentDay) " • TODAY" else ""}", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                    Text(session.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Text("${session.rows.size} prescribed rows", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
+                SessionDayCardContent(
+                    session = session,
+                    isCurrentDay = session.day == state.currentDay,
+                    showRowCount = true,
+                    padding = 16.dp,
+                )
             }
         }
     }
@@ -583,7 +580,8 @@ private fun ProgramScreen(
         item {
             BrandHeader()
             Text("32-WEEK ARES PROGRAM", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            Text("CURRENT • ${currentPhase.godName} — ${currentPhase.name} • Weeks ${currentPhase.startWeek}–${currentPhase.endWeek}", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, modifier = Modifier.testTag("current_phase"))
+            PhaseProgressStrip(currentPhase)
+            Text("CURRENT • ${currentPhase.godName} — ${currentPhase.name} • Weeks ${currentPhase.startWeek}–${currentPhase.endWeek}", color = phaseAccent(currentPhase), fontWeight = FontWeight.Bold, modifier = Modifier.testTag("current_phase"))
             Text(
                 nextPhase?.let { "NEXT PHASE • ${it.godName} — ${it.name} • POPULATED / APPROVED" }
                     ?: "NEXT PHASE • PROGRAM COMPLETE AT WEEK 32 • NO WEEK 33+ AUTHORIZED",
@@ -595,13 +593,7 @@ private fun ProgramScreen(
         item {
             Text("PHASES", fontWeight = FontWeight.Bold)
             OperatorProgramV56.blocks.forEach { phase ->
-                Card(Modifier.fillMaxWidth().padding(top = 6.dp)) {
-                    Column(Modifier.padding(14.dp)) {
-                        Text("${phase.godName} — ${phase.name}", fontWeight = FontWeight.Bold)
-                        Text("Weeks ${phase.startWeek}–${phase.endWeek} • POPULATED / APPROVED", color = MaterialTheme.colorScheme.primary)
-                        Text(phase.purpose, style = MaterialTheme.typography.bodySmall)
-                    }
-                }
+                PhaseSummaryCard(phase, isCurrent = phase.godName == currentPhase.godName)
             }
         }
         item {
@@ -617,14 +609,15 @@ private fun ProgramScreen(
                     )
                 }
             }
-            Text("${selectedPhase.godName} • ${selectedPhase.name}", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+            PhaseIdentityLine(selectedPhase)
         }
         items(selectedSplit, key = { it.day }) { session ->
             Card(onClick = { onOpenDay(session) }, modifier = Modifier.fillMaxWidth().testTag("program_day_${session.week}_${session.day}")) {
-                Column(Modifier.padding(14.dp)) {
-                    Text("DAY ${session.day}", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                    Text(session.title, fontWeight = FontWeight.Bold)
-                }
+                SessionDayCardContent(
+                    session = session,
+                    isCurrentDay = session.week == state.currentWeek && session.day == state.currentDay,
+                    showRowCount = false,
+                )
             }
         }
         if (nextWeek != null) {
@@ -632,7 +625,7 @@ private fun ProgramScreen(
                 HorizontalDivider()
                 Text("NEXT WEEK • WEEK $nextWeek", fontWeight = FontWeight.Bold, modifier = Modifier.testTag("next_week"))
                 val phase = OperatorProgramV56.blockForWeek(nextWeek)
-                Text("${phase.godName} • ${phase.name}", color = MaterialTheme.colorScheme.primary)
+                PhaseIdentityLine(phase)
                 splitForWeek(nextWeek, state).forEach { session -> Text("DAY ${session.day} • ${session.title}") }
             }
         }
@@ -767,9 +760,9 @@ private fun DayReferenceDialog(
         title = { Text("WEEK ${session.week} • DAY ${session.day}\n${session.title}") },
         text = {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                item { Text("${session.phase.godName} • ${session.phase.name}", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold) }
+                item { PhaseIdentityLine(session.phase) }
                 items(session.rows, key = { it.id }) { row ->
-                    Text(row.title, fontWeight = FontWeight.Bold)
+                    VisualRowTitle(row = row, title = row.title, style = MaterialTheme.typography.bodyLarge)
                     Text(row.prescription)
                     row.note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     row.alternatives.forEachIndexed { index, alt -> Text("ALT ${index + 1} • $alt", style = MaterialTheme.typography.bodySmall) }
@@ -786,9 +779,7 @@ private fun DayReferenceDialog(
 
 @Composable
 private fun BrandHeader() {
-    Text(OperatorProgramV56.PROGRAM_NAME, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
-    Text(OperatorProgramV56.PROGRAM_TAGLINE, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    Spacer(Modifier.height(8.dp))
+    AresBrandHeader()
 }
 
 private fun newWorkout(state: ProgramUiState) = ActiveWorkoutState(
