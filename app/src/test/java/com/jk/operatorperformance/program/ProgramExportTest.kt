@@ -7,35 +7,44 @@ import org.junit.Test
 
 class ProgramExportTest {
     @Test
-    fun computedProgramExportsComeFromCanonicalRows() {
+    fun computedProgramExportsComeFromCanonicalV57Rows() {
         val reports = File("build/reports").apply { mkdirs() }
         val matrix = File(reports, "program-matrix.csv")
         val rows = File(reports, "program-resistance-rows.csv")
         val weeks = File(reports, "program-weeks-1-32.csv")
-        val conditioning = File(reports, "program-conditioning-weeks-1-8.csv")
+        val conditioning = File(reports, "program-conditioning-weeks-1-32.csv")
+        val phases = File(reports, "program-phases.csv")
         matrix.writeText(ProgramExport.programMatrixCsv())
         rows.writeText(ProgramExport.resistanceRowsCsv())
         weeks.writeText(ProgramExport.programWeeksCsv())
         conditioning.writeText(ProgramExport.conditioningRowsCsv())
+        phases.writeText(ProgramExport.phaseReferenceCsv())
 
         assertTrue(matrix.readText().contains("Quads,13.0,2,10.0,2"))
         assertTrue(rows.readText().contains("d5_deadlift"))
-        assertTrue(rows.readText().contains("Trap-bar deadlift"))
-        assertTrue(rows.readText().contains(",180,"))
-        assertTrue(conditioning.readText().contains("w1_accel"))
-        assertTrue(conditioning.readText().contains("w8_engine"))
+        assertTrue(rows.readText().contains("1:Trap-bar deadlift"))
+        assertTrue(rows.readText().contains("Rest ~2–3+ min"))
+
+        val conditioningText = conditioning.readText()
+        assertTrue(conditioningText.contains("w1_300_baseline"))
+        assertTrue(conditioningText.contains("w16_checkpoint"))
+        assertTrue(conditioningText.contains("w24_checkpoint"))
+        assertTrue(conditioningText.contains("w32_final300"))
+        assertTrue(conditioningText.contains("w32_final15"))
+        assertTrue(conditioningText.contains("MANUAL_REFERENCE_DEFAULT"))
 
         val weekLines = weeks.readLines()
         assertEquals(33, weekLines.size)
-        assertEquals(
-            "1,Block 1,POPULATED,\"13 / 11.5 / 11.5 / 12 / 12 / 11 / 15 / 11.5 / 12 / 10 / 9 / 9.5 / 10\",148.0,1.667",
-            weekLines[1],
-        )
-        assertEquals(
-            "8,Block 1,POPULATED,\"13 / 11.5 / 11.5 / 12 / 12 / 11 / 15 / 11.5 / 12 / 10 / 9 / 9.5 / 10\",148.0,1.667",
-            weekLines[8],
-        )
-        assertEquals("9,Block 2,UNPOPULATED,—,—,—", weekLines[9])
-        assertEquals("32,Block 4,UNPOPULATED,—,—,—", weekLines[32])
+        assertTrue(weekLines[1].startsWith("1,\"FOUNDATION\",\"HEPHAESTUS\",POPULATED_NORMAL,"))
+        assertTrue(weekLines[9].startsWith("9,\"DEVELOPMENT\",\"HERMES\",POPULATED_NORMAL,"))
+        assertTrue(weekLines[17].startsWith("17,\"SPECIFIC DEVELOPMENT\",\"ARES\",POPULATED_NORMAL,"))
+        assertTrue(weekLines[25].startsWith("25,\"INTEGRATION / PEAK\",\"ZEUS\",POPULATED_NORMAL,"))
+        assertTrue(weekLines[32].startsWith("32,\"INTEGRATION / PEAK\",\"ZEUS\",POPULATED_REALIZATION_TAPER,"))
+
+        val phaseText = phases.readText()
+        assertTrue(phaseText.contains("\"HEPHAESTUS\""))
+        assertTrue(phaseText.contains("\"HERMES\""))
+        assertTrue(phaseText.contains("\"ARES\""))
+        assertTrue(phaseText.contains("\"ZEUS\""))
     }
 }
