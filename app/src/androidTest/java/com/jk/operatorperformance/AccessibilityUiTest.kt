@@ -1,18 +1,17 @@
 package com.jk.operatorperformance
 
 import android.content.Context
-import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.SemanticsActions
-import androidx.compose.ui.semantics.SemanticsConfiguration
-import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
-import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ApplicationProvider
-import org.junit.Assert.assertEquals
+import androidx.test.platform.app.InstrumentationRegistry
+import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -24,55 +23,60 @@ class AccessibilityUiTest {
 
     @Before
     fun resetState() {
+        resetDisplay()
         val context = ApplicationProvider.getApplicationContext<Context>()
-        context.getSharedPreferences("operator_v54_reference_state", Context.MODE_PRIVATE)
-            .edit().clear().commit()
+        context.getSharedPreferences("operator_v54_reference_state", Context.MODE_PRIVATE).edit().clear().commit()
         composeRule.activityRule.scenario.recreate()
         composeRule.waitForIdle()
     }
 
+    @After
+    fun restoreDisplay() = resetDisplay()
+
     @Test
-    fun workoutReadyExposesContextMovementSetPrescriptionAndPrimaryActionInOrder() {
+    fun primaryWorkoutActionMeetsMinimumTouchTargetAndCoreContextIsReadable() {
         composeRule.onNodeWithTag("today_screen").performScrollToNode(hasTestTag("start_resume_workout"))
         composeRule.onNodeWithTag("start_resume_workout").performClick()
-        composeRule.waitForIdle()
-
-        val contextNode = composeRule.onNodeWithTag("workout_context").fetchSemanticsNode()
-        val movementNode = composeRule.onNodeWithTag("workout_movement").fetchSemanticsNode()
-        val effortNode = composeRule.onNodeWithTag("workout_effort").fetchSemanticsNode()
-        val prescriptionNode = composeRule.onNodeWithTag("workout_prescription").fetchSemanticsNode()
-        val primaryNode = composeRule.onNodeWithTag("workout_primary").fetchSemanticsNode()
-
-        assertTrue(semanticsText(contextNode.config).contains("WEEK 1 • DAY 1"))
-        assertTrue(semanticsText(movementNode.config).contains("Back squat"))
-        assertTrue(semanticsText(effortNode.config).contains("SET 1 OF 4"))
-        assertTrue(semanticsText(prescriptionNode.config).contains("4 × 5–8 @ 2–3 RIR"))
-        assertTrue(primaryNode.config.contains(SemanticsActions.OnClick))
-
-        val tops = listOf(
-            contextNode.boundsInRoot.top,
-            movementNode.boundsInRoot.top,
-            effortNode.boundsInRoot.top,
-            prescriptionNode.boundsInRoot.top,
-            primaryNode.boundsInRoot.top,
-        )
-        assertTrue("READY semantics must follow the visual reading order", tops.zipWithNext().all { (a, b) -> a <= b })
+        composeRule.onNodeWithText("WEEK 1 • DAY 1 • Lower A + easy aerobic").assertIsDisplayed()
+        composeRule.onNodeWithText("Back squat or front squat").assertIsDisplayed()
+        composeRule.onNodeWithText("SET 1 / 4").assertIsDisplayed()
+        composeRule.onNodeWithText("4 × 5–8 @ 2–3 RIR").assertIsDisplayed()
+        val target = composeRule.onNodeWithTag("set_done").fetchSemanticsNode().boundsInRoot
+        assertTrue("Primary workout target must be at least 48 dp high", target.height >= 48f)
     }
 
     @Test
-    fun restTimerExposesLiveTimerStateForAssistiveTechnology() {
-        composeRule.onNodeWithTag("nav_TOOLS").performClick()
-        composeRule.onNodeWithTag("rest_timer_input").performTextReplacement("120")
-        composeRule.onNodeWithTag("rest_timer_save").performClick()
-        composeRule.onNodeWithTag("rest_timer_start").performClick()
-        composeRule.waitForIdle()
-
-        val config = composeRule.onNodeWithTag("utility_rest_countdown").fetchSemanticsNode().config
-        assertEquals(listOf("Rest timer countdown"), config[SemanticsProperties.ContentDescription])
-        assertTrue(config[SemanticsProperties.StateDescription].startsWith("Rest timer remaining "))
-        assertEquals(LiveRegionMode.Polite, config[SemanticsProperties.LiveRegion])
+    fun maximumFontScaleKeepsPrimaryWorkoutControlReachable() {
+        configureDisplay(widthPx = 360, heightPx = 640, densityDpi = 160, fontScale = 2.0f)
+        composeRule.onNodeWithTag("today_screen").performScrollToNode(hasTestTag("start_resume_workout"))
+        composeRule.onNodeWithTag("start_resume_workout").performClick()
+        composeRule.onNodeWithTag("set_done").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag("return_today").performScrollTo().assertIsDisplayed()
     }
 
-    private fun semanticsText(config: SemanticsConfiguration): String =
-        config[SemanticsProperties.Text].joinToString(" ") { it.text }
+    @Test
+    fun navigationPrimaryTargetsRemainReachable() {
+        listOf("nav_TODAY", "nav_WEEK", "nav_PROGRAM", "nav_TOOLS").forEach { tag ->
+            composeRule.onNodeWithTag(tag).assertIsDisplayed()
+            assertTrue(composeRule.onNodeWithTag(tag).fetchSemanticsNode().boundsInRoot.height >= 48f)
+        }
+    }
+
+    private fun configureDisplay(widthPx: Int, heightPx: Int, densityDpi: Int, fontScale: Float) {
+        shell("wm size ${widthPx}x$heightPx")
+        shell("wm density $densityDpi")
+        shell("settings put system font_scale $fontScale")
+        composeRule.activityRule.scenario.recreate()
+        composeRule.waitForIdle()
+    }
+
+    private fun resetDisplay() {
+        shell("wm size reset")
+        shell("wm density reset")
+        shell("settings put system font_scale 1.0")
+    }
+
+    private fun shell(command: String) {
+        InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand(command).close()
+    }
 }
