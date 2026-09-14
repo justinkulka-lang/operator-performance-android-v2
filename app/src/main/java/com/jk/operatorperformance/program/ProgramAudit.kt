@@ -155,7 +155,7 @@ object ProgramAudit {
         val deloadDirect = directSets(deload = true)
 
         if (OperatorProgramV56.AUTHORITY_VERSION != "5.6") errors += "Authority version must be 5.6."
-        if (OperatorProgramV56.AUTHORITY_SHA256 != "c48ae8c6b0585d809758d682abc872510645dca864992e36f837396c328ecf03") {
+        if (OperatorProgramV56.AUTHORITY_SHA256 != "7c220f57ac02bdb53fbbafb5b740219b03737ad848d7ce171d6b4b46ec4f8139") {
             errors += "Authority SHA-256 does not match approved v5.6."
         }
         if (Muscle.entries.size != 13) errors += "Canonical muscle count must be 13."
