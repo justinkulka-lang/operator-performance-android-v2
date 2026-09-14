@@ -48,7 +48,7 @@ class LegacyDataManager(context: Context) {
         namespaces.putAll(legacyNamespaces())
         return buildString {
             append("{\n  \"format_version\": 1,\n")
-            append("  \"authority\": \"Operator Performance v5.4\",\n")
+            append("  \"authority\": \"Operator Performance v5.5\",\n")
             append("  \"exported_at_millis\": ").append(exportedAtMillis).append(",\n")
             append("  \"namespaces\": {")
             namespaces.entries.forEachIndexed { namespaceIndex, (namespace, values) ->
