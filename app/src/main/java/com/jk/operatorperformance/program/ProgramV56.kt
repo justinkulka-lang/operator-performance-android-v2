@@ -2,7 +2,7 @@ package com.jk.operatorperformance.program
 
 object OperatorProgramV56 {
     const val AUTHORITY_VERSION = "5.6"
-    const val AUTHORITY_SHA256 = "c48ae8c6b0585d809758d682abc872510645dca864992e36f837396c328ecf03"
+    const val AUTHORITY_SHA256 = "7c220f57ac02bdb53fbbafb5b740219b03737ad848d7ce171d6b4b46ec4f8139"
 
     val canonicalMuscles: List<Muscle> = Muscle.entries.toList()
 
@@ -31,8 +31,8 @@ object OperatorProgramV56 {
         id = "d1_easy_aerobic",
         day = 1,
         title = "Stationary cycle — easy aerobic",
-        prescription = "25:00 continuous • 80–90 rpm • RPE 3–4/10 • full-sentence speech. Increase resistance only enough to hold the prescribed cadence at the prescribed effort.",
-        alternative = "Air/fan bike — 25:00 continuous at RPE 3–4/10 with full-sentence speech.",
+        prescription = "25:00 continuous immediately after Lower A or later the same day • 80–90 rpm • RPE 3–4/10 • comfortable full-sentence speech. Use the lowest resistance that keeps cadence inside 80–90 rpm at RPE 3–4. If cadence is >90 rpm and effort remains <3/10 for 2 min, increase resistance one machine level. If cadence falls <80 rpm or full-sentence speech is lost, decrease one level. No intervals, no sprint finish, no added running.",
+        alternative = "Air/fan bike — 25:00 continuous at RPE 3–4/10 with full-sentence speech. Use a smooth sustainable cadence; fan resistance self-scales. No intervals, no sprint finish, no added running.",
     )
 
     val machinePowerFinisher = MachinePowerFinisher(
@@ -44,47 +44,48 @@ object OperatorProgramV56 {
     )
 
     const val speedWarmupPrescription = "5:00 easy jog on a flat treadmill or track at RPE 2–3; 2 × 20 m A-march with walk-back; 2 × 20 m A-skip with walk-back; then 3 × 40 m progressive build-ups at approximately 60%, 70%, and 80% with 60–90 s walk-back recovery."
-    const val engineWarmupPrescription = "5:00 walk at 3.0–3.5 mph; 5:00 easy jog at 5.0–5.5 mph; then 3 × 20 s progressive strides with 40 s easy between strides. Treadmill grade: 0%."
+    const val speedCooldownPrescription = "5:00 easy walk after the last sprint/finisher."
+    const val engineWarmupPrescription = "5:00 walk at 3.0–3.5 mph; 5:00 easy jog at 5.0–5.5 mph; then 3 × 20 s progressive strides with 40 s easy walk/jog between strides. Treadmill grade: 0%."
     const val engineCooldownPrescription = "5:00 easy walk/jog at RPE 1–2."
     const val engineAdjustmentRule = "If the first work interval already exceeds RPE 8/10, mechanics deteriorate, or the interval cannot be completed cleanly, reduce the current session by 0.5 mph. Do not increase above the prescribed speed merely because the session feels easy. No pace or result is stored."
-    const val speedStopRule = "Stop sprint work if pain changes gait or Achilles/shin symptoms worsen during the session. Hold sprint progression if symptoms persist 48 hours later."
+    const val speedStopRule = "Primary surface: flat track or measured flat turf/straightaway. No incline sprinting. There is no machine substitute for the main sprint work; if a safe flat running surface is unavailable, move the Speed session. Stop quality work early if mechanics clearly deteriorate, gait changes, or lower-leg pain appears. Do not add replacement running. Hold sprint progression if Achilles/shin symptoms persist 48 hours later."
     const val engineStopRule = "Stop running if pain changes gait or Achilles/shin symptoms worsen during the session."
 
     val conditioningByWeek: List<WeekConditioning> = listOf(
         weekConditioning(
             1,
-            speed = listOf(speedMain("w1_accel", "Acceleration", "6 × 30 m at approximately 90% from a controlled start", 6, 180, 180, "REP")),
-            engine = listOf(engineMain("w1_engine", "Aerobic-power intervals", "3 × 6:00 at 7.5 mph • RPE 7–8/10", "Measured flat track/outdoor: 3 × 6:00 at approximately 8:00/mi pace • RPE 7–8/10", 3, 120)),
+            speed = listOf(speedMain("w1_accel", "Acceleration", "6 × 30 m from a controlled start at approximately 90% quality", 6, 180, 180, "REP")),
+            engine = listOf(engineMain("w1_engine", "Threshold intervals", "Treadmill 0% • 3 × 6:00 at 7.5 mph • RPE 7–8/10 • controlled", "Measured flat track/outdoor — 3 × 6:00 at approximately 8:00/mi pace • RPE 7–8/10 • controlled", 3, 120)),
         ),
         weekConditioning(
             2,
-            speed = listOf(speedMain("w2_accel", "Acceleration", "6 × 30 m at approximately 95% from a controlled start", 6, 180, 180, "REP")),
-            engine = listOf(engineMain("w2_engine", "VO₂ intervals", "4 × 3:00 at 8.5 mph • RPE 8–9/10", "Measured flat track/outdoor: 4 × 3:00 at approximately 7:04/mi pace • RPE 8–9/10", 4, 180)),
+            speed = listOf(speedMain("w2_accel", "Acceleration", "6 × 30 m from a controlled start at approximately 95% quality", 6, 180, 180, "REP")),
+            engine = listOf(engineMain("w2_engine", "VO₂ intervals", "Treadmill 0% • 4 × 3:00 at 8.5 mph • RPE 8–9/10", "Measured flat track/outdoor — 4 × 3:00 at approximately 7:04/mi pace • RPE 8–9/10", 4, 180)),
         ),
         weekConditioning(
             3,
-            speed = listOf(speedMain("w3_maxv", "Maximum velocity", "4 × (20 m controlled build + 20 m fly)", 4, 80, 300, "REP")),
-            engine = listOf(engineMain("w3_engine", "Threshold continuous", "20:00 continuous at 7.8 mph • RPE 7–8/10", "Measured flat track/outdoor: 20:00 continuous at approximately 7:42/mi pace • RPE 7–8/10", 1, null)),
+            speed = listOf(speedMain("w3_maxv", "Maximum velocity", "4 × (20 m controlled build + 20 m fly); fly zone fast and smooth", 4, 80, 300, "REP")),
+            engine = listOf(engineMain("w3_engine", "Threshold continuous", "Treadmill 0% • 20:00 continuous at 7.8 mph • RPE 7–8/10 • short phrases", "Measured flat track/outdoor — 20:00 continuous at approximately 7:42/mi pace • RPE 7–8/10 • short phrases", 1, null)),
         ),
         weekConditioning(
             4,
-            speed = listOf(speedMain("w4_maxv", "Maximum velocity", "5 × (20 m controlled build + 20 m fly)", 5, 100, 300, "REP")),
-            engine = listOf(engineMain("w4_engine", "VO₂ intervals", "4 × 4:00 at 8.7 mph • RPE 8–9/10", "Measured flat track/outdoor: 4 × 4:00 at approximately 6:54/mi pace • RPE 8–9/10", 4, 180)),
+            speed = listOf(speedMain("w4_maxv", "Maximum velocity", "5 × (20 m controlled build + 20 m fly); fly zone fast and smooth", 5, 100, 300, "REP")),
+            engine = listOf(engineMain("w4_engine", "VO₂ intervals", "Treadmill 0% • 4 × 4:00 at 8.7 mph • RPE 8–9/10", "Measured flat track/outdoor — 4 × 4:00 at approximately 6:54/mi pace • RPE 8–9/10", 4, 180)),
         ),
         weekConditioning(
             5,
-            speed = listOf(speedMain("w5_speed_endurance", "Speed endurance", "4 × 100 m at 90–92%", 4, 400, 360, "REP")),
-            engine = listOf(engineMain("w5_engine", "1.5-mile pace intervals", "5 × 400 m at 9.0 mph • approximately 1:40 per 400 m", "Measured flat track/outdoor: 5 × 400 m in approximately 1:40 each", 5, 90)),
+            speed = listOf(speedMain("w5_speed_endurance", "Speed endurance", "4 × 100 m at 90–92%; relaxed-fast, preserve mechanics", 4, 400, 360, "REP")),
+            engine = listOf(engineMain("w5_engine", "Goal-pace intervals", "Treadmill 0% • 5 × 400 m at 9.0 mph • approximately 1:40 per 400 m • controlled goal pace", "Measured flat track/outdoor — 5 × 400 m in approximately 1:40 each • controlled goal pace", 5, 90)),
         ),
         weekConditioning(
             6,
-            speed = listOf(speedMain("w6_speed_endurance", "Speed endurance", "3 × 150 m at 90–92%", 3, 450, 480, "REP")),
-            engine = listOf(engineMain("w6_engine", "Threshold intervals", "3 × 8:00 at 8.0 mph • RPE 7–8/10", "Measured flat track/outdoor: 3 × 8:00 at approximately 7:30/mi pace • RPE 7–8/10", 3, 120)),
+            speed = listOf(speedMain("w6_speed_endurance", "Speed endurance", "3 × 150 m at 90–92%; even effort, preserve mechanics", 3, 450, 480, "REP")),
+            engine = listOf(engineMain("w6_engine", "Threshold intervals", "Treadmill 0% • 3 × 8:00 at 8.0 mph • RPE 7–8/10", "Measured flat track/outdoor — 3 × 8:00 at approximately 7:30/mi pace • RPE 7–8/10", 3, 120)),
         ),
         weekConditioning(
             7,
-            speed = listOf(speedMain("w7_special_endurance", "Special endurance", "2 × 200 m at 90–92%", 2, 400, 600, "REP")),
-            engine = listOf(engineMain("w7_engine", "1.5-mile pace intervals", "5 × 3:00 at 9.0 mph • RPE 8–9/10", "Measured flat track/outdoor: 5 × 3:00 at approximately 6:40/mi pace • RPE 8–9/10", 5, 180)),
+            speed = listOf(speedMain("w7_special_endurance", "Special endurance", "2 × 200 m at 90–92%; controlled first half, hold form home", 2, 400, 600, "REP")),
+            engine = listOf(engineMain("w7_engine", "VO₂ / goal-pace intervals", "Treadmill 0% • 5 × 3:00 at 9.0 mph • RPE 8–9/10", "Measured flat track/outdoor — 5 × 3:00 at approximately 6:40/mi pace • RPE 8–9/10", 5, 180)),
         ),
         weekConditioning(
             8,
@@ -110,7 +111,7 @@ object OperatorProgramV56 {
                     note = speedStopRule,
                 ),
             ),
-            engine = listOf(engineMain("w8_engine", "1.5-mile pace intervals", "6 × 400 m at 9.0 mph • approximately 1:40 per 400 m", "Measured flat track/outdoor: 6 × 400 m in approximately 1:40 each", 6, 90)),
+            engine = listOf(engineMain("w8_engine", "Goal-pace intervals", "Treadmill 0% • 6 × 400 m at 9.0 mph • approximately 1:40 per 400 m • controlled goal pace", "Measured flat track/outdoor — 6 × 400 m in approximately 1:40 each • controlled goal pace", 6, 90)),
         ),
     )
 
@@ -119,6 +120,7 @@ object OperatorProgramV56 {
             id = "d3_deload_warmup",
             title = "Speed warm-up",
             prescription = speedWarmupPrescription,
+            note = speedStopRule,
         ),
         ConditioningSegment(
             id = "d3_deload_relaxed_accel",
@@ -136,7 +138,7 @@ object OperatorProgramV56 {
         ConditioningSegment(
             id = "d6_deload_engine",
             title = "Easy engine",
-            prescription = "20:00 easy at RPE 3–4/10. Primary: treadmill at 0% grade. Alternative: stationary cycle ergometer.",
+            prescription = "20:00 easy treadmill running at 0% grade and RPE 3–4/10.",
             alternative = "Stationary cycle ergometer — 20:00 easy at RPE 3–4/10.",
             note = engineStopRule,
         ),
