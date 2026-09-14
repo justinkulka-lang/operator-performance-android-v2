@@ -2,8 +2,8 @@ package com.jk.operatorperformance
 
 import android.content.Context
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasTestTag
-import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -42,14 +42,16 @@ class MasterAuditUiTest {
         val alternativePrescription =
             "25:00 continuous at RPE 3–4/10 with full-sentence speech. Use a smooth sustainable cadence; fan resistance self-scales. No intervals, no sprint finish, no added running."
         composeRule.onNodeWithTag("today_screen")
-            .performScrollToNode(hasTestTag("conditioning_work_d1_easy_aerobic"))
+            .performScrollToNode(hasTestTag("today_alt_d1_easy_aerobic"))
         composeRule.onNodeWithTag("conditioning_work_d1_easy_aerobic").assertIsDisplayed()
         composeRule.onNodeWithTag("today_alt_d1_easy_aerobic").performClick()
         composeRule.waitForIdle()
-        composeRule.onNodeWithTag("today_screen").performScrollToNode(hasText("Air/fan bike"))
+        composeRule.onNodeWithTag("today_screen")
+            .performScrollToNode(hasTestTag("row_d1_easy_aerobic"))
         composeRule.onNodeWithText("Air/fan bike").assertIsDisplayed()
-        composeRule.onNodeWithTag("today_screen").performScrollToNode(hasText(alternativePrescription))
-        composeRule.onNodeWithText(alternativePrescription).assertIsDisplayed()
+        composeRule.onNodeWithTag("conditioning_work_d1_easy_aerobic")
+            .assertTextEquals(alternativePrescription)
+            .assertIsDisplayed()
     }
 
     @Test
