@@ -1,12 +1,10 @@
 package com.jk.operatorperformance.ui
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -15,8 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.DateRange
@@ -39,55 +35,50 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import com.jk.operatorperformance.program.BlockStatus
-import com.jk.operatorperformance.program.MachineModality
+import com.jk.operatorperformance.program.EngineVariant
 import com.jk.operatorperformance.program.OperatorProgramV56
 import com.jk.operatorperformance.program.SessionReference
 import com.jk.operatorperformance.program.SessionResolver
 import com.jk.operatorperformance.program.SessionRow
 import com.jk.operatorperformance.program.SessionRowKind
+import com.jk.operatorperformance.program.SpeedVariant
 import com.jk.operatorperformance.state.ActiveWorkoutState
 import com.jk.operatorperformance.state.ProgramStateStore
 import com.jk.operatorperformance.state.ProgramUiState
 import com.jk.operatorperformance.state.WorkoutProgress
+import kotlinx.coroutines.delay
 
-private val OperatorDarkColors = darkColorScheme(
-    primary = Color(0xFF58C4DC),
-    onPrimary = Color(0xFF071318),
-    primaryContainer = Color(0xFF173844),
-    onPrimaryContainer = Color(0xFFD9F5FB),
-    secondary = Color(0xFFAAB4C0),
-    background = Color(0xFF0B0F14),
-    onBackground = Color(0xFFF3F6F9),
-    surface = Color(0xFF121820),
-    onSurface = Color(0xFFF3F6F9),
-    surfaceVariant = Color(0xFF1A222C),
-    onSurfaceVariant = Color(0xFFAAB4C0),
+private val AresDarkColors = darkColorScheme(
+    primary = Color(0xFFD7A93A),
+    onPrimary = Color(0xFF161009),
+    primaryContainer = Color(0xFF3A2A12),
+    onPrimaryContainer = Color(0xFFFFE7A5),
+    secondary = Color(0xFFB8BEC8),
+    background = Color(0xFF0B0D10),
+    onBackground = Color(0xFFF4F5F7),
+    surface = Color(0xFF13171D),
+    onSurface = Color(0xFFF4F5F7),
+    surfaceVariant = Color(0xFF20262E),
+    onSurfaceVariant = Color(0xFFB8BEC8),
     tertiary = Color(0xFF69D18B),
     error = Color(0xFFF0C55B),
 )
 
 private enum class Destination(val label: String) {
-    TODAY("TODAY"),
-    WEEK("WEEK"),
-    PROGRAM("PROGRAM"),
-    TOOLS("TOOLS"),
+    TODAY("TODAY"), WEEK("WEEK"), PROGRAM("PROGRAM"), TOOLS("TOOLS")
 }
 
 @Composable
@@ -116,7 +107,7 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
         stateStore.clearWorkout()
     }
 
-    MaterialTheme(colorScheme = OperatorDarkColors) {
+    MaterialTheme(colorScheme = AresDarkColors) {
         if (workoutMode) {
             val progress = activeWorkout
             if (progress == null) {
@@ -159,14 +150,14 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
                 }
             },
         ) { padding ->
-            Surface(modifier = Modifier.fillMaxSize().padding(padding), color = MaterialTheme.colorScheme.background) {
+            Surface(Modifier.fillMaxSize().padding(padding), color = MaterialTheme.colorScheme.background) {
                 when (destination) {
                     Destination.TODAY -> TodayScreen(
                         state = state,
                         activeWorkout = activeWorkout?.takeIf { it.matchesPointer(state) },
                         onStartWorkout = {
                             val existing = activeWorkout?.takeIf { it.matchesPointer(state) }
-                            val next = existing ?: WorkoutProgress.start(state).also(::persistWorkout)
+                            val next = existing ?: newWorkout(state).also(::persistWorkout)
                             activeWorkout = next
                             workoutMode = true
                         },
@@ -174,31 +165,30 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
                         onAdvance = {
                             clearWorkout()
                             persist(state.advanceDay())
+                            selectedProgramWeek = state.advanceDay().currentWeek
                         },
                     )
                     Destination.WEEK -> WeekScreen(
                         state = state,
-                        onOpenDay = { session ->
+                        onOpenDay = {
                             referenceCanSetCurrent = false
-                            referenceSession = session
+                            referenceSession = it
                         },
                     )
                     Destination.PROGRAM -> ProgramScreen(
                         state = state,
                         selectedWeek = selectedProgramWeek,
                         onSelectWeek = { selectedProgramWeek = it },
-                        onOpenDay = { session ->
+                        onOpenDay = {
                             referenceCanSetCurrent = true
-                            referenceSession = session
+                            referenceSession = it
                         },
                     )
                     Destination.TOOLS -> ToolsScreen(
                         state = state,
-                        onDeloadChanged = { persist(state.copy(deloadMode = it)) },
-                        onRestTimerSecondsChanged = { persist(state.copy(restTimerSeconds = it)) },
-                        onUtilityRestTimerEndChanged = { persist(state.copy(utilityRestTimerEndEpochMillis = it)) },
-                        onMachineInventoryChanged = { configured, available ->
-                            persist(state.copy(machineInventoryConfigured = configured, availableMachineModalities = available))
+                        onStateChanged = { next ->
+                            if (next.speedVariant != state.speedVariant || next.engineVariant != state.engineVariant) clearWorkout()
+                            persist(next)
                         },
                     )
                 }
@@ -208,8 +198,7 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
         referenceSession?.let { session ->
             DayReferenceDialog(
                 session = session,
-                allowSetCurrent = referenceCanSetCurrent &&
-                    (session.week != state.currentWeek || session.day != state.currentDay),
+                allowSetCurrent = referenceCanSetCurrent && (session.week != state.currentWeek || session.day != state.currentDay),
                 onDismiss = { referenceSession = null },
                 onRequestSetCurrent = { pendingPointer = session.week to session.day },
             )
@@ -232,9 +221,7 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
                         modifier = Modifier.heightIn(min = 48.dp).testTag("confirm_set_current"),
                     ) { Text("CONFIRM") }
                 },
-                dismissButton = {
-                    TextButton(onClick = { pendingPointer = null }, modifier = Modifier.heightIn(min = 48.dp)) { Text("CANCEL") }
-                },
+                dismissButton = { TextButton(onClick = { pendingPointer = null }) { Text("CANCEL") } },
             )
         }
     }
@@ -252,186 +239,139 @@ private fun TodayScreen(
     val progress = activeWorkout?.let { WorkoutProgress.normalize(it, session) }
     val completed = progress?.let { WorkoutProgress.completedEfforts(it, session) } ?: 0
     val total = WorkoutProgress.totalEfforts(session)
-    val unfinished = (total - completed).coerceAtLeast(0)
-    val atEnd = state.currentWeek == 8 && state.currentDay == 7
-    val isRestDay = state.currentDay == 7
-    var confirmIncompleteAdvance by rememberSaveable(state.currentWeek, state.currentDay) { mutableStateOf(false) }
+    val atEnd = state.currentWeek == 32 && state.currentDay == 7
+    val isRest = state.currentDay == 7
+    var confirmAdvance by rememberSaveable(state.currentWeek, state.currentDay) { mutableStateOf(false) }
 
-    key(state.currentWeek, state.currentDay) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().testTag("today_screen"),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            item {
-                Text(
-                    "WEEK ${session.week} • DAY ${session.day}",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.testTag("today_header"),
-                )
-                Text(session.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                if (state.deloadMode) Text("DELOAD MODE", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
-                if (!isRestDay) {
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        if (progress == null) "$total SETS / SEGMENTS PLANNED" else "$completed / $total COMPLETE",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.testTag("today_progress"),
-                    )
-                }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().testTag("today_screen"),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        item {
+            BrandHeader()
+            Text(
+                "${session.phase.godName} • ${session.phase.name}",
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.testTag("today_phase"),
+            )
+            Text(
+                "WEEK ${session.week} • DAY ${session.day}",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.testTag("today_header"),
+            )
+            Text(session.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            if (state.deloadMode) Text("DELOAD MODE", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+            if (!isRest) Text(
+                if (progress == null) "$total SETS / EFFORTS PLANNED" else "$completed / $total COMPLETE",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.testTag("today_progress"),
+            )
+        }
+        items(session.rows, key = { it.id }) { row ->
+            WorkoutRowCard(
+                row = row,
+                progress = progress,
+                onToggleEffort = { effort ->
+                    val base = progress ?: newWorkout(state)
+                    onProgress(WorkoutProgress.toggleEffort(base, session, row.id, effort))
+                },
+                onSelectAlternative = { alternative ->
+                    val base = progress ?: newWorkout(state)
+                    val choice = if (base.selectedSubstitutions[row.id] == alternative) null else alternative
+                    onProgress(WorkoutProgress.selectSubstitution(base, session, row.id, choice))
+                },
+            )
+        }
+        item {
+            if (!isRest) {
+                Button(
+                    onClick = onStartWorkout,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("start_resume_workout"),
+                ) { Text(if (progress == null) "START WORKOUT" else "RESUME WORKOUT", fontWeight = FontWeight.Bold) }
+                Spacer(Modifier.height(8.dp))
             }
-            items(session.rows, key = { it.id }) { row ->
-                TodayWorkoutRowCard(
-                    row = row,
-                    progress = progress,
-                    onToggleEffort = { effort ->
-                        val base = progress ?: WorkoutProgress.start(state)
-                        onProgress(WorkoutProgress.toggleEffort(base, session, row.id, effort))
-                    },
-                    onToggleAlternative = { alternative ->
-                        val base = progress ?: WorkoutProgress.start(state)
-                        val nextChoice = if (base.selectedSubstitutions[row.id] == null) alternative else null
-                        onProgress(WorkoutProgress.selectSubstitution(base, session, row.id, nextChoice))
-                    },
-                )
-            }
-            item {
-                if (!isRestDay) {
-                    Button(
-                        onClick = onStartWorkout,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("start_resume_workout"),
-                    ) { Text(if (progress == null) "START WORKOUT" else "RESUME WORKOUT", fontWeight = FontWeight.Bold) }
-                    Spacer(Modifier.height(8.dp))
+            if (atEnd) {
+                Card(Modifier.fillMaxWidth()) {
+                    Text("ARES PERFORMANCE • 32-WEEK PROGRAM COMPLETE", Modifier.padding(16.dp), fontWeight = FontWeight.Bold)
                 }
-                if (atEnd) {
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Text(
-                            "BLOCK 1 COMPLETE • WEEKS 9–32 UNPOPULATED / NOT PROGRAMMED",
-                            modifier = Modifier.padding(16.dp),
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
-                } else {
-                    Button(
-                        onClick = {
-                            if (isRestDay || progress?.complete == true) onAdvance() else confirmIncompleteAdvance = true
-                        },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("complete_day"),
-                    ) { Text("COMPLETE DAY / NEXT DAY") }
-                    if (!isRestDay && progress?.complete != true) {
-                        Text(
-                            "$unfinished SETS / SEGMENTS REMAIN • ADVANCE REQUIRES CONFIRMATION",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
+            } else {
+                Button(
+                    onClick = { if (isRest || progress?.complete == true) onAdvance() else confirmAdvance = true },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("complete_day"),
+                ) { Text("COMPLETE DAY / NEXT DAY") }
             }
         }
     }
 
-    if (confirmIncompleteAdvance) {
+    if (confirmAdvance) {
+        val remaining = (total - completed).coerceAtLeast(0)
         AlertDialog(
-            onDismissRequest = { confirmIncompleteAdvance = false },
+            onDismissRequest = { confirmAdvance = false },
             title = { Text("Advance with unfinished work?") },
-            text = { Text("$unfinished prescribed sets/segments remain incomplete. Advance to the next day anyway?") },
+            text = { Text("$remaining prescribed sets/efforts remain incomplete. Advance anyway?") },
             confirmButton = {
                 TextButton(
-                    onClick = {
-                        confirmIncompleteAdvance = false
-                        onAdvance()
-                    },
-                    modifier = Modifier.heightIn(min = 48.dp).testTag("confirm_incomplete_advance"),
+                    onClick = { confirmAdvance = false; onAdvance() },
+                    modifier = Modifier.testTag("confirm_incomplete_advance"),
                 ) { Text("ADVANCE") }
             },
-            dismissButton = {
-                TextButton(
-                    onClick = { confirmIncompleteAdvance = false },
-                    modifier = Modifier.heightIn(min = 48.dp).testTag("cancel_incomplete_advance"),
-                ) { Text("CANCEL") }
-            },
+            dismissButton = { TextButton(onClick = { confirmAdvance = false }) { Text("CANCEL") } },
         )
     }
 }
 
 @Composable
-private fun TodayWorkoutRowCard(
+private fun WorkoutRowCard(
     row: SessionRow,
     progress: ActiveWorkoutState?,
     onToggleEffort: (Int) -> Unit,
-    onToggleAlternative: (String) -> Unit,
+    onSelectAlternative: (String) -> Unit,
 ) {
-    val selectedAlternative = progress?.selectedSubstitutions?.get(row.id)
-    val displayTitle = displayTitle(row, selectedAlternative)
-    val displayPrescription = displayPrescription(row, selectedAlternative)
-    val allComplete = progress != null && (1..row.effortCount).all { WorkoutProgress.isEffortComplete(progress, row.id, it) }
-    val haptic = LocalHapticFeedback.current
+    var showAlternatives by rememberSaveable(row.id) { mutableStateOf(false) }
+    val selected = progress?.selectedSubstitutions?.get(row.id)
+    val title = selected ?: row.title
+    val allDone = progress != null && (1..row.effortCount).all { WorkoutProgress.isEffortComplete(progress, row.id, it) }
+
     Card(
         modifier = Modifier.fillMaxWidth().testTag("row_${row.id}"),
-        colors = CardDefaults.cardColors(
-            containerColor = if (allComplete) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface,
-        ),
+        colors = CardDefaults.cardColors(containerColor = if (allDone) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface),
     ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(displayTitle, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                if (allComplete) Text("✓", color = MaterialTheme.colorScheme.tertiary, fontWeight = FontWeight.Bold)
-            }
-            if (selectedAlternative != null) Text("ALTERNATIVE FOR ${row.title}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-            if (row.kind == SessionRowKind.CONDITIONING) {
-                Text(
-                    "${row.effortCount} ${if (row.effortCount == 1) row.effortLabel else row.effortLabel + "S"}",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                Text(
-                    displayPrescription,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.testTag("conditioning_work_${row.id}"),
-                )
-                row.restSeconds?.let {
-                    Text(
-                        "RECOVERY ${formatRest(it)}",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.testTag("conditioning_rest_${row.id}"),
-                    )
-                }
-            } else {
-                Text(displayPrescription, style = MaterialTheme.typography.bodyLarge)
-            }
-            if (row.optional) Text("OPTIONAL", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            if (selected != null) Text("ALTERNATIVE FOR ${row.title}", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
+            Text(row.prescription, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.testTag("prescription_${row.id}"))
+            if (row.optional) Text("OPTIONAL", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
             if (row.kind != SessionRowKind.REST) {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items((1..row.effortCount).toList()) { effort ->
                         val done = progress?.let { WorkoutProgress.isEffortComplete(it, row.id, effort) } == true
                         FilterChip(
                             selected = done,
-                            onClick = {
-                                if (!done) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                onToggleEffort(effort)
-                            },
+                            onClick = { onToggleEffort(effort) },
                             label = { Text(if (done) "✓ ${row.effortLabel} $effort" else "${row.effortLabel} $effort") },
                             modifier = Modifier.heightIn(min = 48.dp).testTag("effort_${row.id}_$effort"),
                         )
                     }
                 }
             }
-            row.alternatives.singleOrNull()?.let { alternative ->
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Alternative • ${alternativeLabel(alternative)}", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-                    TextButton(
-                        onClick = { onToggleAlternative(alternative) },
-                        modifier = Modifier.heightIn(min = 48.dp).testTag("today_alt_${row.id}"),
-                    ) { Text(if (selectedAlternative == null) "ALT" else "PRIMARY") }
+            row.note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            if (row.alternatives.isNotEmpty()) {
+                TextButton(onClick = { showAlternatives = !showAlternatives }, modifier = Modifier.testTag("alternatives_${row.id}")) {
+                    Text(if (showAlternatives) "HIDE ALTERNATIVES" else "ALTERNATIVES")
+                }
+                if (showAlternatives) row.alternatives.forEachIndexed { index, alternative ->
+                    FilterChip(
+                        selected = selected == alternative,
+                        onClick = { onSelectAlternative(alternative) },
+                        label = { Text("${index + 1}. $alternative") },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    )
                 }
             }
-            row.note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
     }
 }
@@ -448,193 +388,96 @@ private fun WorkoutModeScreen(
         deload = progress.deloadMode,
         machineInventoryConfigured = progress.machineInventoryConfigured,
         availableMachineModalities = progress.availableMachineModalities,
+        speedVariant = progress.speedVariant,
+        engineVariant = progress.engineVariant,
     )
     val normalized = WorkoutProgress.normalize(progress, session)
-    val currentRow = session.rows[normalized.movementIndex]
-    val selectedSubstitution = normalized.selectedSubstitutions[currentRow.id]
-    val visibleMovement = displayTitle(currentRow, selectedSubstitution)
-    val visiblePrescription = displayPrescription(currentRow, selectedSubstitution)
-    val resting = normalized.restTimerEndEpochMillis != null
-    val completed = WorkoutProgress.completedEfforts(normalized, session)
-    val total = WorkoutProgress.totalEfforts(session)
-    var showSubstitution by rememberSaveable(currentRow.id) { mutableStateOf(false) }
-    var showMap by rememberSaveable { mutableStateOf(false) }
-    var noteExpanded by rememberSaveable(currentRow.id) { mutableStateOf(false) }
-    val haptic = LocalHapticFeedback.current
-
-    Surface(modifier = Modifier.fillMaxSize().testTag("workout_mode"), color = MaterialTheme.colorScheme.background) {
-        Column(
-            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(
-                "WEEK ${session.week} • DAY ${session.day} • ${session.title}",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.testTag("workout_context"),
-            )
-            Text(
-                "$completed / $total COMPLETE • MOVEMENT ${normalized.movementIndex + 1} OF ${session.rows.size}",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.testTag("workout_movement_index"),
-            )
-
-            Card(
-                modifier = Modifier.fillMaxWidth().testTag("workout_hero"),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (normalized.complete) {
-                        Text("WORKOUT COMPLETE", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.tertiary)
-                        Text("Return to TODAY, then use COMPLETE DAY / NEXT DAY to advance the program pointer.")
-                    } else {
-                        Text(visibleMovement, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.testTag("workout_movement"))
-                        if (selectedSubstitution != null) {
-                            Text("ALTERNATIVE FOR ${currentRow.title}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.testTag("selected_substitution"))
-                        }
-                        Text(
-                            "${currentRow.effortLabel} ${normalized.effortIndex} OF ${currentRow.effortCount}",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.testTag("workout_effort"),
-                        )
-                        Text(visiblePrescription, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.testTag("workout_prescription"))
-                        if (currentRow.optional) Text("OPTIONAL", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
-                        currentRow.note?.let { note ->
-                            Text(note, style = MaterialTheme.typography.bodySmall, maxLines = if (noteExpanded) Int.MAX_VALUE else 3, overflow = TextOverflow.Ellipsis)
-                            TextButton(onClick = { noteExpanded = !noteExpanded }, modifier = Modifier.heightIn(min = 48.dp).testTag("workout_note_toggle")) {
-                                Text(if (noteExpanded) "LESS" else "MORE")
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (!normalized.complete && normalized.restTimerEndEpochMillis != null) {
-                WorkoutRestPanel(
-                    endEpochMillis = normalized.restTimerEndEpochMillis,
-                    onFinished = { onProgress(WorkoutProgress.clearExpiredRest(normalized, System.currentTimeMillis())) },
-                    onAdd30 = { onProgress(WorkoutProgress.addRestSeconds(normalized, 30)) },
-                    onSkip = { onProgress(WorkoutProgress.skipRest(normalized)) },
-                )
-            }
-
-            if (!normalized.complete) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (currentRow.alternatives.isNotEmpty()) {
-                        TextButton(
-                            onClick = { showSubstitution = true },
-                            modifier = Modifier.weight(1f).heightIn(min = 48.dp).testTag("workout_substitutions"),
-                        ) { Text(if (selectedSubstitution == null) "USE ALTERNATIVE" else "USE PRIMARY") }
-                    }
-                    TextButton(
-                        onClick = { showMap = true },
-                        modifier = Modifier.weight(1f).heightIn(min = 48.dp).testTag("workout_map_button"),
-                    ) { Text("WORKOUT MAP") }
-                }
-
-                if (!resting) {
-                    Button(
-                        onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onProgress(WorkoutProgress.advance(normalized, session))
-                        },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 60.dp).testTag("workout_primary"),
-                    ) {
-                        Text("COMPLETE ${currentRow.effortLabel}", fontWeight = FontWeight.Bold)
-                    }
-                    if (currentRow.optional) {
-                        TextButton(
-                            onClick = { onProgress(WorkoutProgress.skipOptional(normalized, session)) },
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("skip_optional"),
-                        ) { Text("SKIP OPTIONAL") }
-                    }
-                }
-            } else {
-                Button(
-                    onClick = onReturnToToday,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("workout_complete"),
-                ) { Text("RETURN TO TODAY") }
-            }
-
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (normalized.canUndo) {
-                    TextButton(
-                        onClick = { onProgress(WorkoutProgress.undo(normalized)) },
-                        modifier = Modifier.weight(1f).heightIn(min = 48.dp).testTag("workout_undo"),
-                    ) { Text("UNDO") }
-                }
-                TextButton(
-                    onClick = onReturnToToday,
-                    modifier = Modifier.weight(1f).heightIn(min = 48.dp).testTag("workout_return_today"),
-                ) { Text("FULL TODAY") }
-            }
+    val row = session.rows[normalized.movementIndex]
+    val selected = normalized.selectedSubstitutions[row.id]
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(normalized.restTimerEndEpochMillis) {
+        while (normalized.restTimerEndEpochMillis != null && normalized.restTimerEndEpochMillis > System.currentTimeMillis()) {
+            delay(1_000)
+            now = System.currentTimeMillis()
         }
     }
 
-    if (showSubstitution) {
-        val alternative = currentRow.alternatives.singleOrNull()
-        AlertDialog(
-            onDismissRequest = { showSubstitution = false },
-            title = { Text("Exercise choice") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(
-                        onClick = {
-                            onProgress(WorkoutProgress.selectSubstitution(normalized, session, currentRow.id, null))
-                            showSubstitution = false
-                        },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("substitution_canonical"),
-                    ) { Text("PRIMARY • ${currentRow.title}") }
-                    alternative?.let {
-                        TextButton(
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().testTag("workout_mode"),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        item {
+            BrandHeader()
+            Text("${session.phase.godName} • ${session.phase.name}", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+            Text("WEEK ${session.week} • DAY ${session.day} • ${session.title}", style = MaterialTheme.typography.labelLarge)
+            Text("MOVEMENT ${normalized.movementIndex + 1} / ${session.rows.size}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        item {
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(selected ?: row.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Text("${row.effortLabel} ${normalized.effortIndex} / ${row.effortCount}", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    Text(row.prescription, style = MaterialTheme.typography.titleMedium)
+                    row.note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    row.alternatives.forEachIndexed { index, alternative ->
+                        FilterChip(
+                            selected = selected == alternative,
                             onClick = {
-                                onProgress(WorkoutProgress.selectSubstitution(normalized, session, currentRow.id, it))
-                                showSubstitution = false
+                                val choice = if (selected == alternative) null else alternative
+                                onProgress(WorkoutProgress.selectSubstitution(normalized, session, row.id, choice))
                             },
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("substitution_0"),
-                        ) { Text("ALTERNATIVE • ${alternativeLabel(it)}") }
+                            label = { Text("ALT ${index + 1} • $alternative") },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        )
                     }
                 }
-            },
-            confirmButton = { TextButton(onClick = { showSubstitution = false }, modifier = Modifier.heightIn(min = 48.dp)) { Text("CLOSE") } },
-        )
-    }
-
-    if (showMap) WorkoutMapDialog(session = session, progress = normalized, onDismiss = { showMap = false })
-}
-
-@Composable
-private fun WorkoutMapDialog(session: SessionReference, progress: ActiveWorkoutState, onDismiss: () -> Unit) {
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = MaterialTheme.shapes.large,
-            tonalElevation = 6.dp,
-            modifier = Modifier.fillMaxWidth().fillMaxHeight(0.85f).testTag("workout_map_dialog"),
-        ) {
-            LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                item {
-                    Text("WORKOUT MAP", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                    Text("Completed / current / upcoming")
-                }
-                items(session.rows.indices.toList()) { index ->
-                    val row = session.rows[index]
-                    val rowDone = (1..row.effortCount).all { WorkoutProgress.isEffortComplete(progress, row.id, it) }
-                    val status = when {
-                        rowDone -> "COMPLETED"
-                        index == progress.movementIndex && !progress.complete -> "CURRENT"
-                        else -> "UPCOMING"
-                    }
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text("${index + 1}. ${row.title}", fontWeight = FontWeight.Bold)
-                            Text(status, color = if (rowDone) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        if (normalized.restTimerEndEpochMillis != null) {
+            item {
+                val seconds = WorkoutProgress.remainingRestSeconds(normalized, now)
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("REST • ${formatRest(seconds)}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TextButton(onClick = { onProgress(WorkoutProgress.skipRest(normalized)) }) { Text("SKIP REST") }
+                            TextButton(onClick = { onProgress(WorkoutProgress.addRestSeconds(normalized, 30)) }) { Text("+30 SEC") }
                         }
                     }
                 }
-                item { TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("CLOSE") } }
+            }
+        }
+        item {
+            if (normalized.complete) {
+                Text("WORKOUT COMPLETE", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.tertiary, fontWeight = FontWeight.Bold)
+            } else {
+                Button(
+                    onClick = { onProgress(WorkoutProgress.advance(normalized, session)) },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("set_done"),
+                ) { Text(if (row.kind == SessionRowKind.RESISTANCE) "SET DONE" else "NEXT EFFORT / DONE", fontWeight = FontWeight.Bold) }
+                if (row.optional) {
+                    TextButton(
+                        onClick = { onProgress(WorkoutProgress.skipOptional(normalized, session)) },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("skip_optional"),
+                    ) { Text("SKIP OPTIONAL") }
+                }
+            }
+            if (normalized.canUndo) {
+                TextButton(onClick = { onProgress(WorkoutProgress.undo(normalized)) }, modifier = Modifier.fillMaxWidth().testTag("undo_workout")) { Text("UNDO") }
+            }
+            TextButton(onClick = onReturnToToday, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("return_today")) { Text("RETURN TO TODAY") }
+        }
+        item {
+            HorizontalDivider()
+            Text("WORKOUT MAP", fontWeight = FontWeight.Bold)
+            session.rows.forEachIndexed { index, mapRow ->
+                val marker = when {
+                    normalized.complete -> "✓"
+                    index == normalized.movementIndex -> "▶"
+                    else -> "•"
+                }
+                Text("$marker ${mapRow.title}", style = MaterialTheme.typography.bodyMedium)
             }
         }
     }
@@ -642,23 +485,29 @@ private fun WorkoutMapDialog(session: SessionReference, progress: ActiveWorkoutS
 
 @Composable
 private fun WeekScreen(state: ProgramUiState, onOpenDay: (SessionReference) -> Unit) {
-    val split = SessionResolver.splitForWeek(
-        week = state.currentWeek,
-        deload = state.deloadMode,
-        machineInventoryConfigured = state.machineInventoryConfigured,
-        availableMachineModalities = state.availableMachineModalities,
-    )
+    val split = splitForWeek(state.currentWeek, state)
     LazyColumn(
         modifier = Modifier.fillMaxSize().testTag("week_screen"),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item {
-            Text("WEEK ${state.currentWeek}", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Text("Complete seven-day split", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            BrandHeader()
+            val phase = OperatorProgramV56.blockForWeek(state.currentWeek)
+            Text("WEEK ${state.currentWeek} • ${phase.godName} • ${phase.name}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         }
         items(split, key = { it.day }) { session ->
-            DaySummaryCard(session, session.day == state.currentDay, "week_day_${session.day}") { onOpenDay(session) }
+            Card(
+                modifier = Modifier.fillMaxWidth().testTag("week_day_${session.day}"),
+                colors = CardDefaults.cardColors(containerColor = if (session.day == state.currentDay) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface),
+                onClick = { onOpenDay(session) },
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    Text("DAY ${session.day}${if (session.day == state.currentDay) " • TODAY" else ""}", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    Text(session.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("${session.rows.size} prescribed rows", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
         }
     }
 }
@@ -670,189 +519,160 @@ private fun ProgramScreen(
     onSelectWeek: (Int) -> Unit,
     onOpenDay: (SessionReference) -> Unit,
 ) {
-    val selectedSplit = SessionResolver.splitForWeek(
-        week = selectedWeek,
-        deload = state.deloadMode,
-        machineInventoryConfigured = state.machineInventoryConfigured,
-        availableMachineModalities = state.availableMachineModalities,
-    )
-    val nextWeek = if (state.currentWeek < 8) state.currentWeek + 1 else null
-    val nextSplit = nextWeek?.let {
-        SessionResolver.splitForWeek(
-            week = it,
-            deload = state.deloadMode,
-            machineInventoryConfigured = state.machineInventoryConfigured,
-            availableMachineModalities = state.availableMachineModalities,
-        )
-    }
-    val currentPhase = OperatorProgramV56.blocks.first()
-    val nextPhase = OperatorProgramV56.blocks[1]
+    val currentPhase = OperatorProgramV56.blockForWeek(state.currentWeek)
+    val selectedPhase = OperatorProgramV56.blockForWeek(selectedWeek)
+    val selectedSplit = splitForWeek(selectedWeek, state)
+    val nextWeek = (state.currentWeek + 1).takeIf { it <= 32 }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().testTag("program_screen"),
         contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            Text("PROGRAM", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Text("Weeks 1–8 are fully programmed. Weeks 9–32 are not programmed.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            BrandHeader()
+            Text("32-WEEK ARES PROGRAM", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text("CURRENT • ${currentPhase.godName} — ${currentPhase.name} • Weeks ${currentPhase.startWeek}–${currentPhase.endWeek}", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, modifier = Modifier.testTag("current_phase"))
         }
         item {
+            Text("PHASES", fontWeight = FontWeight.Bold)
+            OperatorProgramV56.blocks.forEach { phase ->
+                Card(Modifier.fillMaxWidth().padding(top = 6.dp)) {
+                    Column(Modifier.padding(14.dp)) {
+                        Text("${phase.godName} — ${phase.name}", fontWeight = FontWeight.Bold)
+                        Text("Weeks ${phase.startWeek}–${phase.endWeek}", color = MaterialTheme.colorScheme.primary)
+                        Text(phase.purpose, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+        }
+        item {
+            HorizontalDivider()
+            Text("BROWSE WEEK", fontWeight = FontWeight.Bold)
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items((1..8).toList()) { week ->
+                items((1..32).toList()) { week ->
                     FilterChip(
                         selected = selectedWeek == week,
                         onClick = { onSelectWeek(week) },
                         label = { Text("W$week") },
-                        modifier = Modifier.testTag("program_week_$week"),
+                        modifier = Modifier.heightIn(min = 48.dp).testTag("program_week_$week"),
                     )
                 }
             }
+            Text("${selectedPhase.godName} • ${selectedPhase.name}", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
         }
-        item { Text("WEEK $selectedWeek", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) }
-        items(selectedSplit, key = { "selected_${it.day}" }) { session ->
-            DaySummaryCard(session, session.week == state.currentWeek && session.day == state.currentDay, "program_day_${session.day}") { onOpenDay(session) }
+        items(selectedSplit, key = { it.day }) { session ->
+            Card(onClick = { onOpenDay(session) }, modifier = Modifier.fillMaxWidth().testTag("program_day_${session.week}_${session.day}")) {
+                Column(Modifier.padding(14.dp)) {
+                    Text("DAY ${session.day}", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    Text(session.title, fontWeight = FontWeight.Bold)
+                }
+            }
         }
-        if (nextWeek != null && nextSplit != null) {
+        if (nextWeek != null) {
             item {
-                HorizontalDivider(Modifier.padding(vertical = 8.dp))
-                Text("NEXT WEEK • WEEK $nextWeek", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            }
-            items(nextSplit, key = { "next_${it.day}" }) { session ->
-                DaySummaryCard(session, false, "next_week_day_${session.day}") { onOpenDay(session) }
+                HorizontalDivider()
+                Text("NEXT WEEK • WEEK $nextWeek", fontWeight = FontWeight.Bold, modifier = Modifier.testTag("next_week"))
+                val phase = OperatorProgramV56.blockForWeek(nextWeek)
+                Text("${phase.godName} • ${phase.name}", color = MaterialTheme.colorScheme.primary)
+                splitForWeek(nextWeek, state).forEach { session -> Text("DAY ${session.day} • ${session.title}") }
             }
         }
-        item {
-            HorizontalDivider(Modifier.padding(vertical = 8.dp))
-            Text(
-                "CURRENT PHASE • ${currentPhase.name} • Weeks ${currentPhase.startWeek}–${currentPhase.endWeek} • ${currentPhase.status.displayText()}",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.testTag("current_phase"),
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                "NEXT PHASE • ${nextPhase.name} • Weeks ${nextPhase.startWeek}–${nextPhase.endWeek} • ${nextPhase.status.displayText()}",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.testTag("next_phase"),
-            )
-            Spacer(Modifier.height(8.dp))
-            Text("LATER PHASES", style = MaterialTheme.typography.titleSmall)
-        }
-        items(OperatorProgramV56.blocks.drop(2)) { block -> PhaseCard(block.name, block.startWeek, block.endWeek, block.status) }
     }
 }
 
 @Composable
-private fun ToolsScreen(
-    state: ProgramUiState,
-    onDeloadChanged: (Boolean) -> Unit,
-    onRestTimerSecondsChanged: (Int?) -> Unit,
-    onUtilityRestTimerEndChanged: (Long?) -> Unit,
-    onMachineInventoryChanged: (Boolean, Set<MachineModality>) -> Unit,
-) {
+private fun ToolsScreen(state: ProgramUiState, onStateChanged: (ProgramUiState) -> Unit) {
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(state.utilityRestTimerEndEpochMillis) {
+        while (state.utilityRestTimerEndEpochMillis != null && state.utilityRestTimerEndEpochMillis > System.currentTimeMillis()) {
+            delay(1_000)
+            now = System.currentTimeMillis()
+        }
+    }
+    val timerRemaining = state.utilityRestTimerEndEpochMillis?.let { ((it - now).coerceAtLeast(0L) / 1_000L).toInt() } ?: 0
+
     LazyColumn(
         modifier = Modifier.fillMaxSize().testTag("tools_screen"),
         contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
+        item { BrandHeader(); Text("TOOLS", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }
         item {
-            Text("TOOLS", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Text("Reference controls and standalone utilities", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("MANUAL DELOAD MODE", fontWeight = FontWeight.Bold)
+                        Switch(checked = state.deloadMode, onCheckedChange = { onStateChanged(state.copy(deloadMode = it)) }, modifier = Modifier.testTag("deload_switch"))
+                    }
+                    Text("Reference-driven only. No readiness questionnaire or automatic trigger.", style = MaterialTheme.typography.bodySmall)
+                }
+            }
         }
         item {
-            RestTimerToolsCard(
-                configuredSeconds = state.restTimerSeconds,
-                activeEndEpochMillis = state.utilityRestTimerEndEpochMillis,
-                onConfiguredSecondsChanged = onRestTimerSecondsChanged,
-                onActiveEndChanged = onUtilityRestTimerEndChanged,
-            )
+            Card(Modifier.fillMaxWidth().testTag("phase1_reference_selectors")) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("FOUNDATION SPEED / ENGINE REFERENCES", fontWeight = FontWeight.Bold)
+                    Text("Manual selection applies to Weeks 2–8 only. Week 1 and Weeks 9–32 use their populated canonical prescriptions.", style = MaterialTheme.typography.bodySmall)
+                    Text("SPEED", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    SpeedVariant.entries.forEach { variant ->
+                        FilterChip(
+                            selected = state.speedVariant == variant,
+                            onClick = { onStateChanged(state.copy(speedVariant = variant)) },
+                            label = { Text(variant.label) },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("speed_${variant.name}"),
+                        )
+                    }
+                    Text("ENGINE", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    EngineVariant.entries.forEach { variant ->
+                        FilterChip(
+                            selected = state.engineVariant == variant,
+                            onClick = { onStateChanged(state.copy(engineVariant = variant)) },
+                            label = { Text(variant.label) },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("engine_${variant.name}"),
+                        )
+                    }
+                }
+            }
+        }
+        item {
+            Card(Modifier.fillMaxWidth().testTag("rest_timer_tool")) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("INDEPENDENT REST TIMER", fontWeight = FontWeight.Bold)
+                    Text("Utility only. Resistance rest guidance is approximate and set quality takes precedence.", style = MaterialTheme.typography.bodySmall)
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(listOf(60, 90, 120, 180)) { seconds ->
+                            FilterChip(
+                                selected = state.restTimerSeconds == seconds,
+                                onClick = { onStateChanged(state.copy(restTimerSeconds = seconds)) },
+                                label = { Text(formatRest(seconds)) },
+                            )
+                        }
+                    }
+                    if (state.utilityRestTimerEndEpochMillis != null && timerRemaining > 0) {
+                        Text("RUNNING • ${formatRest(timerRemaining)}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        TextButton(onClick = { onStateChanged(state.copy(utilityRestTimerEndEpochMillis = null)) }) { Text("STOP TIMER") }
+                    } else {
+                        Button(
+                            enabled = state.restTimerSeconds != null,
+                            onClick = {
+                                val seconds = state.restTimerSeconds ?: return@Button
+                                onStateChanged(state.copy(utilityRestTimerEndEpochMillis = System.currentTimeMillis() + seconds * 1_000L))
+                            },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        ) { Text("START TIMER") }
+                    }
+                }
+            }
         }
         item {
             MachineEquipmentInventoryCard(
                 configured = state.machineInventoryConfigured,
                 available = state.availableMachineModalities,
-                onChanged = onMachineInventoryChanged,
+                onChanged = { configured, available -> onStateChanged(state.copy(machineInventoryConfigured = configured, availableMachineModalities = available)) },
             )
         }
-        item {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Row(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("DELOAD MODE", fontWeight = FontWeight.Bold)
-                        Text("Apply the fixed v5.6 deload overlay manually.")
-                    }
-                    Switch(checked = state.deloadMode, onCheckedChange = onDeloadChanged, modifier = Modifier.testTag("deload_switch"))
-                }
-            }
-        }
-        item {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("CURRENT POINTER", fontWeight = FontWeight.Bold)
-                    Text("Week ${state.currentWeek} • Day ${state.currentDay}")
-                    Text("Change the current pointer from PROGRAM by opening a populated day and confirming.")
-                }
-            }
-        }
         item { AdditionalToolsCards() }
-    }
-}
-
-@Composable
-private fun WorkoutRowCard(row: SessionRow) {
-    var expanded by rememberSaveable(row.id) { mutableStateOf(false) }
-    val hasDetails = row.alternatives.isNotEmpty() || !row.note.isNullOrBlank()
-    Card(
-        modifier = Modifier.fillMaxWidth().then(if (hasDetails) Modifier.clickable { expanded = !expanded } else Modifier).testTag("row_${row.id}"),
-    ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(row.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            if (row.kind == SessionRowKind.CONDITIONING) {
-                Text(row.prescription, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                row.restSeconds?.let { Text("RECOVERY ${formatRest(it)}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) }
-            } else {
-                Text(row.prescription, style = MaterialTheme.typography.bodyLarge)
-            }
-            if (row.optional) Text("OPTIONAL", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
-            row.alternatives.singleOrNull()?.let { Text("Alternative • ${alternativeLabel(it)}", color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            if (hasDetails) Text(if (expanded) "Hide details" else "Details", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-            if (expanded) row.note?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
-        }
-    }
-}
-
-@Composable
-private fun DaySummaryCard(session: SessionReference, current: Boolean, testTag: String, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).testTag(testTag),
-        colors = if (current) CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer) else CardDefaults.cardColors(),
-    ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("DAY ${session.day}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                if (current) Text("CURRENT", fontWeight = FontWeight.Bold)
-            }
-            Text(session.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text(session.rows.joinToString(" • ") { it.title }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 3, overflow = TextOverflow.Ellipsis)
-        }
-    }
-}
-
-private fun BlockStatus.displayText(): String = when (this) {
-    BlockStatus.POPULATED -> "POPULATED"
-    BlockStatus.UNPOPULATED_NOT_PROGRAMMED -> "UNPOPULATED / NOT PROGRAMMED"
-}
-
-@Composable
-private fun PhaseCard(name: String, startWeek: Int, endWeek: Int, status: BlockStatus) {
-    Card(modifier = Modifier.fillMaxWidth().testTag("phase_${startWeek}_${endWeek}")) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(name, fontWeight = FontWeight.Bold)
-            Text("Weeks $startWeek–$endWeek")
-            Text(status.displayText(), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
     }
 }
 
@@ -863,58 +683,61 @@ private fun DayReferenceDialog(
     onDismiss: () -> Unit,
     onRequestSetCurrent: () -> Unit,
 ) {
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = MaterialTheme.shapes.large,
-            tonalElevation = 6.dp,
-            modifier = Modifier.fillMaxWidth().fillMaxHeight(0.9f),
-        ) {
-            LazyColumn(
-                modifier = Modifier.testTag("reference_dialog"),
-                contentPadding = PaddingValues(18.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                item {
-                    Text("WEEK ${session.week} • DAY ${session.day}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                    Text(session.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                    if (session.deload) Text("DELOAD MODE", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
-                }
-                items(session.rows, key = { it.id }) { row -> WorkoutRowCard(row) }
-                item {
-                    if (allowSetCurrent) {
-                        Button(
-                            onClick = onRequestSetCurrent,
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("set_current_button"),
-                        ) { Text("SET AS CURRENT") }
-                        Spacer(Modifier.height(8.dp))
-                    }
-                    TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("CLOSE") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("WEEK ${session.week} • DAY ${session.day}\n${session.title}") },
+        text = {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                item { Text("${session.phase.godName} • ${session.phase.name}", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold) }
+                items(session.rows, key = { it.id }) { row ->
+                    Text(row.title, fontWeight = FontWeight.Bold)
+                    Text(row.prescription)
+                    row.alternatives.forEachIndexed { index, alt -> Text("ALT ${index + 1} • $alt", style = MaterialTheme.typography.bodySmall) }
                 }
             }
-        }
-    }
+        },
+        confirmButton = {
+            if (allowSetCurrent) TextButton(onClick = onRequestSetCurrent, modifier = Modifier.testTag("set_current_day")) { Text("SET CURRENT") }
+            else TextButton(onClick = onDismiss) { Text("CLOSE") }
+        },
+        dismissButton = if (allowSetCurrent) ({ TextButton(onClick = onDismiss) { Text("CLOSE") } }) else null,
+    )
 }
 
-private fun displayTitle(row: SessionRow, selectedAlternative: String?): String {
-    if (selectedAlternative == null) return row.title
-    return if (row.kind == SessionRowKind.CONDITIONING) alternativeLabel(selectedAlternative) else selectedAlternative
+@Composable
+private fun BrandHeader() {
+    Text(OperatorProgramV56.PROGRAM_NAME, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
+    Text(OperatorProgramV56.PROGRAM_TAGLINE, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Spacer(Modifier.height(8.dp))
 }
 
-private fun displayPrescription(row: SessionRow, selectedAlternative: String?): String {
-    if (row.kind != SessionRowKind.CONDITIONING || selectedAlternative == null) return row.prescription
-    val marker = " — "
-    return if (marker in selectedAlternative) selectedAlternative.substringAfter(marker) else row.prescription
-}
+private fun newWorkout(state: ProgramUiState) = ActiveWorkoutState(
+    week = state.currentWeek,
+    day = state.currentDay,
+    deloadMode = state.deloadMode,
+    machineInventoryConfigured = state.machineInventoryConfigured,
+    availableMachineModalities = state.availableMachineModalities,
+    speedVariant = state.speedVariant,
+    engineVariant = state.engineVariant,
+)
 
-private fun alternativeLabel(alternative: String): String = alternative.substringBefore(" — ")
+private fun resolveSession(week: Int, day: Int, state: ProgramUiState): SessionReference = SessionResolver.resolve(
+    week = week,
+    day = day,
+    deload = state.deloadMode,
+    machineInventoryConfigured = state.machineInventoryConfigured,
+    availableMachineModalities = state.availableMachineModalities,
+    speedVariant = state.speedVariant,
+    engineVariant = state.engineVariant,
+)
+
+private fun splitForWeek(week: Int, state: ProgramUiState): List<SessionReference> = SessionResolver.splitForWeek(
+    week = week,
+    deload = state.deloadMode,
+    machineInventoryConfigured = state.machineInventoryConfigured,
+    availableMachineModalities = state.availableMachineModalities,
+    speedVariant = state.speedVariant,
+    engineVariant = state.engineVariant,
+)
 
 private fun formatRest(seconds: Int): String = "%d:%02d".format(seconds / 60, seconds % 60)
-
-private fun resolveSession(week: Int, day: Int, state: ProgramUiState): SessionReference =
-    SessionResolver.resolve(
-        week = week,
-        day = day,
-        deload = state.deloadMode,
-        machineInventoryConfigured = state.machineInventoryConfigured,
-        availableMachineModalities = state.availableMachineModalities,
-    )
