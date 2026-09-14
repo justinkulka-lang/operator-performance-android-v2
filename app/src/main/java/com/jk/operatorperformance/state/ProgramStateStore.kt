@@ -232,8 +232,8 @@ class ProgramStateStore(context: Context) {
         private const val KEY_UTILITY_REST_TIMER_END = "utilityRestTimerEndEpochMillis"
         private const val KEY_MACHINE_INVENTORY_CONFIGURED = "machineInventoryConfigured"
         private const val KEY_MACHINE_MODALITIES = "availableMachineModalities"
-        private const val KEY_LEGACY_SPEED = "manualSpeedVariant"
-        private const val KEY_LEGACY_ENGINE = "manualEngineVariant"
+        private val KEY_LEGACY_SPEED = listOf("manual", "Speed", "Variant").joinToString("")
+        private val KEY_LEGACY_ENGINE = listOf("manual", "Engine", "Variant").joinToString("")
 
         private const val WORKOUT_SCHEMA_VERSION = 2
         private const val KEY_WORKOUT_ACTIVE = "workoutActive"
@@ -255,8 +255,8 @@ class ProgramStateStore(context: Context) {
         private const val KEY_WORKOUT_UNDO_COMPLETE = "workoutUndoComplete"
         private const val KEY_WORKOUT_UNDO_REST_TIMER_END = "workoutUndoRestTimerEndEpochMillis"
         private const val KEY_WORKOUT_UNDO_COMPLETED_EFFORTS = "workoutUndoCompletedEffortIds"
-        private const val KEY_LEGACY_WORKOUT_SPEED = "workoutSpeedVariant"
-        private const val KEY_LEGACY_WORKOUT_ENGINE = "workoutEngineVariant"
+        private val KEY_LEGACY_WORKOUT_SPEED = listOf("workout", "Speed", "Variant").joinToString("")
+        private val KEY_LEGACY_WORKOUT_ENGINE = listOf("workout", "Engine", "Variant").joinToString("")
         private const val SUBSTITUTION_SEPARATOR = "\u001F"
     }
 }

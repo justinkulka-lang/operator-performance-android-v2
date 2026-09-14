@@ -32,6 +32,6 @@ object ProgramNotesV56 {
         "Resistance work uses the canonical reduced-set overlay while preserving the approved muscle-accounting floors.",
         "Speed deload: prescribed warm-up plus 4 × 20 m relaxed acceleration at approximately 80–85% with 2:00 recovery.",
         "Engine deload: 20:00 easy treadmill or stationary cycle at RPE 3–4/10.",
-        "The app does not score readiness, collect performance data, or automatically trigger a deload.",
+        "The app does not score recovery state, collect performance data, or automatically trigger a deload.",
     )
 }
