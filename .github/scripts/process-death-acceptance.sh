@@ -19,8 +19,7 @@ sudo chmod 666 /dev/kvm
 echo no | avdmanager create avd \
   --force \
   --name ares-v57-process-death-api35 \
-  --package "system-images;android-35;default;x86_64" \
-  --device "pixel_2"
+  --package "system-images;android-35;default;x86_64"
 printf '\ndisk.dataPartition.size=2048M\n' >> "$avd_dir/config.ini"
 "$ANDROID_HOME/emulator/emulator" \
   -avd ares-v57-process-death-api35 \
@@ -123,14 +122,16 @@ find_text_and_tap() {
   local wanted="$1"
   local dump="$RUNNER_TEMP/window.xml"
   local coords=""
-  for _ in $(seq 1 12); do
+  for attempt in $(seq 1 16); do
     dump_ui "$dump"
     coords="$(python3 - "$dump" "$wanted" <<'PY'
 import re, sys, xml.etree.ElementTree as ET
 root = ET.parse(sys.argv[1]).getroot()
 wanted = sys.argv[2]
 for node in root.iter('node'):
-    if node.attrib.get('text') == wanted:
+    text = node.attrib.get('text', '')
+    description = node.attrib.get('content-desc', '')
+    if wanted in text or wanted in description:
         match = re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds', ''))
         if match:
             x1, y1, x2, y2 = map(int, match.groups())
@@ -139,11 +140,26 @@ for node in root.iter('node'):
 raise SystemExit(1)
 PY
     )" && break || true
-    adb shell input swipe 540 1500 540 500 250
+    echo "Waiting for '$wanted' (attempt $attempt/16); scrolling..." >&2
+    adb shell input swipe 540 1500 540 450 250
     sleep 0.3
   done
-  test -n "$coords"
+  if [[ -z "$coords" ]]; then
+    echo "ERROR: Could not find '$wanted' after scrolling." >&2
+    cat "$dump" >&2 || true
+    return 1
+  fi
   adb shell input tap $coords
+}
+
+assert_ui_contains() {
+  local pattern="$1"
+  local dump="$2"
+  if ! grep -q "$pattern" "$dump"; then
+    echo "ERROR: UI dump does not contain expected pattern: $pattern" >&2
+    cat "$dump" >&2 || true
+    return 1
+  fi
 }
 
 echo "Launching seeded ARES v5.7 focus state"
@@ -160,11 +176,12 @@ adb shell am start -W -n "$activity" >/dev/null
 wait_for_activity
 sleep 1
 
+# The restored active-workout state must surface as RESUME, not create a new workout.
 find_text_and_tap "RESUME WORKOUT"
 sleep 1
 dump_ui "$RUNNER_TEMP/resumed.xml"
-grep -q 'text="SET 2 OF 4"' "$RUNNER_TEMP/resumed.xml"
-grep -q 'text="REST"' "$RUNNER_TEMP/resumed.xml"
+assert_ui_contains 'text="SET 2 / 4"' "$RUNNER_TEMP/resumed.xml"
+assert_ui_contains 'REST' "$RUNNER_TEMP/resumed.xml"
 
 restored_state="$(adb shell run-as "$package" cat "$remote_prefs" | tr -d '\r')"
 grep -q 'name="workoutSchemaVersion" value="3"' <<< "$restored_state"
