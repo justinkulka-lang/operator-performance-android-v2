@@ -82,9 +82,8 @@ class AccessibilityUiTest {
         composeRule.onNodeWithTag("today_screen").performScrollToNode(hasTestTag("start_resume_workout"))
         composeRule.onNodeWithTag("start_resume_workout").performClick()
 
-        // Workout mode is a LazyColumn: off-screen controls are composed only after the
-        // owning scroll container is asked to bring them into view.
-        composeRule.onNodeWithTag("workout_mode").performScrollToNode(hasTestTag("set_done"))
+        // The approved workout refinement keeps the primary action in a persistent bottom bar,
+        // so it must remain visible without scrolling even at maximum test font scale.
         composeRule.onNodeWithTag("set_done").assertIsDisplayed()
         composeRule.onNodeWithTag("workout_mode").performScrollToNode(hasTestTag("return_today"))
         composeRule.onNodeWithTag("return_today").assertIsDisplayed()
