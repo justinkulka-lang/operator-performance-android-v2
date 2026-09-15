@@ -107,6 +107,7 @@ class ReferenceUiTest {
         composeRule.onNodeWithText("Back squat or front squat").assertIsDisplayed()
         composeRule.onNodeWithTag("set_done").performClick()
         composeRule.onNodeWithText("SET 2 / 4").assertExists()
+        composeRule.onNodeWithTag("workout_mode").performScrollToNode(hasTestTag("undo_workout"))
         composeRule.onNodeWithTag("undo_workout").performClick()
         composeRule.onNodeWithText("SET 1 / 4").assertExists()
     }
