@@ -57,6 +57,7 @@ jobs:
           grep -q 'applicationId = "com.jk.operatorperformance"' app/build.gradle.kts
           grep -q 'versionCode = 45' app/build.gradle.kts
           grep -q 'versionName = "0.36.0"' app/build.gradle.kts
+          grep -q 'buildConfigField("String", "BUILD_COMMIT"' app/build.gradle.kts
           grep -q 'AUTHORITY_VERSION = "5.7"' app/src/main/java/com/jk/operatorperformance/program/ProgramV56.kt
           grep -q '867c468ba616a22185b871c649d8c026be5c1c61b3a7f690edac5b6169fc3d0a' app/src/main/java/com/jk/operatorperformance/program/ProgramV56.kt
           grep -q 'PROGRAM_NAME = "ARES PERFORMANCE"' app/src/main/java/com/jk/operatorperformance/program/ProgramV56.kt
@@ -120,6 +121,15 @@ jobs:
 
       - name: Build install-over compatibility fixture and current debug APK
         run: gradle :legacy-fixture:assembleDebug :app:assembleDebug --stacktrace
+
+      - name: Verify exact commit embedded in debug APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk="app/build/outputs/apk/debug/app-debug.apk"
+          test -f "$apk"
+          short_sha="${GITHUB_SHA:0:12}"
+          unzip -p "$apk" 'classes*.dex' 2>/dev/null | strings | grep -Fq "$short_sha"
 
       - name: Run migration, airplane-mode, and reference UI acceptance
         shell: bash
@@ -196,7 +206,15 @@ jobs:
           KEY_PASSWORD: ${{ secrets.OPERATOR_RELEASE_KEY_PASSWORD }}
         run: |
           set -euo pipefail
-          if [[ -n "$KEYSTORE_B64" && -n "$STORE_PASSWORD" && -n "$KEY_ALIAS" && -n "$KEY_PASSWORD" ]]; then
+          configured=0
+          for value in "$KEYSTORE_B64" "$STORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD"; do
+            [[ -n "$value" ]] && configured=$((configured + 1))
+          done
+          if [[ "$configured" -ne 0 && "$configured" -ne 4 ]]; then
+            echo "Owner release signing is partially configured; all four signing secrets are required together." >&2
+            exit 1
+          fi
+          if [[ "$configured" -eq 4 ]]; then
             keystore="$RUNNER_TEMP/operator-release.jks"
             printf '%s' "$KEYSTORE_B64" | base64 --decode > "$keystore"
             chmod 600 "$keystore"
@@ -212,22 +230,39 @@ jobs:
       - name: Build release APK
         run: gradle :app:assembleRelease --stacktrace
 
-      - name: Verify release signing state
+      - name: Verify release signing lineage
         shell: bash
+        env:
+          EXPECTED_CERT_SHA256: ${{ secrets.OPERATOR_RELEASE_CERT_SHA256 }}
         run: |
           set -euo pipefail
           apksigner="$ANDROID_HOME/build-tools/37.0.0/apksigner"
+          mkdir -p app/build/reports
+          cert_digest="UNCONFIGURED"
           if [[ "$RELEASE_SIGNING_CONFIGURED" == "true" ]]; then
             signed="app/build/outputs/apk/release/app-release.apk"
             test -f "$signed"
-            "$apksigner" verify --verbose --print-certs "$signed"
+            if [[ -z "$EXPECTED_CERT_SHA256" ]]; then
+              echo "Owner signing is configured but OPERATOR_RELEASE_CERT_SHA256 is missing." >&2
+              exit 1
+            fi
+            verify_output="$($apksigner verify --verbose --print-certs "$signed")"
+            printf '%s\n' "$verify_output"
+            cert_digest="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' <<< "$verify_output" | head -n1 | tr '[:lower:]' '[:upper:]' | tr -d ':[:space:]')"
+            expected="$(printf '%s' "$EXPECTED_CERT_SHA256" | tr '[:lower:]' '[:upper:]' | tr -d ':[:space:]')"
+            test -n "$cert_digest"
+            if [[ "$cert_digest" != "$expected" ]]; then
+              echo "Release signing certificate fingerprint does not match the owner-pinned certificate." >&2
+              exit 1
+            fi
           else
             unsigned="app/build/outputs/apk/release/app-release-unsigned.apk"
             test -f "$unsigned"
             echo "Persistent release signing secrets are not configured; the release artifact is unsigned."
           fi
+          echo "RELEASE_CERT_SHA256=$cert_digest" >> "$GITHUB_ENV"
 
-      - name: APK permission and stale-architecture scan
+      - name: APK identity, permission, and stale-architecture scan
         shell: bash
         run: |
           set -euo pipefail
@@ -236,6 +271,10 @@ jobs:
           runtime_pattern='ESTABLISH CURRENT CAPABILITY|PROGRAM TRACKING|PERFORMANCE PROFILE|HEALTH CONNECT|SESSION RESULT|RECOVERY MODE|Speed \\+ sled|ProgramTrackingStore|ReadinessStore|BenchmarkStore|StrengthLog|RunStopwatchStore|ConditioningExecutionStore|ActiveSetProgressStore|actualLoad|actualReps|actualRir|performed load|performed reps|performed RIR|session score|workout rating|automatic progression|block recomposition|OperatorProgramV54'
           for apk in app/build/outputs/apk/debug/*.apk app/build/outputs/apk/release/*.apk; do
             test -f "$apk"
+            badging="$($aapt2 dump badging "$apk" | head -n1)"
+            grep -q "package: name='com.jk.operatorperformance'" <<< "$badging"
+            grep -q "versionCode='45'" <<< "$badging"
+            grep -q "versionName='0.36.0'" <<< "$badging"
             permissions="$($aapt2 dump permissions "$apk")"
             if grep -Ei "$permission_pattern" <<< "$permissions"; then
               echo "Prohibited permission found in merged APK manifest: $apk" >&2
@@ -247,8 +286,26 @@ jobs:
             fi
           done
 
-      - name: Capture dependency graph
-        run: gradle :app:dependencies > app/build/reports/dependencies.txt
+      - name: Capture dependency graph and release provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle :app:dependencies > app/build/reports/dependencies.txt
+          {
+            echo "ARES PERFORMANCE RELEASE PROVENANCE"
+            echo "commit=$GITHUB_SHA"
+            echo "package=com.jk.operatorperformance"
+            echo "versionName=0.36.0"
+            echo "versionCode=45"
+            echo "authorityVersion=5.7"
+            echo "authoritySha256=867c468ba616a22185b871c649d8c026be5c1c61b3a7f690edac5b6169fc3d0a"
+            echo "releaseSigningConfigured=$RELEASE_SIGNING_CONFIGURED"
+            echo "releaseCertificateSha256=${RELEASE_CERT_SHA256:-UNCONFIGURED}"
+            echo
+            echo "APK SHA-256"
+            sha256sum app/build/outputs/apk/debug/*.apk app/build/outputs/apk/release/*.apk
+          } > app/build/reports/release-provenance.txt
+          cat app/build/reports/release-provenance.txt
 
       - name: Upload ARES v5.7 evidence
         if: always()
@@ -266,6 +323,7 @@ jobs:
             app/build/reports/program-conditioning-weeks-1-32.csv
             app/build/reports/program-phases.csv
             app/build/reports/dependencies.txt
+            app/build/reports/release-provenance.txt
             app/build/outputs/apk/debug/*.apk
             app/build/outputs/apk/release/*.apk
             legacy-fixture/build/outputs/apk/debug/*.apk
