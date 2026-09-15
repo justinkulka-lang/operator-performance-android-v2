@@ -9,7 +9,6 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.platform.app.InstrumentationRegistry
@@ -48,8 +47,10 @@ class ReleaseReadinessUiTest {
         composeRule.onNodeWithTag("today_screen").performScrollToNode(hasTestTag("start_resume_workout"))
         composeRule.onNodeWithTag("start_resume_workout").performClick()
         composeRule.onNodeWithTag("set_done").performClick()
-        composeRule.onNodeWithTag("undo_workout").performScrollTo().assertIsDisplayed().performClick()
-        composeRule.onNodeWithTag("return_today").performScrollTo().assertIsDisplayed().performClick()
+        composeRule.onNodeWithTag("workout_mode").performScrollToNode(hasTestTag("undo_workout"))
+        composeRule.onNodeWithTag("undo_workout").assertIsDisplayed().performClick()
+        composeRule.onNodeWithTag("workout_mode").performScrollToNode(hasTestTag("return_today"))
+        composeRule.onNodeWithTag("return_today").assertIsDisplayed().performClick()
         composeRule.onNodeWithTag("today_screen").assertIsDisplayed()
     }
 
