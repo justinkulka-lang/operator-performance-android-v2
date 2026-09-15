@@ -69,10 +69,15 @@ internal fun searchProgram(
     }
 }
 
-internal fun normalizeProgramQuery(query: String): String = query
-    .trim()
-    .lowercase()
-    .replace(Regex("\\bw(\\d{1,2})\\b"), "week $1")
-    .replace(Regex("\\bd([1-7])\\b"), "day $1")
-    .replace(Regex("[^a-z0-9.+/%–—-]+"), " ")
-    .trim()
+internal fun normalizeProgramQuery(query: String): String {
+    val lower = query.trim().lowercase()
+    val expandedWeeks = Regex("\\bw(\\d{1,2})\\b").replace(lower) { match ->
+        "week ${match.groupValues[1]}"
+    }
+    val expandedDays = Regex("\\bd([1-7])\\b").replace(expandedWeeks) { match ->
+        "day ${match.groupValues[1]}"
+    }
+    return expandedDays
+        .replace(Regex("[^a-z0-9.+/%–—-]+"), " ")
+        .trim()
+}
