@@ -47,14 +47,6 @@ internal fun phaseAccent(phase: ProgramBlock): Color = when (phase.godName) {
     else -> ZeusGold
 }
 
-private fun phaseMotto(phase: ProgramBlock): String = when (phase.godName) {
-    "HEPHAESTUS" -> "FORGE"
-    "HERMES" -> "MOVE"
-    "ARES" -> "FIGHT"
-    "ZEUS" -> "COMMAND"
-    else -> "ARES"
-}
-
 @DrawableRes
 private fun phaseEmblemRes(phase: ProgramBlock): Int = when (phase.godName) {
     "HEPHAESTUS" -> R.drawable.ic_phase_hephaestus
@@ -99,10 +91,10 @@ internal fun AresBrandHeader() {
             painter = painterResource(R.drawable.ic_ares_master),
             contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(38.dp),
+            modifier = Modifier.size(42.dp),
         )
         Spacer(Modifier.width(10.dp))
-        Column {
+        Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
             Text(
                 OperatorProgramV56.PROGRAM_NAME,
                 style = MaterialTheme.typography.titleMedium,
@@ -110,8 +102,14 @@ internal fun AresBrandHeader() {
                 color = MaterialTheme.colorScheme.primary,
             )
             Text(
-                OperatorProgramV56.PROGRAM_TAGLINE,
+                "THE THRESHOLD",
                 style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                OperatorProgramV56.PROGRAM_TAGLINE,
+                style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -160,7 +158,7 @@ internal fun PhaseProgressStrip(currentPhase: ProgramBlock) {
                     painter = painterResource(phaseEmblemRes(phase)),
                     contentDescription = null,
                     tint = tint,
-                    modifier = Modifier.size(if (current) 34.dp else 28.dp),
+                    modifier = Modifier.size(if (current) 36.dp else 28.dp),
                 )
                 Text(
                     phase.godName,
@@ -185,16 +183,16 @@ internal fun PhaseSummaryCard(phase: ProgramBlock, isCurrent: Boolean) {
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
                     .padding(end = 12.dp)
-                    .size(92.dp)
-                    .alpha(if (isCurrent) 0.11f else 0.065f),
+                    .size(96.dp)
+                    .alpha(if (isCurrent) 0.13f else 0.065f),
             )
             Column(
-                modifier = Modifier.padding(14.dp).padding(end = 72.dp),
-                verticalArrangement = Arrangement.spacedBy(3.dp),
+                modifier = Modifier.padding(16.dp).padding(end = 76.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text("${phase.godName} — ${phase.name}", fontWeight = FontWeight.Bold, color = accent)
                 Text(
-                    "${phaseMotto(phase)} • Weeks ${phase.startWeek}–${phase.endWeek} • POPULATED / APPROVED",
+                    "Weeks ${phase.startWeek}–${phase.endWeek} • POPULATED / APPROVED",
                     color = if (isCurrent) accent else MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.labelMedium,
                 )
@@ -210,6 +208,7 @@ internal fun SessionDayCardContent(
     isCurrentDay: Boolean,
     showRowCount: Boolean,
     padding: Dp = 14.dp,
+    referenceLabel: String? = null,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(padding),
@@ -220,15 +219,18 @@ internal fun SessionDayCardContent(
             painter = painterResource(dayGlyphRes(session.day)),
             contentDescription = null,
             tint = phaseAccent(session.phase),
-            modifier = Modifier.size(38.dp),
+            modifier = Modifier.size(40.dp),
         )
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(
                 "DAY ${session.day}${if (isCurrentDay) " • TODAY" else ""}",
                 color = phaseAccent(session.phase),
                 fontWeight = FontWeight.Bold,
             )
             Text(session.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            referenceLabel?.let {
+                Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+            }
             if (showRowCount) {
                 Text("${session.rows.size} prescribed rows", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
