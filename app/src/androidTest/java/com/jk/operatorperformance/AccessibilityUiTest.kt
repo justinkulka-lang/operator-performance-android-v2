@@ -82,11 +82,31 @@ class AccessibilityUiTest {
         composeRule.onNodeWithTag("today_screen").performScrollToNode(hasTestTag("start_resume_workout"))
         composeRule.onNodeWithTag("start_resume_workout").performClick()
 
-        // The approved workout refinement keeps the primary action in a persistent bottom bar,
-        // so it must remain visible without scrolling even at maximum test font scale.
         composeRule.onNodeWithTag("set_done").assertIsDisplayed()
         composeRule.onNodeWithTag("workout_mode").performScrollToNode(hasTestTag("return_today"))
         composeRule.onNodeWithTag("return_today").assertIsDisplayed()
+    }
+
+    @Test
+    fun maximumFontScaleKeepsProgramSearchAndQuickJumpReachable() {
+        configureDisplay(widthPx = 360, heightPx = 640, densityDpi = 160, fontScale = 2.0f)
+        composeRule.onNodeWithTag("nav_PROGRAM").performClick()
+
+        composeRule.onNodeWithTag("program_search").assertIsDisplayed()
+        val search = composeRule.onNodeWithTag("program_search").fetchSemanticsNode()
+        assertTrue("Program search must retain a large physical target", search.boundsInRoot.height >= 48f)
+        composeRule.onNodeWithTag("program_jump_week_1").assertIsDisplayed()
+    }
+
+    @Test
+    fun workoutResetControlMeetsPhysicalTouchTargetMinimum() {
+        composeRule.onNodeWithTag("today_screen").performScrollToNode(hasTestTag("effort_d1_squat_1"))
+        composeRule.onNodeWithTag("effort_d1_squat_1").performClick()
+        composeRule.onNodeWithTag("today_screen").performScrollToNode(hasTestTag("reset_today_workout"))
+
+        val reset = composeRule.onNodeWithTag("reset_today_workout").fetchSemanticsNode()
+        assertTrue(reset.config.contains(SemanticsActions.OnClick))
+        assertTrue("Workout reset target must be at least 48 dp high", reset.boundsInRoot.height >= 48f)
     }
 
     @Test
