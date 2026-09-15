@@ -3,6 +3,9 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+val sourceCommit = providers.environmentVariable("GITHUB_SHA").orElse("LOCAL").get()
+val buildCommit = if (sourceCommit == "LOCAL") sourceCommit else sourceCommit.take(12)
+
 android {
     namespace = "com.jk.operatorperformance"
     compileSdk = 37
@@ -14,18 +17,24 @@ android {
         versionCode = 45
         versionName = "0.36.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "BUILD_COMMIT", "\"$buildCommit\"")
     }
 
     val releaseKeystorePath = System.getenv("OPERATOR_RELEASE_KEYSTORE_PATH")
     val releaseStorePassword = System.getenv("OPERATOR_RELEASE_STORE_PASSWORD")
     val releaseKeyAlias = System.getenv("OPERATOR_RELEASE_KEY_ALIAS")
     val releaseKeyPassword = System.getenv("OPERATOR_RELEASE_KEY_PASSWORD")
-    val persistentReleaseSigningAvailable = listOf(
+    val releaseSigningValues = listOf(
         releaseKeystorePath,
         releaseStorePassword,
         releaseKeyAlias,
         releaseKeyPassword,
-    ).all { !it.isNullOrBlank() }
+    )
+    val persistentReleaseSigningAvailable = releaseSigningValues.all { !it.isNullOrBlank() }
+    val partialReleaseSigningConfigured = releaseSigningValues.any { !it.isNullOrBlank() } && !persistentReleaseSigningAvailable
+    require(!partialReleaseSigningConfigured) {
+        "Persistent release signing is partially configured. Supply all four owner signing values or none of them."
+    }
 
     signingConfigs {
         if (persistentReleaseSigningAvailable) {
@@ -57,6 +66,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     testOptions {

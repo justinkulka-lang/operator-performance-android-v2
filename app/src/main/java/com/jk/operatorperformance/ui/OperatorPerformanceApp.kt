@@ -14,10 +14,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ListAlt
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.ListAlt
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -28,6 +28,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -143,7 +144,7 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
                                     imageVector = when (item) {
                                         Destination.TODAY -> Icons.Default.Home
                                         Destination.WEEK -> Icons.Default.DateRange
-                                        Destination.PROGRAM -> Icons.Default.ListAlt
+                                        Destination.PROGRAM -> Icons.AutoMirrored.Filled.ListAlt
                                         Destination.TOOLS -> Icons.Default.Build
                                     },
                                     contentDescription = null,
@@ -151,7 +152,10 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
                             },
                             label = { Text(item.label) },
                             alwaysShowLabel = true,
-                            modifier = Modifier.testTag("nav_${item.name}"),
+                            modifier = Modifier
+                                .heightIn(min = 48.dp)
+                                .testTag("nav_${item.name}")
+                                .semantics { stateDescription = if (destination == item) "Selected" else "Not selected" },
                         )
                     }
                 }
@@ -169,10 +173,12 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
                             workoutMode = true
                         },
                         onProgress = ::persistWorkout,
+                        onResetWorkout = ::clearWorkout,
                         onAdvance = {
                             clearWorkout()
-                            persist(state.advanceDay())
-                            selectedProgramWeek = state.advanceDay().currentWeek
+                            val next = state.advanceDay()
+                            persist(next)
+                            selectedProgramWeek = next.currentWeek
                         },
                     )
                     Destination.WEEK -> WeekScreen(
@@ -229,7 +235,7 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
                         modifier = Modifier.heightIn(min = 48.dp).testTag("confirm_set_current"),
                     ) { Text("CONFIRM") }
                 },
-                dismissButton = { TextButton(onClick = { pendingPointer = null }) { Text("CANCEL") } },
+                dismissButton = { TextButton(onClick = { pendingPointer = null }, modifier = Modifier.heightIn(min = 48.dp)) { Text("CANCEL") } },
             )
         }
     }
@@ -241,6 +247,7 @@ private fun TodayScreen(
     activeWorkout: ActiveWorkoutState?,
     onStartWorkout: () -> Unit,
     onProgress: (ActiveWorkoutState) -> Unit,
+    onResetWorkout: () -> Unit,
     onAdvance: () -> Unit,
 ) {
     val session = resolveSession(state.currentWeek, state.currentDay, state)
@@ -252,6 +259,7 @@ private fun TodayScreen(
     val executionGuidance = sessionExecutionGuidance(session)
     val foundationReference = foundationReferenceLabel(session, state)
     var confirmAdvance by rememberSaveable(state.currentWeek, state.currentDay) { mutableStateOf(false) }
+    var confirmReset by rememberSaveable(state.currentWeek, state.currentDay) { mutableStateOf(false) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().testTag("today_screen"),
@@ -275,6 +283,22 @@ private fun TodayScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.testTag("today_progress"),
             )
+        }
+        if (progress != null && !progress.complete) {
+            item {
+                Card(
+                    Modifier
+                        .fillMaxWidth()
+                        .testTag("saved_workout_status")
+                        .semantics { contentDescription = "Saved workout; $completed of $total sets or efforts complete" },
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                ) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("SAVED WORKOUT", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        Text("$completed / $total complete • progress and active rest state persist across app restarts.", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
         }
         if (executionGuidance.isNotEmpty()) {
             item { SessionExecutionBanner(session) }
@@ -303,6 +327,12 @@ private fun TodayScreen(
                     onClick = onStartWorkout,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("start_resume_workout"),
                 ) { Text(if (progress == null) "START WORKOUT" else "RESUME WORKOUT", fontWeight = FontWeight.Bold) }
+                if (progress != null) {
+                    TextButton(
+                        onClick = { confirmReset = true },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("reset_today_workout"),
+                    ) { Text("RESET TODAY'S WORKOUT") }
+                }
                 Spacer(Modifier.height(8.dp))
             }
             if (atEnd) {
@@ -327,10 +357,25 @@ private fun TodayScreen(
             confirmButton = {
                 TextButton(
                     onClick = { confirmAdvance = false; onAdvance() },
-                    modifier = Modifier.testTag("confirm_incomplete_advance"),
+                    modifier = Modifier.heightIn(min = 48.dp).testTag("confirm_incomplete_advance"),
                 ) { Text("ADVANCE") }
             },
-            dismissButton = { TextButton(onClick = { confirmAdvance = false }) { Text("CANCEL") } },
+            dismissButton = { TextButton(onClick = { confirmAdvance = false }, modifier = Modifier.heightIn(min = 48.dp)) { Text("CANCEL") } },
+        )
+    }
+
+    if (confirmReset) {
+        AlertDialog(
+            onDismissRequest = { confirmReset = false },
+            title = { Text("Reset today's workout?") },
+            text = { Text("Clear today's completion marks, substitutions, undo state, and active workout rest timer? The approved training prescription is unchanged.") },
+            confirmButton = {
+                TextButton(
+                    onClick = { confirmReset = false; onResetWorkout() },
+                    modifier = Modifier.heightIn(min = 48.dp).testTag("confirm_reset_workout"),
+                ) { Text("RESET") }
+            },
+            dismissButton = { TextButton(onClick = { confirmReset = false }, modifier = Modifier.heightIn(min = 48.dp)) { Text("CANCEL") } },
         )
     }
 }
@@ -446,7 +491,10 @@ private fun WorkoutModeScreen(
                         ) { Text("WORKOUT COMPLETE • RETURN TO TODAY", fontWeight = FontWeight.Bold) }
                     } else {
                         Button(
-                            onClick = { onProgress(WorkoutProgress.advance(normalized, session)) },
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onProgress(WorkoutProgress.advance(normalized, session))
+                            },
                             modifier = Modifier.fillMaxWidth().heightIn(min = 60.dp).testTag("set_done"),
                         ) {
                             Text(if (row.kind == SessionRowKind.RESISTANCE) "SET DONE" else "NEXT EFFORT / DONE", fontWeight = FontWeight.Black)
@@ -577,6 +625,11 @@ private fun WorkoutModeScreen(
                         WorkoutMapVisualState.CURRENT -> "▶"
                         WorkoutMapVisualState.UPCOMING -> "○"
                     }
+                    val stateLabel = when (mapState) {
+                        WorkoutMapVisualState.COMPLETE -> "complete"
+                        WorkoutMapVisualState.CURRENT -> "current"
+                        WorkoutMapVisualState.UPCOMING -> "upcoming"
+                    }
                     val color = when (mapState) {
                         WorkoutMapVisualState.COMPLETE -> MaterialTheme.colorScheme.tertiary
                         WorkoutMapVisualState.CURRENT -> MaterialTheme.colorScheme.primary
@@ -588,6 +641,7 @@ private fun WorkoutModeScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         color = color,
                         fontWeight = if (mapState == WorkoutMapVisualState.CURRENT) FontWeight.Bold else FontWeight.Normal,
+                        modifier = Modifier.semantics { contentDescription = "$mapTitle; $stateLabel" },
                     )
                 }
             }
@@ -639,6 +693,15 @@ private fun ProgramScreen(
     val selectedSplit = splitForWeek(selectedWeek, state)
     val nextWeek = (state.currentWeek + 1).takeIf { it <= 32 }
     val nextPhase = OperatorProgramV56.blocks.firstOrNull { it.startWeek > currentPhase.endWeek }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    val searchHits = remember(
+        searchQuery,
+        state.speedVariant,
+        state.engineVariant,
+        state.machineInventoryConfigured,
+        state.availableMachineModalities,
+    ) { searchProgram(searchQuery, state) }
+    val jumpWeeks = remember(state.currentWeek) { listOf(state.currentWeek, 1, 9, 17, 25, 32).distinct() }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().testTag("program_screen"),
@@ -657,6 +720,65 @@ private fun ProgramScreen(
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.testTag("next_phase_status"),
             )
+        }
+        item {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                label = { Text("SEARCH / JUMP") },
+                supportingText = { Text("Examples: W17, D3, 300 m, safety-bar squat, threshold") },
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 56.dp)
+                    .testTag("program_search")
+                    .semantics { contentDescription = "Search the approved 32-week ARES program" },
+            )
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(jumpWeeks) { week ->
+                    FilterChip(
+                        selected = selectedWeek == week,
+                        onClick = { onSelectWeek(week); searchQuery = "" },
+                        label = { Text(if (week == state.currentWeek) "CURRENT W$week" else "W$week") },
+                        modifier = Modifier.heightIn(min = 48.dp).testTag("program_jump_week_$week"),
+                    )
+                }
+            }
+        }
+        if (searchQuery.isNotBlank()) {
+            item {
+                HorizontalDivider()
+                Text("SEARCH RESULTS", fontWeight = FontWeight.Bold)
+                Text(
+                    if (searchHits.isEmpty()) "No matching approved sessions." else "${searchHits.size} matching session${if (searchHits.size == 1) "" else "s"} shown.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.testTag("program_search_status"),
+                )
+            }
+            items(searchHits, key = { "search_${it.session.week}_${it.session.day}" }) { hit ->
+                Card(
+                    onClick = {
+                        onSelectWeek(hit.session.week)
+                        onOpenDay(hit.session)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 64.dp)
+                        .testTag("program_search_result_${hit.session.week}_${hit.session.day}")
+                        .semantics { contentDescription = "${hit.matchLabel}; ${hit.matchSnippet}" },
+                ) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(hit.matchLabel, fontWeight = FontWeight.Bold)
+                        Text(hit.matchSnippet, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+            item {
+                TextButton(
+                    onClick = { searchQuery = "" },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("program_search_clear"),
+                ) { Text("CLEAR SEARCH") }
+            }
         }
         item {
             Text("PHASES", fontWeight = FontWeight.Bold)
@@ -680,7 +802,7 @@ private fun ProgramScreen(
             PhaseIdentityLine(selectedPhase)
         }
         items(selectedSplit, key = { it.day }) { session ->
-            Card(onClick = { onOpenDay(session) }, modifier = Modifier.fillMaxWidth().testTag("program_day_${session.week}_${session.day}")) {
+            Card(onClick = { onOpenDay(session) }, modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).testTag("program_day_${session.week}_${session.day}")) {
                 SessionDayCardContent(
                     session = session,
                     isCurrentDay = session.week == state.currentWeek && session.day == state.currentDay,
@@ -724,6 +846,7 @@ private fun ToolsScreen(state: ProgramUiState, onStateChanged: (ProgramUiState) 
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item { BrandHeader(); Text("TOOLS", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }
+        item { BuildIntegrityCard() }
         item {
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
