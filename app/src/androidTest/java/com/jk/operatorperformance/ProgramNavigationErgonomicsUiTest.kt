@@ -33,6 +33,7 @@ class ProgramNavigationErgonomicsUiTest {
         composeRule.onNodeWithTag("program_search").performTextInput("W17 D3")
         composeRule.waitForIdle()
 
+        composeRule.onNodeWithTag("program_screen").performScrollToNode(hasTestTag("program_search_result_17_3"))
         composeRule.onNodeWithTag("program_search_result_17_3").assertIsDisplayed().performClick()
         composeRule.onNodeWithTag("set_current_day").assertIsDisplayed()
     }
@@ -41,6 +42,7 @@ class ProgramNavigationErgonomicsUiTest {
     fun resetWorkoutRequiresConfirmationAndClearsOnlyExecutionState() {
         composeRule.onNodeWithTag("today_screen").performScrollToNode(hasTestTag("effort_d1_squat_1"))
         composeRule.onNodeWithTag("effort_d1_squat_1").performClick()
+        composeRule.onNodeWithTag("today_screen").performScrollToNode(hasTestTag("saved_workout_status"))
         composeRule.onNodeWithTag("saved_workout_status").assertIsDisplayed()
 
         composeRule.onNodeWithTag("today_screen").performScrollToNode(hasTestTag("reset_today_workout"))
