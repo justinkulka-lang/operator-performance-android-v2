@@ -9,6 +9,7 @@ import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.platform.app.InstrumentationRegistry
@@ -97,8 +98,7 @@ class AccessibilityUiTest {
         val search = composeRule.onNodeWithTag("program_search").fetchSemanticsNode()
         assertTrue("Program search must retain a large physical target", search.boundsInRoot.height >= 48f)
 
-        composeRule.onNodeWithTag("program_screen").performScrollToNode(hasTestTag("program_jump_week_1"))
-        composeRule.onNodeWithTag("program_jump_week_1").assertIsDisplayed()
+        composeRule.onNodeWithTag("program_jump_week_1").performScrollTo().assertIsDisplayed()
     }
 
     @Test
