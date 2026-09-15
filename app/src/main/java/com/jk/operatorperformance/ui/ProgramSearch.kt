@@ -17,10 +17,29 @@ internal fun searchProgram(
 ): List<ProgramSearchHit> {
     val normalized = normalizeProgramQuery(query)
     if (normalized.isBlank() || limit <= 0) return emptyList()
-    val tokens = normalized.split(Regex("\\s+")).filter { it.isNotBlank() }
+
+    val requestedWeek = Regex("\\bweek (\\d{1,2})\\b")
+        .find(normalized)
+        ?.groupValues
+        ?.get(1)
+        ?.toIntOrNull()
+    val requestedDay = Regex("\\bday ([1-7])\\b")
+        .find(normalized)
+        ?.groupValues
+        ?.get(1)
+        ?.toIntOrNull()
+    if (requestedWeek != null && requestedWeek !in 1..32) return emptyList()
+
+    val freeText = normalized
+        .replace(Regex("\\bweek \\d{1,2}\\b"), " ")
+        .replace(Regex("\\bday [1-7]\\b"), " ")
+        .replace(Regex("\\s+"), " ")
+        .trim()
+    val freeTextTokens = freeText.split(Regex("\\s+")).filter { it.isNotBlank() }
 
     return buildList {
         for (week in 1..32) {
+            if (requestedWeek != null && week != requestedWeek) continue
             val sessions = SessionResolver.splitForWeek(
                 week = week,
                 deload = false,
@@ -30,6 +49,8 @@ internal fun searchProgram(
                 engineVariant = state.engineVariant,
             )
             for (session in sessions) {
+                if (requestedDay != null && session.day != requestedDay) continue
+
                 val phaseText = "${session.phase.godName} ${session.phase.name}"
                 val header = "week ${session.week} day ${session.day} ${session.title} $phaseText"
                 val rowText = session.rows.joinToString(" ") { row ->
@@ -42,7 +63,7 @@ internal fun searchProgram(
                     }
                 }
                 val haystack = "$header $rowText".lowercase()
-                if (!tokens.all(haystack::contains)) continue
+                if (!freeTextTokens.all(haystack::contains)) continue
 
                 val matchingRow = session.rows.firstOrNull { row ->
                     val candidate = buildString {
@@ -52,7 +73,7 @@ internal fun searchProgram(
                         row.note?.let { append(' '); append(it) }
                         row.alternatives.forEach { append(' '); append(it) }
                     }.lowercase()
-                    tokens.any(candidate::contains)
+                    freeTextTokens.isNotEmpty() && freeTextTokens.any(candidate::contains)
                 }
                 val snippet = matchingRow?.let { "${it.title} • ${it.prescription}" }
                     ?: "${session.phase.godName} • ${session.phase.name}"
