@@ -92,9 +92,12 @@ class AccessibilityUiTest {
         configureDisplay(widthPx = 360, heightPx = 640, densityDpi = 160, fontScale = 2.0f)
         composeRule.onNodeWithTag("nav_PROGRAM").performClick()
 
+        composeRule.onNodeWithTag("program_screen").performScrollToNode(hasTestTag("program_search"))
         composeRule.onNodeWithTag("program_search").assertIsDisplayed()
         val search = composeRule.onNodeWithTag("program_search").fetchSemanticsNode()
         assertTrue("Program search must retain a large physical target", search.boundsInRoot.height >= 48f)
+
+        composeRule.onNodeWithTag("program_screen").performScrollToNode(hasTestTag("program_jump_week_1"))
         composeRule.onNodeWithTag("program_jump_week_1").assertIsDisplayed()
     }
 
