@@ -1,6 +1,35 @@
 package com.jk.operatorperformance.program
 
 object ProgramNotesV56 {
+    val execution = listOf(
+        "Day 3 Speed is performed fresh. Do not perform heavy resistance work in the same session; sprint quality is the priority stimulus.",
+        "Week 1 Day 3: use submaximal build-ups, then one timed 300 m. Time externally; the app does not store the result. Do not perform the machine-power finisher on the baseline day.",
+        "Week 1 Day 6: perform one controlled, strong-but-repeatable 1.5-mile effort. Do not add a separate VO2 block, threshold block, or sprint session on that baseline day.",
+        "Day 6 Engine is performed before the prescribed short-upper resistance sequence.",
+    )
+
+    val resistanceProgression = listOf(
+        "Double progression uses reps before load as training guidance.",
+        "Stay within the prescribed rep range and RIR target for the movement; the app does not require or store load, reps, or RIR history.",
+        "Heavy compound rest is approximately 2–3+ minutes; isolation/accessory rest is approximately 1–2 minutes. Extend rest when needed to preserve prescribed reps, RIR, technique, and output.",
+    )
+
+    val foundationSpeedSelection = listOf(
+        "ACCELERATION is the first post-baseline default: 6 × 30 m from a controlled start with full recovery.",
+        "After two quality ACCELERATION exposures with stable mechanics and no adverse next-morning lower-leg response, you may manually select MAX VELOCITY.",
+        "After two quality MAX VELOCITY exposures with stable mechanics and no adverse next-morning response, you may manually select SPECIAL ENDURANCE.",
+        "After one quality SPECIAL ENDURANCE exposure without a sprint-volume-cap breach or adverse next-morning response, you may manually return to ACCELERATION.",
+        "Variant selection remains manual. The app does not score, pass/fail, or infer progression from performance data.",
+    )
+
+    val foundationEngineSelection = listOf(
+        "THRESHOLD is the first post-baseline default: 20 min continuous at current threshold effort OR 3 × 1 mile with 1 min easy recovery.",
+        "Repeat THRESHOLD or manually switch only when pacing/mechanics and next-morning lower-leg response are acceptable.",
+        "VO2 PRIMARY: 5 × 1000 m at current 3K–5K-equivalent pace. SECONDARY: 30 s hard / 30 s easy × 16–20 when deliberately selected. Use one option, not both.",
+        "The long-interval VO2 option is preferred for dedicated VO2 development; 30/30 remains an authorized secondary option.",
+        "Repeat or manually switch based on self-assessed session quality and lower-leg response. The app does not collect pace, time, distance, mileage, or next-morning scores.",
+    )
+
     val interference = listOf(
         "Speed or special-endurance work → lower-body resistance: 48 h reference separation.",
         "Lower-body resistance → Speed: 12 h reference separation.",
@@ -31,9 +60,11 @@ object ProgramNotesV56 {
     )
 
     val deload = listOf(
-        "Deload activation is manual and reference-driven; duration remains 5–7 days when used.",
+        "Consider a deload when any two of these indicators are present: estimated 1RM or comparable bar-speed performance is down roughly 5–10% across sessions; the same load feels at least 2 RIR harder for two or more sessions; or there is a multi-day subjective recovery decline.",
+        "Backstop reference: consider a deload when 6–8 weeks have elapsed since the previous deload.",
+        "Deload duration remains 5–7 days when used.",
+        "During deload, hold load/intensity, stay short of failure, remove sprint/special-endurance work, and keep running easy.",
         "Resistance work uses the canonical reduced-set overlay (117.5 fractional total).",
-        "During deload, stay short of failure, remove sprint/special-endurance work, and keep running easy.",
         "The app does not score recovery state, collect performance data, or automatically trigger a deload.",
     )
 
@@ -42,5 +73,12 @@ object ProgramNotesV56 {
         "Normal Weeks 1–31 retain the 148.0 fractional hypertrophy chassis and at least two meaningful resistance exposures per canonical muscle group.",
         "Conditioning receives 0 hypertrophy credit.",
         "Reduce avoidable conditioning fatigue before sacrificing productive hypertrophy work, except during the explicit Week 32 realization/taper.",
+    )
+
+    val authorityLimits = listOf(
+        "v5.7 does not specify an exact count, distance, or percentage progression for the submaximal sprint build-ups; the app must not invent one.",
+        "When a sprint prescription says full recovery, v5.7 does not provide a numeric recovery duration; the app must not fabricate one.",
+        "The app does not request or store 300 m or 1.5-mile results, run pace or distance, recovery-state metrics, body weight, or set-performance numbers.",
+        "If a future exact execution value is required, it must come from an owner-approved authority rather than a hidden app rule.",
     )
 }

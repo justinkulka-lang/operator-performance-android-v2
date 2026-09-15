@@ -34,7 +34,8 @@ class SessionResolverTest {
 
         val vo2 = SessionResolver.resolve(4, 6, deload = false, engineVariant = EngineVariant.VO2)
         assertTrue(vo2.rows.any { it.title == "VO2" })
-        assertTrue(vo2.rows.first().id == "d6_engine_warmup")
+        assertEquals("ref_vo2", vo2.rows.first().id)
+        assertFalse(vo2.rows.any { it.id == "d6_engine_warmup" || it.id == "d6_engine_cooldown" })
         assertTrue(vo2.rows.indexOfFirst { it.title == "VO2" } < vo2.rows.indexOfFirst { it.id == "d6_incline" })
     }
 

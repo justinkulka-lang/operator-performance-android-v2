@@ -132,20 +132,16 @@ object SessionResolver {
                 prescription = OperatorProgramV56.speedWarmupPrescription,
                 kind = SessionRowKind.CONDITIONING,
                 effortLabel = "WARM-UP",
-                note = OperatorProgramV56.speedStopRule,
+                note = listOf(
+                    "Perform Speed fresh. No heavy resistance work in the same session; sprint quality is the priority stimulus.",
+                    OperatorProgramV56.speedStopRule,
+                ).joinToString(" "),
             ),
         )
         rows += plan.speed.map(::conditioningRow)
         if (plan.allowsMachineFinisher) {
             machineFinisherRow(machineInventoryConfigured, availableMachineModalities)?.let(rows::add)
         }
-        rows += SessionRow(
-            id = "d3_speed_cooldown",
-            title = "Speed cooldown",
-            prescription = OperatorProgramV56.speedCooldownPrescription,
-            kind = SessionRowKind.CONDITIONING,
-            effortLabel = "COOLDOWN",
-        )
         return rows
     }
 
@@ -188,20 +184,7 @@ object SessionResolver {
                 ),
             )
         }
-        return buildList {
-            add(SessionRow("d6_engine_warmup", "Engine warm-up", OperatorProgramV56.engineWarmupPrescription, SessionRowKind.CONDITIONING, effortLabel = "WARM-UP"))
-            addAll(plan.engine.map(::conditioningRow))
-            add(
-                SessionRow(
-                    id = "d6_engine_cooldown",
-                    title = "Engine cooldown",
-                    prescription = OperatorProgramV56.engineCooldownPrescription,
-                    kind = SessionRowKind.CONDITIONING,
-                    effortLabel = "COOLDOWN",
-                    note = "After the cooldown, complete the prescribed short-upper resistance work.",
-                ),
-            )
-        }
+        return plan.engine.map(::conditioningRow)
     }
 
     private fun conditioningRow(segment: ConditioningSegment): SessionRow {

@@ -211,18 +211,23 @@ private fun ProgramNotesCard() {
     var expanded by rememberSaveable { mutableStateOf(false) }
     Card(modifier = Modifier.fillMaxWidth().testTag("program_notes_tool")) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("PROGRAM NOTES", fontWeight = FontWeight.Bold)
-            Text("Interference, sprint-volume, run-impact, and deload reference guidance. No logging required.")
+            Text("PROGRAM / COACHING NOTES", fontWeight = FontWeight.Bold)
+            Text("Execution, progression, interference, sprint-volume, run-impact, and deload guidance from the approved ARES authority. No performance logging required.")
             TextButton(
                 onClick = { expanded = !expanded },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("program_notes_toggle"),
             ) { Text(if (expanded) "HIDE NOTES" else "SHOW NOTES") }
             if (expanded) {
+                NotesSection("EXECUTION", ProgramNotesV56.execution)
+                NotesSection("RESISTANCE PROGRESSION", ProgramNotesV56.resistanceProgression)
+                NotesSection("FOUNDATION SPEED SELECTION", ProgramNotesV56.foundationSpeedSelection)
+                NotesSection("FOUNDATION ENGINE SELECTION", ProgramNotesV56.foundationEngineSelection)
                 NotesSection("INTERFERENCE", ProgramNotesV56.interference)
                 NotesSection("SPRINT VOLUME", ProgramNotesV56.sprintVolume)
                 NotesSection("RUN / IMPACT", ProgramNotesV56.runImpact)
                 NotesSection("DELOAD", ProgramNotesV56.deload)
                 NotesSection("HYPERTROPHY PROTECTION", ProgramNotesV56.hypertrophyProtection)
+                NotesSection("AUTHORITY LIMITS", ProgramNotesV56.authorityLimits)
             }
         }
     }
