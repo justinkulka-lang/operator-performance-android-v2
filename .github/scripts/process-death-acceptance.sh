@@ -191,6 +191,24 @@ assert_ui_contains() {
   fi
 }
 
+assert_text_reachable() {
+  local wanted="$1"
+  local dump="$RUNNER_TEMP/reachable.xml"
+  local search_attempt
+  for search_attempt in $(seq 1 16); do
+    dump_ui "$dump"
+    if grep -q "$wanted" "$dump"; then
+      return 0
+    fi
+    echo "Waiting for reachable '$wanted' (attempt $search_attempt/16); scrolling..." >&2
+    scroll_content_up
+    sleep 0.3
+  done
+  echo "ERROR: UI never exposed reachable pattern: $wanted" >&2
+  cat "$dump" >&2 || true
+  return 1
+}
+
 echo "Launching seeded ARES v5.7 focus state"
 adb shell am start -W -n "$activity" >/dev/null
 wait_for_activity
@@ -210,7 +228,9 @@ find_text_and_tap "RESUME WORKOUT"
 sleep 1
 dump_ui "$RUNNER_TEMP/resumed.xml"
 assert_ui_contains 'text="SET 2 / 4"' "$RUNNER_TEMP/resumed.xml"
-assert_ui_contains 'REST' "$RUNNER_TEMP/resumed.xml"
+# The refined Workout Mode keeps the primary action persistent while the rest card
+# remains in the scrollable workout reference. Verify the restored timer is reachable.
+assert_text_reachable 'REST'
 
 restored_state="$(adb shell run-as "$package" cat "$remote_prefs" | tr -d '\r')"
 grep -q 'name="workoutSchemaVersion" value="3"' <<< "$restored_state"
