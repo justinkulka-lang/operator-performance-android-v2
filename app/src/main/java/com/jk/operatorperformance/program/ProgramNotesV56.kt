@@ -78,7 +78,7 @@ object ProgramNotesV56 {
     val authorityLimits = listOf(
         "v5.7 does not specify an exact count, distance, or percentage progression for the submaximal sprint build-ups; the app must not invent one.",
         "When a sprint prescription says full recovery, v5.7 does not provide a numeric recovery duration; the app must not fabricate one.",
-        "The app does not request or store 300 m or 1.5-mile results, run pace, distance, readiness, bodyweight, load, reps, or performed RIR.",
+        "The app does not request or store 300 m or 1.5-mile results, run pace or distance, recovery-state metrics, body weight, or set-performance numbers.",
         "If a future exact execution value is required, it must come from an owner-approved authority rather than a hidden app rule.",
     )
 }
