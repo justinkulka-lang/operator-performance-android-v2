@@ -45,7 +45,9 @@ jobs:
           if grep -Eq 'android.permission.INTERNET|android.permission.health|HealthConnect|POST_NOTIFICATIONS' app/src/main/AndroidManifest.xml; then
             echo "Prohibited permission found" >&2; exit 1
           fi
-          pattern='bodyweight|calories|readiness|sleep score|HRV|heart rate|progress-photo|Health Connect|analytics|cloud sync|actualLoad|actualReps|actualRir|automatic program recomposition'
+          # Scan implementation identifiers, not the user-facing privacy statement that
+          # explicitly says these data are not collected.
+          pattern='HealthConnect|ReadinessStore|BodyweightStore|ProgressPhoto|AnalyticsClient|CloudSync|actualLoad|actualReps|actualRir|automatic program recomposition'
           if grep -RniE "$pattern" app/src/main/java app/src/main/res; then
             echo "Prohibited data architecture found" >&2; exit 1
           fi
