@@ -4,11 +4,8 @@ import com.jk.operatorperformance.program.SessionReference
 
 object WorkoutProgress {
     fun start(state: ProgramUiState): ActiveWorkoutState = ActiveWorkoutState(
-        week = state.currentWeek,
+        cycle = state.currentCycle,
         day = state.currentDay,
-        deloadMode = state.deloadMode,
-        machineInventoryConfigured = state.machineInventoryConfigured,
-        availableMachineModalities = state.availableMachineModalities,
     )
 
     fun effortId(rowId: String, effortIndex: Int): String = "$rowId#$effortIndex"
