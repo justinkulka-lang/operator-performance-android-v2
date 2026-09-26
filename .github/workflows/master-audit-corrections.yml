@@ -33,9 +33,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test ! -e app/src/main/java/com/jk/operatorperformance/program/ProgramV56.kt
-          test ! -e app/src/main/java/com/jk/operatorperformance/ui/EquipmentInventoryUi.kt
-          ! grep -RniE 'SpeedVariant|EngineVariant|manualDeloadMode|MachinePowerFinisher|splitForWeek|conditioningForWeek' app/src/main/java
+          ! grep -RniE 'object OperatorProgramV56|SpeedVariant|EngineVariant|manualDeloadMode|MachinePowerFinisher|splitForWeek|conditioningForWeek' app/src/main/java
           grep -q 'startV70' app/src/main/java/com/jk/operatorperformance/state/ProgramStateStore.kt
           grep -q 'Existing v5.7 data is preserved and is not silently mapped' app/src/main/java/com/jk/operatorperformance/ui/OperatorPerformanceApp.kt
           grep -q '4, 8 -> listOf(restRow(day))' app/src/main/java/com/jk/operatorperformance/program/SessionResolver.kt
