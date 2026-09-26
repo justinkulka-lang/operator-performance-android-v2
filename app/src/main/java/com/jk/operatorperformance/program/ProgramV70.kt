@@ -143,7 +143,7 @@ object AresProgramV70 {
         return slot.workingSets
     }
     fun plannedDose(cycle:Int, slot:ResistanceSlot, sets:Int):String {
-        cycle28Doses[slot.id]?.let { return it }
+        if (cycle == 28) cycle28Doses[slot.id]?.let { return it }
         val suffix = slot.dose.substringAfter(" ×")
         val dose = "$sets ×$suffix"
         return if (isConsolidation(cycle)) dose.replace(Regex("@ .*RIR"), "@ 3–4 RIR") else dose
