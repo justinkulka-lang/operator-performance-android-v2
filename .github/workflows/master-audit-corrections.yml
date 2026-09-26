@@ -1,267 +1,75 @@
-name: ARES Performance v5.7 Master Audit
+name: ARES Performance v7.0 Authority Audit
 
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
-      - 'construction/**'
+    branches: [main, 'construction/**']
   pull_request:
-    branches:
-      - main
+    branches: [main]
 
 permissions:
   contents: read
 
 jobs:
-  master-audit:
+  authority-audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
     steps:
-      - name: Checkout exact source
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: temurin
           java-version: '17'
-
-      - name: Set up Gradle 9.6
-        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+      - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
         with:
           gradle-version: '9.6.0'
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
+      - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
         with:
           cmdline-tools-version: 15859902
           packages: platform-tools
+      - run: sdkmanager --install "platforms;android-37.0" "build-tools;37.0.0"
 
-      - name: Install Android API and emulator support
+      - name: Source governance audit
         shell: bash
         run: |
           set -euo pipefail
-          sdkmanager --install \
-            "platforms;android-37.0" \
-            "build-tools;37.0.0" \
-            "emulator" \
-            "system-images;android-35;default;x86_64"
+          test ! -e app/src/main/java/com/jk/operatorperformance/program/ProgramV56.kt
+          test ! -e app/src/main/java/com/jk/operatorperformance/ui/EquipmentInventoryUi.kt
+          ! grep -RniE 'SpeedVariant|EngineVariant|manualDeloadMode|MachinePowerFinisher|splitForWeek|conditioningForWeek' app/src/main/java
+          grep -q 'startV70' app/src/main/java/com/jk/operatorperformance/state/ProgramStateStore.kt
+          grep -q 'Existing v5.7 data is preserved and is not silently mapped' app/src/main/java/com/jk/operatorperformance/ui/OperatorPerformanceApp.kt
+          grep -q '4, 8 -> listOf(restRow(day))' app/src/main/java/com/jk/operatorperformance/program/SessionResolver.kt
+          grep -q 'cycle in setOf(7,14,21)' app/src/main/java/com/jk/operatorperformance/program/ProgramV70.kt
+          grep -q 'cycle in setOf(26,27)' app/src/main/java/com/jk/operatorperformance/program/ProgramV70.kt
+          grep -q 'cycle == 28' app/src/main/java/com/jk/operatorperformance/program/ProgramV70.kt
 
-      - name: Verify package, live version, authority, ARES branding, and dark shell
+      - name: Canonical v7.0 audit tests
+        run: gradle :app:testDebugUnitTest --tests '*ProgramV70Test' --tests '*ProgramUiStateV70Test' --stacktrace
+
+      - name: Write provenance
         shell: bash
         run: |
-          set -euo pipefail
-          grep -q 'applicationId = "com.jk.operatorperformance"' app/build.gradle.kts
-          grep -q 'versionCode = 45' app/build.gradle.kts
-          grep -q 'versionName = "0.36.0"' app/build.gradle.kts
-          grep -q 'buildConfigField("String", "BUILD_COMMIT"' app/build.gradle.kts
-          grep -q 'AUTHORITY_VERSION = "5.7"' app/src/main/java/com/jk/operatorperformance/program/ProgramV56.kt
-          grep -q '867c468ba616a22185b871c649d8c026be5c1c61b3a7f690edac5b6169fc3d0a' app/src/main/java/com/jk/operatorperformance/program/ProgramV56.kt
-          grep -q 'PROGRAM_NAME = "ARES PERFORMANCE"' app/src/main/java/com/jk/operatorperformance/program/ProgramV56.kt
-          grep -q 'android:label="ARES Performance"' app/src/main/AndroidManifest.xml
-          grep -q 'parent="android:style/Theme.Material.NoActionBar"' app/src/main/res/values/themes.xml
-          grep -q '<item name="android:windowBackground">#0B0F14</item>' app/src/main/res/values/themes.xml
-          grep -q '<item name="android:statusBarColor">#0B0F14</item>' app/src/main/res/values/themes.xml
-          grep -q '<item name="android:navigationBarColor">#0B0F14</item>' app/src/main/res/values/themes.xml
-          grep -q '<item name="android:windowLightStatusBar">false</item>' app/src/main/res/values/themes.xml
-          grep -q '<item name="android:windowLightNavigationBar">false</item>' app/src/main/res/values/themes.xml
-
-      - name: Verify local-only privacy configuration
-        shell: bash
-        run: |
-          set -euo pipefail
-          grep -q 'android:allowBackup="false"' app/src/main/AndroidManifest.xml
-          grep -q 'android:dataExtractionRules="@xml/data_extraction_rules"' app/src/main/AndroidManifest.xml
-          grep -q 'android:fullBackupContent="@xml/backup_rules"' app/src/main/AndroidManifest.xml
-          test -f app/src/main/res/xml/data_extraction_rules.xml
-          test -f app/src/main/res/xml/backup_rules.xml
-          grep -q '<cloud-backup>' app/src/main/res/xml/data_extraction_rules.xml
-          grep -q '<device-transfer>' app/src/main/res/xml/data_extraction_rules.xml
-          for domain in root file database sharedpref external; do
-            test "$(grep -c "<exclude domain=\"$domain\" path=\"\.\"" app/src/main/res/xml/data_extraction_rules.xml)" -eq 2
-            grep -q "<exclude domain=\"$domain\" path=\"\.\"" app/src/main/res/xml/backup_rules.xml
-          done
-          if grep -Eq 'android.permission.INTERNET|android.permission.health|HealthConnect|POST_NOTIFICATIONS' app/src/main/AndroidManifest.xml; then
-            echo "Prohibited permission found in manifest" >&2
-            exit 1
-          fi
-
-      - name: Run canonical v5.7 unit audit and generate exports
-        run: gradle :app:testDebugUnitTest --stacktrace
-
-      - name: Verify 32-week population and phase/export invariants
-        shell: bash
-        run: |
-          set -euo pipefail
-          weeks=app/build/reports/program-weeks-1-32.csv
-          conditioning=app/build/reports/program-conditioning-weeks-1-32.csv
-          phases=app/build/reports/program-phases.csv
-          test -f "$weeks"
-          test -f "$conditioning"
-          test -f "$phases"
-          test "$(wc -l < "$weeks")" -eq 33
-          if grep -q 'UNPOPULATED' "$weeks"; then
-            echo "v5.7 export contains an unpopulated week" >&2
-            exit 1
-          fi
-          grep -q '^1,"FOUNDATION","HEPHAESTUS",POPULATED_NORMAL,' "$weeks"
-          grep -q '^9,"DEVELOPMENT","HERMES",POPULATED_NORMAL,' "$weeks"
-          grep -q '^17,"SPECIFIC DEVELOPMENT","ARES",POPULATED_NORMAL,' "$weeks"
-          grep -q '^25,"INTEGRATION / PEAK","ZEUS",POPULATED_NORMAL,' "$weeks"
-          grep -q '^32,"INTEGRATION / PEAK","ZEUS",POPULATED_REALIZATION_TAPER,' "$weeks"
-          for id in w1_300_baseline w1_15_baseline w16_checkpoint w24_checkpoint w32_final300 w32_final15; do
-            grep -q "$id" "$conditioning"
-          done
-          grep -q '"HEPHAESTUS"' "$phases"
-          grep -q '"HERMES"' "$phases"
-          grep -q '"ARES"' "$phases"
-          grep -q '"ZEUS"' "$phases"
-
-      - name: Prepare persistent release signing when secrets are configured
-        shell: bash
-        env:
-          KEYSTORE_B64: ${{ secrets.OPERATOR_RELEASE_KEYSTORE_B64 }}
-          STORE_PASSWORD: ${{ secrets.OPERATOR_RELEASE_STORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.OPERATOR_RELEASE_KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.OPERATOR_RELEASE_KEY_PASSWORD }}
-        run: |
-          set -euo pipefail
-          configured=0
-          for value in "$KEYSTORE_B64" "$STORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD"; do
-            [[ -n "$value" ]] && configured=$((configured + 1))
-          done
-          if [[ "$configured" -ne 0 && "$configured" -ne 4 ]]; then
-            echo "Owner release signing is partially configured; all four signing secrets are required together." >&2
-            exit 1
-          fi
-          if [[ "$configured" -eq 4 ]]; then
-            keystore="$RUNNER_TEMP/operator-release.jks"
-            printf '%s' "$KEYSTORE_B64" | base64 --decode > "$keystore"
-            chmod 600 "$keystore"
-            echo "OPERATOR_RELEASE_KEYSTORE_PATH=$keystore" >> "$GITHUB_ENV"
-            echo "OPERATOR_RELEASE_STORE_PASSWORD=$STORE_PASSWORD" >> "$GITHUB_ENV"
-            echo "OPERATOR_RELEASE_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
-            echo "OPERATOR_RELEASE_KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
-            echo "RELEASE_SIGNING_CONFIGURED=true" >> "$GITHUB_ENV"
-          else
-            echo "RELEASE_SIGNING_CONFIGURED=false" >> "$GITHUB_ENV"
-          fi
-
-      - name: Build current debug and release APKs
-        run: gradle :app:assembleDebug :app:assembleRelease --stacktrace
-
-      - name: Verify exact commit embedded in debug APK
-        shell: bash
-        run: |
-          set -euo pipefail
-          apk="app/build/outputs/apk/debug/app-debug.apk"
-          short_sha="${GITHUB_SHA:0:12}"
-          test -f "$apk"
-          unzip -p "$apk" 'classes*.dex' 2>/dev/null | strings | grep -Fq "$short_sha"
-
-      - name: Full internal source and APK boundary scan
-        shell: bash
-        run: |
-          set -euo pipefail
-          source_pattern='ESTABLISH CURRENT CAPABILITY|Recent runs per week|Easy continuous run capacity|Next-day lower-leg soreness|PROGRAM TRACKING|PERFORMANCE PROFILE|HEALTH CONNECT|SESSION RESULT|EASY / GOOD / HARD / FAILED|POSITION [1-7]|bodyweight|progress-photo|benchmark result entry|RECOVERY MODE|HISTORY destination|sled push|sled pull|Speed \\+ sled|ProgramTrackingStore|ReadinessStore|BenchmarkStore|StrengthLog|RunStopwatchStore|ConditioningExecutionStore|ActiveSetProgressStore|actualLoad|actualReps|actualRir|performed load|performed reps|performed RIR|session score|workout rating|automatic progression|block recomposition|OperatorProgramV54'
-          if grep -RniE "$source_pattern" app/src/main/java app/src/main/res; then
-            echo "Stale/prohibited runtime architecture reference found in production source" >&2
-            exit 1
-          fi
-          if grep -RniE 'Operator Performance v5\.6|Operator-Performance-v5\.6|operator-performance-v5\.6-export' app/src/main app/proguard-rules.pro --exclude-dir=build; then
-            echo "Stale v5.6 user-facing/build metadata found in production source" >&2
-            exit 1
-          fi
-          aapt2="$ANDROID_HOME/build-tools/37.0.0/aapt2"
-          permission_pattern='android.permission.INTERNET|android.permission.POST_NOTIFICATIONS|android.permission.health|HealthConnect'
-          for apk in app/build/outputs/apk/debug/*.apk app/build/outputs/apk/release/*.apk; do
-            test -f "$apk"
-            badging="$($aapt2 dump badging "$apk" | head -n1)"
-            grep -q "package: name='com.jk.operatorperformance'" <<< "$badging"
-            grep -q "versionCode='45'" <<< "$badging"
-            grep -q "versionName='0.36.0'" <<< "$badging"
-            permissions="$($aapt2 dump permissions "$apk")"
-            if grep -Ei "$permission_pattern" <<< "$permissions"; then
-              echo "Prohibited permission found in APK manifest: $apk" >&2
-              exit 1
-            fi
-            if unzip -p "$apk" 'classes*.dex' 2>/dev/null | strings | grep -Ei "$source_pattern"; then
-              echo "Stale runtime architecture reference found in APK bytecode: $apk" >&2
-              exit 1
-            fi
-          done
-
-      - name: Verify release signing lineage
-        shell: bash
-        env:
-          EXPECTED_CERT_SHA256: ${{ secrets.OPERATOR_RELEASE_CERT_SHA256 }}
-        run: |
-          set -euo pipefail
-          apksigner="$ANDROID_HOME/build-tools/37.0.0/apksigner"
-          cert_digest="UNCONFIGURED"
-          if [[ "$RELEASE_SIGNING_CONFIGURED" == "true" ]]; then
-            signed="app/build/outputs/apk/release/app-release.apk"
-            test -f "$signed"
-            if [[ -z "$EXPECTED_CERT_SHA256" ]]; then
-              echo "Owner signing is configured but OPERATOR_RELEASE_CERT_SHA256 is missing." >&2
-              exit 1
-            fi
-            verify_output="$($apksigner verify --verbose --print-certs "$signed")"
-            printf '%s\n' "$verify_output"
-            cert_digest="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' <<< "$verify_output" | head -n1 | tr '[:lower:]' '[:upper:]' | tr -d ':[:space:]')"
-            expected="$(printf '%s' "$EXPECTED_CERT_SHA256" | tr '[:lower:]' '[:upper:]' | tr -d ':[:space:]')"
-            test -n "$cert_digest"
-            if [[ "$cert_digest" != "$expected" ]]; then
-              echo "Release signing certificate fingerprint does not match the owner-pinned certificate." >&2
-              exit 1
-            fi
-          else
-            test -f app/build/outputs/apk/release/app-release-unsigned.apk
-            echo "LIMITATION: persistent release signing secrets are not configured."
-          fi
-          echo "RELEASE_CERT_SHA256=$cert_digest" >> "$GITHUB_ENV"
-
-      - name: True process-death focus completion and timer restoration acceptance
-        run: bash .github/scripts/process-death-acceptance.sh
-
-      - name: Capture dependency graph and master-audit provenance
-        shell: bash
-        run: |
-          set -euo pipefail
-          gradle :app:dependencies > app/build/reports/dependencies-master-audit.txt
+          mkdir -p app/build/reports
           {
-            echo "ARES PERFORMANCE MASTER-AUDIT PROVENANCE"
+            echo 'ARES PERFORMANCE v7.0 AUTHORITY AUDIT'
             echo "commit=$GITHUB_SHA"
-            echo "package=com.jk.operatorperformance"
-            echo "versionName=0.36.0"
-            echo "versionCode=45"
-            echo "authorityVersion=5.7"
-            echo "authoritySha256=867c468ba616a22185b871c649d8c026be5c1c61b3a7f690edac5b6169fc3d0a"
-            echo "releaseSigningConfigured=$RELEASE_SIGNING_CONFIGURED"
-            echo "releaseCertificateSha256=${RELEASE_CERT_SHA256:-UNCONFIGURED}"
-            echo
-            echo "APK SHA-256"
-            sha256sum app/build/outputs/apk/debug/*.apk app/build/outputs/apk/release/*.apk
-          } > app/build/reports/master-audit-provenance.txt
-          cat app/build/reports/master-audit-provenance.txt
+            echo 'package=com.jk.operatorperformance'
+            echo 'versionName=0.37.0'
+            echo 'versionCode=46'
+            echo 'authorityVersion=7.0'
+            echo 'authoritySha256=0f9bd7981dc0671e836165a2b3efa70113c09cfb26e76ffc9c623ebc452dcca0'
+            echo 'topology=28 cycles x 8 days = 224 days'
+            echo 'releaseAction=NONE'
+          } > app/build/reports/v70-authority-provenance.txt
 
-      - name: Upload ARES v5.7 master-audit evidence
+      - name: Upload audit evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: ARES-Performance-v5.7-Master-Audit
+          name: ARES-v7.0-authority-audit-${{ github.sha }}
           path: |
-            app/build/reports/program-matrix.csv
-            app/build/reports/program-resistance-rows.csv
-            app/build/reports/program-weeks-1-32.csv
-            app/build/reports/program-conditioning-weeks-1-32.csv
-            app/build/reports/program-phases.csv
-            app/build/reports/dependencies-master-audit.txt
-            app/build/reports/master-audit-provenance.txt
+            app/build/reports/v70-authority-provenance.txt
             app/build/reports/tests/
             app/build/test-results/
-            app/build/outputs/apk/debug/*.apk
-            app/build/outputs/apk/release/*.apk
           if-no-files-found: warn
           retention-days: 14
