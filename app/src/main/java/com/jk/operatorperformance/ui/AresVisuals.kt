@@ -28,7 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.jk.operatorperformance.R
-import com.jk.operatorperformance.program.OperatorProgramV56
+import com.jk.operatorperformance.program.AresProgramV70
 import com.jk.operatorperformance.program.ProgramBlock
 import com.jk.operatorperformance.program.SessionReference
 import com.jk.operatorperformance.program.SessionRow
@@ -61,10 +61,11 @@ private fun dayGlyphRes(day: Int): Int = when (day) {
     1 -> R.drawable.ic_lift_squat
     2 -> R.drawable.ic_lift_bench
     3 -> R.drawable.ic_event_sprint
-    4 -> R.drawable.ic_ares_master
+    4 -> R.drawable.ic_rest_laurel
     5 -> R.drawable.ic_lift_deadlift
-    6 -> R.drawable.ic_event_engine
-    7 -> R.drawable.ic_rest_laurel
+    6 -> R.drawable.ic_ares_master
+    7 -> R.drawable.ic_event_engine
+    8 -> R.drawable.ic_rest_laurel
     else -> R.drawable.ic_ares_master
 }
 
@@ -96,7 +97,7 @@ internal fun AresBrandHeader() {
         Spacer(Modifier.width(10.dp))
         Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
             Text(
-                OperatorProgramV56.PROGRAM_NAME,
+                AresProgramV70.PROGRAM_NAME,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Black,
                 color = MaterialTheme.colorScheme.primary,
@@ -108,7 +109,7 @@ internal fun AresBrandHeader() {
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
-                OperatorProgramV56.PROGRAM_TAGLINE,
+                AresProgramV70.PROGRAM_TAGLINE,
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -146,7 +147,7 @@ internal fun PhaseProgressStrip(currentPhase: ProgramBlock) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Top,
     ) {
-        OperatorProgramV56.blocks.forEach { phase ->
+        AresProgramV70.blocks.forEach { phase ->
             val current = phase.godName == currentPhase.godName
             val tint = if (current) phaseAccent(phase) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.46f)
             Column(
@@ -192,7 +193,7 @@ internal fun PhaseSummaryCard(phase: ProgramBlock, isCurrent: Boolean) {
             ) {
                 Text("${phase.godName} — ${phase.name}", fontWeight = FontWeight.Bold, color = accent)
                 Text(
-                    "Weeks ${phase.startWeek}–${phase.endWeek} • POPULATED / APPROVED",
+                    "Cycles ${phase.startCycle}–${phase.endCycle} • POPULATED / APPROVED",
                     color = if (isCurrent) accent else MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.labelMedium,
                 )

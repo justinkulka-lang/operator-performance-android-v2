@@ -32,7 +32,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.jk.operatorperformance.program.ProgramNotesV56
+import com.jk.operatorperformance.program.ProgramNotesV70
 import com.jk.operatorperformance.state.LegacyDataManager
 import com.jk.operatorperformance.state.ProgramStateStore
 import com.jk.operatorperformance.state.ToolsDataState
@@ -212,22 +212,19 @@ private fun ProgramNotesCard() {
     Card(modifier = Modifier.fillMaxWidth().testTag("program_notes_tool")) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("PROGRAM / COACHING NOTES", fontWeight = FontWeight.Bold)
-            Text("Execution, progression, interference, sprint-volume, run-impact, and deload guidance from the approved ARES authority. No performance logging required.")
+            Text("Execution, progression, interference, sprint-volume, run-impact, and planned-overlay guidance from the approved ARES v7.0 authority. No performance logging required.")
             TextButton(
                 onClick = { expanded = !expanded },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("program_notes_toggle"),
             ) { Text(if (expanded) "HIDE NOTES" else "SHOW NOTES") }
             if (expanded) {
-                NotesSection("EXECUTION", ProgramNotesV56.execution)
-                NotesSection("RESISTANCE PROGRESSION", ProgramNotesV56.resistanceProgression)
-                NotesSection("FOUNDATION SPEED SELECTION", ProgramNotesV56.foundationSpeedSelection)
-                NotesSection("FOUNDATION ENGINE SELECTION", ProgramNotesV56.foundationEngineSelection)
-                NotesSection("INTERFERENCE", ProgramNotesV56.interference)
-                NotesSection("SPRINT VOLUME", ProgramNotesV56.sprintVolume)
-                NotesSection("RUN / IMPACT", ProgramNotesV56.runImpact)
-                NotesSection("DELOAD", ProgramNotesV56.deload)
-                NotesSection("HYPERTROPHY PROTECTION", ProgramNotesV56.hypertrophyProtection)
-                NotesSection("AUTHORITY LIMITS", ProgramNotesV56.authorityLimits)
+                NotesSection("EXECUTION", ProgramNotesV70.execution)
+                NotesSection("RESISTANCE PROGRESSION", ProgramNotesV70.resistanceProgression)
+                NotesSection("INTERFERENCE", ProgramNotesV70.interference)
+                NotesSection("SPRINT VOLUME", ProgramNotesV70.sprintVolume)
+                NotesSection("RUN / IMPACT", ProgramNotesV70.runImpact)
+                NotesSection("PLANNED OVERLAYS", ProgramNotesV70.plannedOverlays)
+                NotesSection("AUTHORITY LIMITS", ProgramNotesV70.authorityLimits)
             }
         }
     }
@@ -270,7 +267,7 @@ private fun DataControlsCard() {
             Button(
                 onClick = {
                     pendingExport = legacy.buildLocalExport()
-                    exportLauncher.launch("ares-performance-v5.7-export.json")
+                    exportLauncher.launch("ares-performance-v7.0-local-export.json")
                 },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("export_data"),
             ) { Text("EXPORT DATA") }
@@ -292,7 +289,7 @@ private fun DataControlsCard() {
         AlertDialog(
             onDismissRequest = { confirmReset = false },
             title = { Text("Reset current program pointer?") },
-            text = { Text("This sets the current reference pointer to Week 1, Day 1 and clears any active workout focus pointer. It does not erase program content or utility settings.") },
+            text = { Text("This sets the current reference pointer to Cycle 1, Day 1 and clears any active workout focus pointer. It does not erase program content, retained v5.7 data, or utility settings.") },
             confirmButton = {
                 TextButton(
                     onClick = {

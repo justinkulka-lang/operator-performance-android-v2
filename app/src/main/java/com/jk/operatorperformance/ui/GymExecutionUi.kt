@@ -14,7 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.jk.operatorperformance.program.ProgramNotesV56
+import com.jk.operatorperformance.program.AresProgramV70
 import com.jk.operatorperformance.program.SessionReference
 import com.jk.operatorperformance.program.SessionRow
 import com.jk.operatorperformance.state.ActiveWorkoutState
@@ -29,22 +29,16 @@ internal enum class WorkoutMapVisualState {
 
 internal fun sessionExecutionGuidance(session: SessionReference): List<String> = buildList {
     if (session.day == 3) {
-        add(ProgramNotesV56.execution[0])
-        if (session.week == 1) add(ProgramNotesV56.execution[1])
+        add("Perform speed fresh on a safe surface; quality and mechanics govern the session.")
+        if (AresProgramV70.isTimed300(session.cycle)) add(AresProgramV70.testGate)
     }
-    if (session.day == 6) {
-        if (session.week == 1) add(ProgramNotesV56.execution[2])
-        add(ProgramNotesV56.execution[3])
+    if (session.day == 7) {
+        add("Complete the prescribed engine work before short upper. Do not add result entry or extra intervals.")
     }
 }
 
 internal fun foundationReferenceLabel(session: SessionReference, state: ProgramUiState): String? {
-    if (session.week !in 2..8) return null
-    return when (session.day) {
-        3 -> "FOUNDATION SPEED • ${state.speedVariant.label} • MANUAL REFERENCE"
-        6 -> "FOUNDATION ENGINE • ${state.engineVariant.label} • MANUAL REFERENCE"
-        else -> null
-    }
+    return if (AresProgramV70.isConsolidation(session.cycle)) "PLANNED CONSOLIDATION • FIXED PRESCRIPTION" else null
 }
 
 internal fun rowIsComplete(progress: ActiveWorkoutState, row: SessionRow): Boolean =
@@ -109,7 +103,7 @@ internal fun FoundationReferenceBanner(session: SessionReference, state: Program
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(label, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
             Text(
-                "Weeks 2–8 only. Selection remains manual; change it in TOOLS.",
+                "This overlay is part of v7.0 and is not a user-selectable deload.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

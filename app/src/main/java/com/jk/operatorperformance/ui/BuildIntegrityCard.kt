@@ -13,7 +13,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.jk.operatorperformance.BuildConfig
-import com.jk.operatorperformance.program.OperatorProgramV56
+import com.jk.operatorperformance.program.AresProgramV70
 
 @Composable
 internal fun BuildIntegrityCard() {
@@ -34,11 +34,11 @@ internal fun BuildIntegrityCard() {
                 style = MaterialTheme.typography.bodyMedium,
             )
             Text(
-                "AUTHORITY • v${OperatorProgramV56.AUTHORITY_VERSION}",
+                "AUTHORITY • v${AresProgramV70.AUTHORITY_VERSION}",
                 style = MaterialTheme.typography.bodyMedium,
             )
             Text(
-                "AUTHORITY SHA-256 • ${OperatorProgramV56.AUTHORITY_SHA256}",
+                "AUTHORITY SHA-256 • ${AresProgramV70.AUTHORITY_SHA256}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.testTag("authority_sha"),
