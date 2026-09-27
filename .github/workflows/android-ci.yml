@@ -1,4 +1,4 @@
-name: ARES Performance v7.0 CI
+name: ARES Performance v7.1 CI
 
 on:
   workflow_dispatch:
@@ -29,19 +29,19 @@ jobs:
           packages: platform-tools
 
       - name: Install Android API
-        run: sdkmanager --install "platforms;android-37.0" "build-tools;37.0.0"
+        run: sdkmanager --install "platforms;android-36" "build-tools;36.0.0"
 
-      - name: Verify v7.0 identity, authority, topology, and privacy boundary
+      - name: Verify v7.1 identity, authority, topology, and privacy boundary
         shell: bash
         run: |
           set -euo pipefail
-          grep -q 'versionCode = 46' app/build.gradle.kts
-          grep -q 'versionName = "0.37.0"' app/build.gradle.kts
-          grep -q 'AUTHORITY_VERSION = "7.0"' app/src/main/java/com/jk/operatorperformance/program/ProgramV70.kt
-          grep -q '0f9bd7981dc0671e836165a2b3efa70113c09cfb26e76ffc9c623ebc452dcca0' app/src/main/java/com/jk/operatorperformance/program/ProgramV70.kt
-          grep -q 'TOTAL_CYCLES = 28' app/src/main/java/com/jk/operatorperformance/program/ProgramV70.kt
-          grep -q 'DAYS_PER_CYCLE = 8' app/src/main/java/com/jk/operatorperformance/program/ProgramV70.kt
-          grep -q 'PREFS_NAME="ares_v70_reference_state"' app/src/main/java/com/jk/operatorperformance/state/ProgramStateStore.kt
+          grep -q 'versionCode = 47' app/build.gradle.kts
+          grep -q 'versionName = "0.38.0"' app/build.gradle.kts
+          grep -q 'AUTHORITY_VERSION = "7.1"' app/src/main/java/com/jk/operatorperformance/program/ProgramV71.kt
+          grep -q '1d33dbca214b34dd456a971d32bc1c19d59e3a13069393429fc9e2115e3a036c' app/src/main/java/com/jk/operatorperformance/program/ProgramV71.kt
+          grep -q 'TOTAL_WEEKS = 32' app/src/main/java/com/jk/operatorperformance/program/ProgramV71.kt
+          grep -q 'DAYS_PER_WEEK = 7' app/src/main/java/com/jk/operatorperformance/program/ProgramV71.kt
+          grep -q 'PREFS_NAME="ares_v71_reference_state"' app/src/main/java/com/jk/operatorperformance/state/ProgramStateStore.kt
           if grep -Eq 'android.permission.INTERNET|android.permission.health|HealthConnect|POST_NOTIFICATIONS' app/src/main/AndroidManifest.xml; then
             echo "Prohibited permission found" >&2; exit 1
           fi
@@ -55,7 +55,7 @@ jobs:
       - name: Unit tests and debug build
         run: gradle :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
 
-      - name: Instrumented v7.0 launch acceptance
+      - name: Instrumented v7.1 launch acceptance
         shell: bash
         run: |
           set -euo pipefail
@@ -68,17 +68,17 @@ jobs:
           set -euo pipefail
           apk=app/build/outputs/apk/debug/app-debug.apk
           test -f "$apk"
-          badging="$("$ANDROID_HOME/build-tools/37.0.0/aapt2" dump badging "$apk" | head -n1)"
+          badging="$("$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "$apk" | head -n1)"
           grep -q "package: name='com.jk.operatorperformance'" <<< "$badging"
-          grep -q "versionCode='46'" <<< "$badging"
-          grep -q "versionName='0.37.0'" <<< "$badging"
+          grep -q "versionCode='47'" <<< "$badging"
+          grep -q "versionName='0.38.0'" <<< "$badging"
           unzip -p "$apk" 'classes*.dex' 2>/dev/null | strings | grep -Fq "${GITHUB_SHA:0:12}"
 
       - name: Upload candidate evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: ARES-v7.0-candidate-${{ github.sha }}
+          name: ARES-v7.1-candidate-${{ github.sha }}
           path: |
             app/build/reports/tests/
             app/build/reports/androidTests/managedDevice/

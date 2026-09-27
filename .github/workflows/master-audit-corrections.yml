@@ -1,4 +1,4 @@
-name: ARES Performance v7.0 Authority Audit
+name: ARES Performance v7.1 Authority Audit
 
 on:
   workflow_dispatch:
@@ -27,46 +27,46 @@ jobs:
         with:
           cmdline-tools-version: 15859902
           packages: platform-tools
-      - run: sdkmanager --install "platforms;android-37.0" "build-tools;37.0.0"
+      - run: sdkmanager --install "platforms;android-36" "build-tools;36.0.0"
 
       - name: Source governance audit
         shell: bash
         run: |
           set -euo pipefail
-          ! grep -RniE 'object OperatorProgramV56|SpeedVariant|EngineVariant|manualDeloadMode|MachinePowerFinisher|splitForWeek|conditioningForWeek' app/src/main/java
-          grep -q 'startV70' app/src/main/java/com/jk/operatorperformance/state/ProgramStateStore.kt
-          grep -q 'Existing v5.7 data is preserved and is not silently mapped' app/src/main/java/com/jk/operatorperformance/ui/OperatorPerformanceApp.kt
-          grep -q '4, 8 -> listOf(restRow(day))' app/src/main/java/com/jk/operatorperformance/program/SessionResolver.kt
-          grep -q 'cycle in setOf(7,14,21)' app/src/main/java/com/jk/operatorperformance/program/ProgramV70.kt
-          grep -q 'cycle in setOf(26,27)' app/src/main/java/com/jk/operatorperformance/program/ProgramV70.kt
-          grep -q 'cycle == 28' app/src/main/java/com/jk/operatorperformance/program/ProgramV70.kt
+          ! grep -RniE 'object OperatorProgramV56|SpeedVariant|EngineVariant|manualDeloadMode|MachinePowerFinisher' app/src/main/java
+          grep -q 'startV71' app/src/main/java/com/jk/operatorperformance/state/ProgramStateStore.kt
+          grep -q 'Existing v7.0 progress is migrated when available' app/src/main/java/com/jk/operatorperformance/ui/OperatorPerformanceApp.kt
+          grep -q '7 -> listOf(restRow(day))' app/src/main/java/com/jk/operatorperformance/program/SessionResolver.kt
+          grep -q 'week in setOf(8,16,24)' app/src/main/java/com/jk/operatorperformance/program/ProgramV71.kt
+          grep -q 'week in setOf(30,31)' app/src/main/java/com/jk/operatorperformance/program/ProgramV71.kt
+          grep -q 'week == 32' app/src/main/java/com/jk/operatorperformance/program/ProgramV71.kt
 
-      - name: Canonical v7.0 audit tests
-        run: gradle :app:testDebugUnitTest --tests '*ProgramV70Test' --tests '*ProgramUiStateV70Test' --stacktrace
+      - name: Canonical v7.1 audit tests
+        run: gradle :app:testDebugUnitTest --tests '*ProgramV71Test' --tests '*ProgramUiStateV71Test' --stacktrace
 
       - name: Write provenance
         shell: bash
         run: |
           mkdir -p app/build/reports
           {
-            echo 'ARES PERFORMANCE v7.0 AUTHORITY AUDIT'
+            echo 'ARES PERFORMANCE v7.1 AUTHORITY AUDIT'
             echo "commit=$GITHUB_SHA"
             echo 'package=com.jk.operatorperformance'
-            echo 'versionName=0.37.0'
-            echo 'versionCode=46'
-            echo 'authorityVersion=7.0'
-            echo 'authoritySha256=0f9bd7981dc0671e836165a2b3efa70113c09cfb26e76ffc9c623ebc452dcca0'
-            echo 'topology=28 cycles x 8 days = 224 days'
+            echo 'versionName=0.38.0'
+            echo 'versionCode=47'
+            echo 'authorityVersion=7.1'
+            echo 'authoritySha256=1d33dbca214b34dd456a971d32bc1c19d59e3a13069393429fc9e2115e3a036c'
+            echo 'topology=32 weeks x 7 days = 224 days'
             echo 'releaseAction=NONE'
-          } > app/build/reports/v70-authority-provenance.txt
+          } > app/build/reports/v71-authority-provenance.txt
 
       - name: Upload audit evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: ARES-v7.0-authority-audit-${{ github.sha }}
+          name: ARES-v7.1-authority-audit-${{ github.sha }}
           path: |
-            app/build/reports/v70-authority-provenance.txt
+            app/build/reports/v71-authority-provenance.txt
             app/build/reports/tests/
             app/build/test-results/
           if-no-files-found: warn
