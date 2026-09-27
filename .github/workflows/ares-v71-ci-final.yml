@@ -29,7 +29,7 @@ jobs:
           packages: platform-tools
 
       - name: Install Android API
-        run: sdkmanager --install "platforms;android-37" "build-tools;36.0.0"
+        run: sdkmanager --install "platforms;android-36" "build-tools;36.0.0"
 
       - name: Verify v7.1 identity, authority, topology, and privacy boundary
         shell: bash
