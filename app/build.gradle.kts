@@ -8,7 +8,7 @@ val buildCommit = if (sourceCommit == "LOCAL") sourceCommit else sourceCommit.ta
 
 android {
     namespace = "com.jk.operatorperformance"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.jk.operatorperformance"
