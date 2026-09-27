@@ -1,0 +1,89 @@
+name: ARES Performance v7.1 CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, 'construction/**']
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  app-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+        with:
+          gradle-version: '9.6.0'
+      - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
+        with:
+          cmdline-tools-version: 15859902
+          packages: platform-tools
+
+      - name: Install Android API
+        run: sdkmanager --install "platforms;android-37.1" "build-tools;37.1.0"
+
+      - name: Verify v7.1 identity, authority, topology, and privacy boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'versionCode = 47' app/build.gradle.kts
+          grep -q 'versionName = "0.38.0"' app/build.gradle.kts
+          grep -q 'AUTHORITY_VERSION = "7.1"' app/src/main/java/com/jk/operatorperformance/program/ProgramV71.kt
+          grep -q '1d33dbca214b34dd456a971d32bc1c19d59e3a13069393429fc9e2115e3a036c' app/src/main/java/com/jk/operatorperformance/program/ProgramV71.kt
+          grep -q 'TOTAL_WEEKS = 32' app/src/main/java/com/jk/operatorperformance/program/ProgramV71.kt
+          grep -q 'DAYS_PER_WEEK = 7' app/src/main/java/com/jk/operatorperformance/program/ProgramV71.kt
+          grep -q 'PREFS_NAME="ares_v71_reference_state"' app/src/main/java/com/jk/operatorperformance/state/ProgramStateStore.kt
+          if grep -Eq 'android.permission.INTERNET|android.permission.health|HealthConnect|POST_NOTIFICATIONS' app/src/main/AndroidManifest.xml; then
+            echo "Prohibited permission found" >&2; exit 1
+          fi
+          # Scan implementation identifiers, not the user-facing privacy statement that
+          # explicitly says these data are not collected.
+          pattern='HealthConnect|ReadinessStore|BodyweightStore|ProgressPhoto|AnalyticsClient|CloudSync|actualLoad|actualReps|actualRir|automatic program recomposition'
+          if grep -RniE "$pattern" app/src/main/java app/src/main/res; then
+            echo "Prohibited data architecture found" >&2; exit 1
+          fi
+
+      - name: Unit tests and debug build
+        run: gradle :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
+
+      - name: Instrumented v7.1 launch acceptance
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -e /dev/kvm ]]; then sudo chmod 666 /dev/kvm; fi
+          gradle :app:pixel2api35DebugAndroidTest --stacktrace
+
+      - name: Verify APK identity and embedded commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk=app/build/outputs/apk/debug/app-debug.apk
+          test -f "$apk"
+          badging="$("$ANDROID_HOME/build-tools/37.1.0/aapt2" dump badging "$apk" | head -n1)"
+          grep -q "package: name='com.jk.operatorperformance'" <<< "$badging"
+          grep -q "versionCode='47'" <<< "$badging"
+          grep -q "versionName='0.38.0'" <<< "$badging"
+          unzip -p "$apk" 'classes*.dex' 2>/dev/null | strings | grep -Fq "${GITHUB_SHA:0:12}"
+
+      - name: Upload candidate evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: ARES-v7.1-candidate-${{ github.sha }}
+          path: |
+            app/build/reports/tests/
+            app/build/reports/androidTests/managedDevice/
+            app/build/test-results/
+            app/build/outputs/androidTest-results/managedDevice/
+            app/build/outputs/apk/debug/*.apk
+          if-no-files-found: warn
+          retention-days: 14
