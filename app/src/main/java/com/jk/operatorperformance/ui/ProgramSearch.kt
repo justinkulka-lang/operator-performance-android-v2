@@ -18,7 +18,7 @@ internal fun searchProgram(
     val normalized = normalizeProgramQuery(query)
     if (normalized.isBlank() || limit <= 0) return emptyList()
 
-    val requestedCycle = Regex("\\bcycle (\\d{1,2})\\b")
+    val requestedWeek = Regex("\\bweek (\\d{1,2})\\b")
         .find(normalized)
         ?.groupValues
         ?.get(1)
@@ -28,24 +28,24 @@ internal fun searchProgram(
         ?.groupValues
         ?.get(1)
         ?.toIntOrNull()
-    if (requestedCycle != null && requestedCycle !in 1..28) return emptyList()
+    if (requestedWeek != null && requestedWeek !in 1..32) return emptyList()
 
     val freeText = normalized
-        .replace(Regex("\\bcycle \\d{1,2}\\b"), " ")
+        .replace(Regex("\\bweek \\d{1,2}\\b"), " ")
         .replace(Regex("\\bday [1-8]\\b"), " ")
         .replace(Regex("\\s+"), " ")
         .trim()
     val freeTextTokens = freeText.split(Regex("\\s+")).filter { it.isNotBlank() }
 
     return buildList {
-        for (cycle in 1..28) {
-            if (requestedCycle != null && cycle != requestedCycle) continue
-            val sessions = SessionResolver.splitForCycle(cycle)
+        for (week in 1..32) {
+            if (requestedWeek != null && week != requestedWeek) continue
+            val sessions = SessionResolver.splitForWeek(week)
             for (session in sessions) {
                 if (requestedDay != null && session.day != requestedDay) continue
 
                 val phaseText = "${session.phase.godName} ${session.phase.name}"
-                val header = "cycle ${session.cycle} day ${session.day} ${session.title} $phaseText"
+                val header = "week ${session.week} day ${session.day} ${session.title} $phaseText"
                 val rowText = session.rows.joinToString(" ") { row ->
                     buildString {
                         append(row.title)
@@ -73,7 +73,7 @@ internal fun searchProgram(
                 add(
                     ProgramSearchHit(
                         session = session,
-                        matchLabel = "C${session.cycle} • D${session.day} • ${session.title}",
+                        matchLabel = "W${session.week} • D${session.day} • ${session.title}",
                         matchSnippet = snippet.take(220),
                     ),
                 )
@@ -85,10 +85,10 @@ internal fun searchProgram(
 
 internal fun normalizeProgramQuery(query: String): String {
     val lower = query.trim().lowercase()
-    val expandedCycles = Regex("\\bc(\\d{1,2})\\b").replace(lower) { match ->
-        "cycle ${match.groupValues[1]}"
+    val expandedWeeks = Regex("\\bw(\\d{1,2})\\b").replace(lower) { match ->
+        "week ${match.groupValues[1]}"
     }
-    val expandedDays = Regex("\\bd([1-8])\\b").replace(expandedCycles) { match ->
+    val expandedDays = Regex("\\bd([1-7])\\b").replace(expandedWeeks) { match ->
         "day ${match.groupValues[1]}"
     }
     return expandedDays

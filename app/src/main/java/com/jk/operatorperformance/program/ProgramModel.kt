@@ -10,7 +10,7 @@ enum class MuscleRole(val creditPerSet: Double) { PRIME(1.0), SYNERGIST(0.5) }
 
 data class Alternative(val rank: Int, val name: String)
 
-/** One canonical resistance slot for one phase. Planned overlays are applied by cycle. */
+/** One canonical resistance slot for one phase. Planned overlays are applied by week. */
 data class ResistanceSlot(
     val id: String,
     val phase: Int,
@@ -37,22 +37,22 @@ data class ConditioningSegment(
     val note: String? = null,
 )
 
-data class CycleConditioning(
-    val cycle: Int,
+data class WeekConditioning(
+    val week: Int,
     val d1: List<ConditioningSegment>,
     val speed: List<ConditioningSegment>,
     val engine: List<ConditioningSegment>,
 )
 
-data class CycleDefinition(val cycle: Int)
+data class WeekDefinition(val week: Int)
 
 enum class BlockStatus { POPULATED }
 
 data class ProgramBlock(
     val name: String,
     val godName: String,
-    val startCycle: Int,
-    val endCycle: Int,
+    val startWeek: Int,
+    val endWeek: Int,
     val status: BlockStatus,
     val purpose: String,
 ) {

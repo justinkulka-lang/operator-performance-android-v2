@@ -4,7 +4,7 @@ import com.jk.operatorperformance.program.SessionReference
 
 object WorkoutProgress {
     fun start(state: ProgramUiState): ActiveWorkoutState = ActiveWorkoutState(
-        cycle = state.currentCycle,
+        week = state.currentWeek,
         day = state.currentDay,
     )
 

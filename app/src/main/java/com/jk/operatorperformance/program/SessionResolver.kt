@@ -23,65 +23,71 @@ data class SessionRow(
 }
 
 data class SessionReference(
-    val cycle: Int,
+    val week: Int,
     val day: Int,
     val title: String,
     val rows: List<SessionRow>,
-    val phase: ProgramBlock = AresProgramV70.blockForCycle(cycle),
+    val phase: ProgramBlock = AresProgramV71.blockForWeek(week),
 )
 
 object SessionResolver {
-    fun resolve(cycle: Int, day: Int): SessionReference {
-        require(cycle in 1..AresProgramV70.TOTAL_CYCLES) { "Cycle must be 1–28." }
-        require(day in 1..AresProgramV70.DAYS_PER_CYCLE) { "Day must be 1–8." }
-        val plan = AresProgramV70.conditioningForCycle(cycle)
+    fun resolve(week: Int, day: Int): SessionReference {
+        require(week in 1..AresProgramV71.TOTAL_WEEKS) { "Week must be 1–32." }
+        require(day in 1..AresProgramV71.DAYS_PER_WEEK) { "Day must be 1–7." }
+        val plan = AresProgramV71.conditioningForWeek(week)
         val rows = when (day) {
-            1 -> resistanceRows(cycle, day) + plan.d1.map(::conditioningRow)
-            2 -> resistanceRows(cycle, day)
-            3 -> speedRows(cycle, plan)
-            4, 8 -> listOf(restRow(day))
-            5 -> if (cycle == 28) listOf(restRow(day)) else resistanceRows(cycle, day)
-            6 -> resistanceRows(cycle, day)
-            7 -> plan.engine.map(::conditioningRow) + if (AresProgramV70.omitShortUpper(cycle)) emptyList() else resistanceRows(cycle, day)
+            1 -> resistanceRows(week, day) + plan.d1.map(::conditioningRow)
+            2 -> resistanceRows(week, day)
+            3 -> speedRows(week, plan)
+            4 -> resistanceRows(week, day)
+            5 -> if (week == 32) listOf(finalRecoveryRow()) else resistanceRows(week, day)
+            6 -> plan.engine.map(::conditioningRow) + if (AresProgramV71.omitShortUpper(week)) emptyList() else resistanceRows(week, day)
+            7 -> listOf(restRow(day))
             else -> error("Unreachable day")
         }
-        val title = if (cycle == 28 && day == 5) "Rest" else requireNotNull(AresProgramV70.dayTitles[day])
-        return SessionReference(cycle, day, title, rows)
+        val title = if (week == 32 && day == 5) "Very easy recovery primer" else requireNotNull(AresProgramV71.dayTitles[day])
+        return SessionReference(week, day, title, rows)
     }
 
-    fun splitForCycle(cycle: Int): List<SessionReference> =
-        (1..AresProgramV70.DAYS_PER_CYCLE).map { resolve(cycle, it) }
+    fun splitForWeek(week: Int): List<SessionReference> =
+        (1..AresProgramV71.DAYS_PER_WEEK).map { resolve(week, it) }
 
-    private fun resistanceRows(cycle:Int, day:Int):List<SessionRow> =
-        AresProgramV70.resistanceForDay(cycle, day).mapNotNull { slot ->
-            val sets = AresProgramV70.plannedSets(cycle, slot) ?: return@mapNotNull null
+    private fun resistanceRows(week:Int, day:Int):List<SessionRow> =
+        AresProgramV71.resistanceForDay(week, day).mapNotNull { slot ->
+            val sets = AresProgramV71.plannedSets(week, slot) ?: return@mapNotNull null
             val overlay = when {
-                AresProgramV70.isConsolidation(cycle) -> "Planned consolidation: half normal sets (odd totals rounded down, minimum one), 3–4 RIR; no extra work."
-                cycle in setOf(26,27) -> "Planned peak overlay. Do not add omitted sets or movements."
-                cycle == 28 -> "Final realization overlay. Do not add omitted sets or movements."
+                AresProgramV71.isConsolidation(week) -> "Planned consolidation: half normal sets (odd totals rounded down, minimum one), 3–4 RIR; no extra work."
+                week in setOf(30,31) -> "Planned realization overlay. Do not add omitted sets or movements."
+                week == 32 -> "Final-test overlay. Do not add omitted sets or movements."
                 else -> null
             }
             SessionRow(
-                id=slot.id,title=slot.movement,prescription=AresProgramV70.plannedDose(cycle,slot,sets),kind=SessionRowKind.RESISTANCE,
+                id=slot.id,title=slot.movement,prescription=AresProgramV71.plannedDose(week,slot,sets),kind=SessionRowKind.RESISTANCE,
                 alternatives=slot.alternatives.sortedBy { it.rank }.map { it.name },
                 note=listOfNotNull(slot.restGuidance,overlay).joinToString(" "),effortCount=sets,effortLabel="SET")
         }
 
-    private fun speedRows(cycle:Int, plan:CycleConditioning):List<SessionRow> = buildList {
-        add(SessionRow("d3_speed_warmup","Speed warm-up",AresProgramV70.speedWarmupPrescription,SessionRowKind.CONDITIONING,
-            note="Perform speed fresh; no heavy lifting in the same session. ${AresProgramV70.speedStopRule}",effortLabel="WARM-UP"))
-        if (AresProgramV70.isTimed300(cycle)) {
-            add(SessionRow("c${cycle}_timed300_gate","Timed 300 m eligibility gate",AresProgramV70.testGate,SessionRowKind.CONDITIONING,
+    private fun speedRows(week:Int, plan:WeekConditioning):List<SessionRow> = buildList {
+        add(SessionRow("d3_speed_warmup","Speed warm-up",AresProgramV71.speedWarmupPrescription,SessionRowKind.CONDITIONING,
+            note="Perform speed fresh; no heavy lifting in the same session. ${AresProgramV71.speedStopRule}",effortLabel="WARM-UP"))
+        if (AresProgramV71.isTimed300(week)) {
+            add(SessionRow("w${week}_timed300_gate","Timed 300 m eligibility gate",AresProgramV71.testGate,SessionRowKind.CONDITIONING,
                 alternatives=listOf("6 × 30 m at 70–85%; 3 min recovery when the gate is not met."),effortLabel="CHECK"))
         }
-        if (AresProgramV70.includesPlyometrics(cycle)) {
-            add(SessionRow("c${cycle}_plyometrics","Low-volume plyometrics","3 × 3 pogo jumps + 3 × 2 broad jumps. Full-quality contacts; stop before output falls.",SessionRowKind.CONDITIONING,
-                note="Approved only for this cycle; omitted during consolidations and tests.",effortCount=6,effortLabel="SET"))
+        if (AresProgramV71.includesPlyometrics(week)) {
+            add(SessionRow("w${week}_plyometrics","Low-volume plyometrics","3 × 3 pogo jumps + 3 × 2 broad jumps. Full-quality contacts; stop before output falls.",SessionRowKind.CONDITIONING,
+                note="Approved only for this week; omitted during consolidations and tests.",effortCount=6,effortLabel="SET"))
         }
         addAll(plan.speed.map(::conditioningRow))
     }
 
-    private fun restRow(day:Int) = SessionRow("d${day}_rest","Rest",AresProgramV70.restPrescription,SessionRowKind.REST,effortLabel="REST")
+    private fun restRow(day:Int) = SessionRow("d${day}_rest","Rest",AresProgramV71.restPrescription,SessionRowKind.REST,effortLabel="REST")
+
+    private fun finalRecoveryRow() = SessionRow(
+        "w32_d5_recovery", "Final-test recovery primer",
+        "15–20 min very easy bike and mobility only; no Lower B lifting.",
+        SessionRowKind.CONDITIONING, effortLabel="RECOVERY",
+    )
 
     private fun conditioningRow(segment:ConditioningSegment):SessionRow {
         val warning = when (ProgramAudit.sprintVolumeStatus(segment.qualifyingSprintMeters)) {

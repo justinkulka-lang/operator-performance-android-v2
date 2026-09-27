@@ -14,7 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.jk.operatorperformance.program.AresProgramV70
+import com.jk.operatorperformance.program.AresProgramV71
 import com.jk.operatorperformance.program.SessionReference
 import com.jk.operatorperformance.program.SessionRow
 import com.jk.operatorperformance.state.ActiveWorkoutState
@@ -30,7 +30,7 @@ internal enum class WorkoutMapVisualState {
 internal fun sessionExecutionGuidance(session: SessionReference): List<String> = buildList {
     if (session.day == 3) {
         add("Perform speed fresh on a safe surface; quality and mechanics govern the session.")
-        if (AresProgramV70.isTimed300(session.cycle)) add(AresProgramV70.testGate)
+        if (AresProgramV71.isTimed300(session.week)) add(AresProgramV71.testGate)
     }
     if (session.day == 7) {
         add("Complete the prescribed engine work before short upper. Do not add result entry or extra intervals.")
@@ -38,7 +38,7 @@ internal fun sessionExecutionGuidance(session: SessionReference): List<String> =
 }
 
 internal fun foundationReferenceLabel(session: SessionReference, state: ProgramUiState): String? {
-    return if (AresProgramV70.isConsolidation(session.cycle)) "PLANNED CONSOLIDATION • FIXED PRESCRIPTION" else null
+    return if (AresProgramV71.isConsolidation(session.week)) "PLANNED CONSOLIDATION • FIXED PRESCRIPTION" else null
 }
 
 internal fun rowIsComplete(progress: ActiveWorkoutState, row: SessionRow): Boolean =
@@ -103,7 +103,7 @@ internal fun FoundationReferenceBanner(session: SessionReference, state: Program
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(label, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
             Text(
-                "This overlay is part of v7.0 and is not a user-selectable deload.",
+                "This overlay is part of v7.1 and is not a user-selectable deload.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

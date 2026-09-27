@@ -55,7 +55,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.jk.operatorperformance.program.AresProgramV70
+import com.jk.operatorperformance.program.AresProgramV71
 import com.jk.operatorperformance.program.SessionReference
 import com.jk.operatorperformance.program.SessionResolver
 import com.jk.operatorperformance.program.SessionRow
@@ -83,7 +83,7 @@ private val AresDarkColors = darkColorScheme(
 )
 
 private enum class Destination(val label: String) {
-    TODAY("TODAY"), CYCLE("CYCLE"), PROGRAM("PROGRAM"), TOOLS("TOOLS")
+    TODAY("TODAY"), WEEK("WEEK"), PROGRAM("PROGRAM"), TOOLS("TOOLS")
 }
 
 @Composable
@@ -92,7 +92,7 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
     var activeWorkout by remember { mutableStateOf(stateStore.loadWorkout()) }
     var workoutMode by rememberSaveable { mutableStateOf(false) }
     var destinationName by rememberSaveable { mutableStateOf(Destination.TODAY.name) }
-    var selectedProgramCycle by rememberSaveable { mutableIntStateOf(state.currentCycle) }
+    var selectedProgramWeek by rememberSaveable { mutableIntStateOf(state.currentWeek) }
     var referenceSession by remember { mutableStateOf<SessionReference?>(null) }
     var referenceCanSetCurrent by remember { mutableStateOf(false) }
     var pendingPointer by remember { mutableStateOf<Pair<Int, Int>?>(null) }
@@ -117,16 +117,16 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
             Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                 Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.Center) {
                     BrandHeader()
-                    Text("ARES v7.0", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                    Text("ARES v7.1", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(12.dp))
-                    Text("The approved program uses 28 eight-day cycles. Existing v5.7 data is preserved and is not silently mapped into this new structure.")
+                    Text("The approved program uses 32 seven-day weeks with six training days and one rest day each week.")
                     Spacer(Modifier.height(12.dp))
-                    Text("Starting initializes v7.0 at Cycle 1, Day 1. This action does not delete the prior app data.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Starting resumes your approved position at Week 2, Day 3. Existing v7.0 progress is migrated when available.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(24.dp))
                     Button(
-                        onClick = { clearWorkout(); persist(state.startV70()); selectedProgramCycle = 1 },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("start_v70"),
-                    ) { Text("START CYCLE 1 • DAY 1", fontWeight = FontWeight.Bold) }
+                        onClick = { clearWorkout(); persist(state.startV71()); selectedProgramWeek = 2 },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("start_v71"),
+                    ) { Text("CONTINUE WEEK 2 • DAY 3", fontWeight = FontWeight.Bold) }
                 }
             }
             return@MaterialTheme
@@ -158,7 +158,7 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
                                 Icon(
                                     imageVector = when (item) {
                                         Destination.TODAY -> Icons.Default.Home
-                                        Destination.CYCLE -> Icons.Default.DateRange
+                                        Destination.WEEK -> Icons.Default.DateRange
                                         Destination.PROGRAM -> Icons.AutoMirrored.Filled.ListAlt
                                         Destination.TOOLS -> Icons.Default.Build
                                     },
@@ -193,10 +193,10 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
                             clearWorkout()
                             val next = state.advanceDay()
                             persist(next)
-                            selectedProgramCycle = next.currentCycle
+                            selectedProgramWeek = next.currentWeek
                         },
                     )
-                    Destination.CYCLE -> CycleScreen(
+                    Destination.WEEK -> WeekScreen(
                         state = state,
                         onOpenDay = {
                             referenceCanSetCurrent = false
@@ -205,8 +205,8 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
                     )
                     Destination.PROGRAM -> ProgramScreen(
                         state = state,
-                        selectedCycle = selectedProgramCycle,
-                        onSelectCycle = { selectedProgramCycle = it },
+                        selectedWeek = selectedProgramWeek,
+                        onSelectWeek = { selectedProgramWeek = it },
                         onOpenDay = {
                             referenceCanSetCurrent = true
                             referenceSession = it
@@ -224,23 +224,23 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
             DayReferenceDialog(
                 session = session,
                 state = state,
-                allowSetCurrent = referenceCanSetCurrent && (session.cycle != state.currentCycle || session.day != state.currentDay),
+                allowSetCurrent = referenceCanSetCurrent && (session.week != state.currentWeek || session.day != state.currentDay),
                 onDismiss = { referenceSession = null },
-                onRequestSetCurrent = { pendingPointer = session.cycle to session.day },
+                onRequestSetCurrent = { pendingPointer = session.week to session.day },
             )
         }
 
-        pendingPointer?.let { (cycle, day) ->
+        pendingPointer?.let { (week, day) ->
             AlertDialog(
                 onDismissRequest = { pendingPointer = null },
                 title = { Text("Change current program day?") },
-                text = { Text("Set the current pointer to Cycle $cycle, Day $day? This changes navigation state only.") },
+                text = { Text("Set the current pointer to Week $week, Day $day? This changes navigation state only.") },
                 confirmButton = {
                     TextButton(
                         onClick = {
                             clearWorkout()
-                            persist(state.withCurrentPointer(cycle, day))
-                            selectedProgramCycle = cycle
+                            persist(state.withCurrentPointer(week, day))
+                            selectedProgramWeek = week
                             pendingPointer = null
                             referenceSession = null
                         },
@@ -262,16 +262,16 @@ private fun TodayScreen(
     onResetWorkout: () -> Unit,
     onAdvance: () -> Unit,
 ) {
-    val session = resolveSession(state.currentCycle, state.currentDay, state)
+    val session = resolveSession(state.currentWeek, state.currentDay, state)
     val progress = activeWorkout?.let { WorkoutProgress.normalize(it, session) }
     val completed = progress?.let { WorkoutProgress.completedEfforts(it, session) } ?: 0
     val total = WorkoutProgress.totalEfforts(session)
-    val atEnd = state.currentCycle == 28 && state.currentDay == 8
+    val atEnd = state.currentWeek == 32 && state.currentDay == 7
     val isRest = session.rows.all { it.kind == SessionRowKind.REST }
     val executionGuidance = sessionExecutionGuidance(session)
     val foundationReference = foundationReferenceLabel(session, state)
-    var confirmAdvance by rememberSaveable(state.currentCycle, state.currentDay) { mutableStateOf(false) }
-    var confirmReset by rememberSaveable(state.currentCycle, state.currentDay) { mutableStateOf(false) }
+    var confirmAdvance by rememberSaveable(state.currentWeek, state.currentDay) { mutableStateOf(false) }
+    var confirmReset by rememberSaveable(state.currentWeek, state.currentDay) { mutableStateOf(false) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().testTag("today_screen"),
@@ -282,7 +282,7 @@ private fun TodayScreen(
             BrandHeader()
             PhaseIdentityLine(session.phase, Modifier.testTag("today_phase"))
             Text(
-                "CYCLE ${session.cycle} • DAY ${session.day}",
+                "WEEK ${session.week} • DAY ${session.day}",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = FontWeight.Bold,
@@ -348,7 +348,7 @@ private fun TodayScreen(
             }
             if (atEnd) {
                 Card(Modifier.fillMaxWidth()) {
-                    Text("ARES PERFORMANCE • 28-CYCLE / 224-DAY PROGRAM COMPLETE", Modifier.padding(16.dp), fontWeight = FontWeight.Bold)
+                    Text("ARES PERFORMANCE • 32-WEEK / 224-DAY PROGRAM COMPLETE", Modifier.padding(16.dp), fontWeight = FontWeight.Bold)
                 }
             } else {
                 Button(
@@ -460,7 +460,7 @@ private fun WorkoutModeScreen(
     onProgress: (ActiveWorkoutState) -> Unit,
     onReturnToToday: () -> Unit,
 ) {
-    val session = SessionResolver.resolve(progress.cycle, progress.day)
+    val session = SessionResolver.resolve(progress.week, progress.day)
     val normalized = WorkoutProgress.normalize(progress, session)
     val row = session.rows[normalized.movementIndex]
     val selected = normalized.selectedSubstitutions[row.id]
@@ -522,7 +522,7 @@ private fun WorkoutModeScreen(
                 BrandHeader()
                 PhaseIdentityLine(session.phase)
                 Text(
-                    "CYCLE ${session.cycle} • DAY ${session.day} • ${session.title}",
+                    "WEEK ${session.week} • DAY ${session.day} • ${session.title}",
                     style = MaterialTheme.typography.labelLarge,
                     modifier = Modifier.testTag("workout_context"),
                 )
@@ -653,8 +653,8 @@ private fun WorkoutModeScreen(
 }
 
 @Composable
-private fun CycleScreen(state: ProgramUiState, onOpenDay: (SessionReference) -> Unit) {
-    val split = splitForCycle(state.currentCycle, state)
+private fun WeekScreen(state: ProgramUiState, onOpenDay: (SessionReference) -> Unit) {
+    val split = splitForWeek(state.currentWeek, state)
     LazyColumn(
         modifier = Modifier.fillMaxSize().testTag("week_screen"),
         contentPadding = PaddingValues(16.dp),
@@ -662,9 +662,9 @@ private fun CycleScreen(state: ProgramUiState, onOpenDay: (SessionReference) -> 
     ) {
         item {
             BrandHeader()
-            val phase = AresProgramV70.blockForCycle(state.currentCycle)
+            val phase = AresProgramV71.blockForWeek(state.currentWeek)
             PhaseIdentityLine(phase)
-            Text("CYCLE ${state.currentCycle} • ${phase.godName} • ${phase.name}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text("WEEK ${state.currentWeek} • ${phase.godName} • ${phase.name}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         }
         items(split, key = { it.day }) { session ->
             Card(
@@ -687,18 +687,18 @@ private fun CycleScreen(state: ProgramUiState, onOpenDay: (SessionReference) -> 
 @Composable
 private fun ProgramScreen(
     state: ProgramUiState,
-    selectedCycle: Int,
-    onSelectCycle: (Int) -> Unit,
+    selectedWeek: Int,
+    onSelectWeek: (Int) -> Unit,
     onOpenDay: (SessionReference) -> Unit,
 ) {
-    val currentPhase = AresProgramV70.blockForCycle(state.currentCycle)
-    val selectedPhase = AresProgramV70.blockForCycle(selectedCycle)
-    val selectedSplit = splitForCycle(selectedCycle, state)
-    val nextCycle = (state.currentCycle + 1).takeIf { it <= 28 }
-    val nextPhase = AresProgramV70.blocks.firstOrNull { it.startCycle > currentPhase.endCycle }
+    val currentPhase = AresProgramV71.blockForWeek(state.currentWeek)
+    val selectedPhase = AresProgramV71.blockForWeek(selectedWeek)
+    val selectedSplit = splitForWeek(selectedWeek, state)
+    val nextWeek = (state.currentWeek + 1).takeIf { it <= 32 }
+    val nextPhase = AresProgramV71.blocks.firstOrNull { it.startWeek > currentPhase.endWeek }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     val searchHits = remember(searchQuery) { searchProgram(searchQuery, state) }
-    val jumpCycles = remember(state.currentCycle) { listOf(state.currentCycle, 1, 8, 15, 22, 28).distinct() }
+    val jumpWeeks = remember(state.currentWeek) { listOf(state.currentWeek, 1, 9, 17, 25, 32).distinct() }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().testTag("program_screen"),
@@ -707,12 +707,12 @@ private fun ProgramScreen(
     ) {
         item {
             BrandHeader()
-            Text("28 CYCLES • 8 DAYS • 224 DAYS", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text("32 WEEKS • 7 DAYS • 224 DAYS", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             PhaseProgressStrip(currentPhase)
-            Text("CURRENT • ${currentPhase.godName} — ${currentPhase.name} • Cycles ${currentPhase.startCycle}–${currentPhase.endCycle}", color = phaseAccent(currentPhase), fontWeight = FontWeight.Bold, modifier = Modifier.testTag("current_phase"))
+            Text("CURRENT • ${currentPhase.godName} — ${currentPhase.name} • Weeks ${currentPhase.startWeek}–${currentPhase.endWeek}", color = phaseAccent(currentPhase), fontWeight = FontWeight.Bold, modifier = Modifier.testTag("current_phase"))
             Text(
                 nextPhase?.let { "NEXT PHASE • ${it.godName} — ${it.name} • POPULATED / APPROVED" }
-                    ?: "NEXT PHASE • PROGRAM COMPLETE AT CYCLE 28 • NO CYCLE 29+ AUTHORIZED",
+                    ?: "NEXT PHASE • PROGRAM COMPLETE AT WEEK 32 • NO WEEK 33+ AUTHORIZED",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.testTag("next_phase_status"),
@@ -723,21 +723,21 @@ private fun ProgramScreen(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 label = { Text("SEARCH / JUMP") },
-                supportingText = { Text("Examples: C17, D3, 300 m, squat, threshold") },
+                supportingText = { Text("Examples: W17, D3, 300 m, squat, threshold") },
                 singleLine = true,
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 56.dp)
                     .testTag("program_search")
-                    .semantics { contentDescription = "Search the approved 28-cycle ARES program" },
+                    .semantics { contentDescription = "Search the approved 32-week ARES program" },
             )
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(jumpCycles) { cycle ->
+                items(jumpWeeks) { week ->
                     FilterChip(
-                        selected = selectedCycle == cycle,
-                        onClick = { onSelectCycle(cycle); searchQuery = "" },
-                        label = { Text(if (cycle == state.currentCycle) "CURRENT C$cycle" else "C$cycle") },
-                        modifier = Modifier.heightIn(min = 48.dp).testTag("program_jump_cycle_$cycle"),
+                        selected = selectedWeek == week,
+                        onClick = { onSelectWeek(week); searchQuery = "" },
+                        label = { Text(if (week == state.currentWeek) "CURRENT W$week" else "W$week") },
+                        modifier = Modifier.heightIn(min = 48.dp).testTag("program_jump_week_$week"),
                     )
                 }
             }
@@ -752,16 +752,16 @@ private fun ProgramScreen(
                     modifier = Modifier.testTag("program_search_status"),
                 )
             }
-            items(searchHits, key = { "search_${it.session.cycle}_${it.session.day}" }) { hit ->
+            items(searchHits, key = { "search_${it.session.week}_${it.session.day}" }) { hit ->
                 Card(
                     onClick = {
-                        onSelectCycle(hit.session.cycle)
+                        onSelectWeek(hit.session.week)
                         onOpenDay(hit.session)
                     },
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 64.dp)
-                        .testTag("program_search_result_${hit.session.cycle}_${hit.session.day}")
+                        .testTag("program_search_result_${hit.session.week}_${hit.session.day}")
                         .semantics { contentDescription = "${hit.matchLabel}; ${hit.matchSnippet}" },
                 ) {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -779,42 +779,42 @@ private fun ProgramScreen(
         }
         item {
             Text("PHASES", fontWeight = FontWeight.Bold)
-            AresProgramV70.blocks.forEach { phase ->
+            AresProgramV71.blocks.forEach { phase ->
                 PhaseSummaryCard(phase, isCurrent = phase.godName == currentPhase.godName)
             }
         }
         item {
             HorizontalDivider()
-            Text("BROWSE CYCLE", fontWeight = FontWeight.Bold)
+            Text("BROWSE WEEK", fontWeight = FontWeight.Bold)
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items((1..28).toList()) { cycle ->
+                items((1..32).toList()) { week ->
                     FilterChip(
-                        selected = selectedCycle == cycle,
-                        onClick = { onSelectCycle(cycle) },
-                        label = { Text("C$cycle") },
-                        modifier = Modifier.heightIn(min = 48.dp).testTag("program_cycle_$cycle"),
+                        selected = selectedWeek == week,
+                        onClick = { onSelectWeek(week) },
+                        label = { Text("W$week") },
+                        modifier = Modifier.heightIn(min = 48.dp).testTag("program_week_$week"),
                     )
                 }
             }
             PhaseIdentityLine(selectedPhase)
         }
         items(selectedSplit, key = { it.day }) { session ->
-            Card(onClick = { onOpenDay(session) }, modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).testTag("program_day_${session.cycle}_${session.day}")) {
+            Card(onClick = { onOpenDay(session) }, modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).testTag("program_day_${session.week}_${session.day}")) {
                 SessionDayCardContent(
                     session = session,
-                    isCurrentDay = session.cycle == state.currentCycle && session.day == state.currentDay,
+                    isCurrentDay = session.week == state.currentWeek && session.day == state.currentDay,
                     showRowCount = false,
                     referenceLabel = foundationReferenceLabel(session, state),
                 )
             }
         }
-        if (nextCycle != null) {
+        if (nextWeek != null) {
             item {
                 HorizontalDivider()
-                Text("NEXT CYCLE • CYCLE $nextCycle", fontWeight = FontWeight.Bold, modifier = Modifier.testTag("next_cycle"))
-                val phase = AresProgramV70.blockForCycle(nextCycle)
+                Text("NEXT WEEK • WEEK $nextWeek", fontWeight = FontWeight.Bold, modifier = Modifier.testTag("next_week"))
+                val phase = AresProgramV71.blockForWeek(nextWeek)
                 PhaseIdentityLine(phase)
-                splitForCycle(nextCycle, state).forEach { session -> Text("DAY ${session.day} • ${session.title}") }
+                splitForWeek(nextWeek, state).forEach { session -> Text("DAY ${session.day} • ${session.title}") }
             }
         }
     }
@@ -903,7 +903,7 @@ private fun DayReferenceDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("CYCLE ${session.cycle} • DAY ${session.day}\n${session.title}") },
+        title = { Text("WEEK ${session.week} • DAY ${session.day}\n${session.title}") },
         text = {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 item { PhaseIdentityLine(session.phase) }
@@ -934,10 +934,10 @@ private fun BrandHeader() {
     AresBrandHeader()
 }
 
-private fun newWorkout(state: ProgramUiState) = ActiveWorkoutState(cycle = state.currentCycle, day = state.currentDay)
+private fun newWorkout(state: ProgramUiState) = ActiveWorkoutState(week = state.currentWeek, day = state.currentDay)
 
-private fun resolveSession(cycle: Int, day: Int, state: ProgramUiState): SessionReference = SessionResolver.resolve(cycle, day)
+private fun resolveSession(week: Int, day: Int, state: ProgramUiState): SessionReference = SessionResolver.resolve(week, day)
 
-private fun splitForCycle(cycle: Int, state: ProgramUiState): List<SessionReference> = SessionResolver.splitForCycle(cycle)
+private fun splitForWeek(week: Int, state: ProgramUiState): List<SessionReference> = SessionResolver.splitForWeek(week)
 
 private fun formatRest(seconds: Int): String = "%d:%02d".format(seconds / 60, seconds % 60)

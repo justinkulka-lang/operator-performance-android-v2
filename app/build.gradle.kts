@@ -14,8 +14,8 @@ android {
         applicationId = "com.jk.operatorperformance"
         minSdk = 28
         targetSdk = 36
-        versionCode = 46
-        versionName = "0.37.0"
+        versionCode = 47
+        versionName = "0.38.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "BUILD_COMMIT", "\"$buildCommit\"")
     }
@@ -102,8 +102,8 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
     testImplementation("junit:junit:4.13.2")
-    androidTestImplementation("androidx.test:runner:1.7.0")
+    androidTestImplementation("androidx.test:runner:1.7.1")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
-    androidTestImplementation("androidx.test:core:1.7.0")
+    androidTestImplementation("androidx.test:core:1.7.1")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
 }
