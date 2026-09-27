@@ -1,0 +1,32 @@
+name: Apply ARES v7.1 code
+
+on:
+  push:
+    branches: [construction/ares-v7-unified-authority]
+    paths: [.github/workflows/apply-v71-code.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Apply reviewed v7.1 source payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          base64 --decode .github/v71-payload.tar.gz.b64 | tar -xzf -
+          git restore .github/workflows/android-ci.yml .github/workflows/master-audit-corrections.yml
+          test "$(sha256sum docs/ARES_Performance_Unified_Master_Authority_v7.1_APPROVED.docx | cut -d' ' -f1)" = "1d33dbca214b34dd456a971d32bc1c19d59e3a13069393429fc9e2115e3a036c"
+      - name: Commit migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app docs
+          git diff --cached --check
+          git commit -m "Migrate ARES to one-rest-day v7.1 program"
+          git push origin HEAD:construction/ares-v7-unified-authority
