@@ -24,11 +24,38 @@ object AresProgramV71 {
     const val restPrescription = "Walking or easy mobility only. No lifting and no running."
     const val compoundRestGuidance = "Rest ~2–3+ min; extend as needed to preserve reps, RIR, technique, and output."
     const val accessoryRestGuidance = "Rest ~1–2 min; extend if the next prescribed set would materially degrade."
-    const val speedWarmupPrescription = "8–12 min easy movement; dynamic ankle, hip, and hamstring preparation; sprint drills; then 3–5 progressive build-ups. Start quality work fresh on a safe, flat surface."
+    const val speedWarmupPrescription = "1) Walk/jog 5 min easy. 2) Ankle rocks 2 × 15 m. 3) Leg swings 2 × 15 m: one pass front-to-back and one side-to-side. 4) A-march 2 × 15 m. 5) A-skip 2 × 15 m. 6) Run 3 × 40 m progressive build-ups at about 60%, 75%, and 85%, resting 2 min between. Accelerate smoothly, stay relaxed, and begin the quality work fresh on a safe, flat surface."
+    const val speedTestWarmupAddition = "Before a timed 300 m, add one 40 m build-up at about 90% after the standard three build-ups; rest 2 min before and after it."
+    const val engineQualityWarmupPrescription = "Jog 8–10 min easy at RPE 2–3, then run 4 × 20 sec progressive strides. Build smoothly to fast-but-relaxed running, not sprinting. Recover with 60 sec easy walking/jogging after each stride."
+    const val engineEasyWarmupPrescription = "Use the first 5 min of the prescribed easy run as easy walking/jogging at RPE 2–3. Do not add strides; the 5 min is included in the listed run duration, not extra work."
     const val speedStopRule = "Stop if mechanics deteriorate, gait changes, or lower-leg pain appears. Hold progression if Achilles or shin symptoms persist 48 hours later."
     const val engineStopRule = "Stop running if pain changes gait or Achilles or shin symptoms worsen during the session."
     const val easyRunNote = "Easy running is conditional: do not exceed 110% of the longest continuous run completed in the prior 30 days. Use the listed bike option instead when that reference would be exceeded."
     const val testGate = "TIMED 300 M ELIGIBILITY: perform only after two pain-free running exposures in the prior 14 days, including one exposure near 90%. If the gate is not met, use 6 × 30 m at 70–85% with 3 min recovery. Week 1 baseline remains MISSING; do not estimate or store a result."
+
+    fun speedExecutionGuidance(week: Int, title: String): String {
+        val technique = when {
+            title.contains("Timed", true) || title.contains("Final", true) -> "Use an external timer. Run one committed, evenly controlled 300 m after the eligibility gate and complete test warm-up; do not add another attempt."
+            title.contains("Build + fly", true) || title.contains("Acceleration + fly", true) -> "For each build/fly repetition, accelerate progressively through the build zone, enter the fly zone upright and relaxed, then decelerate gradually beyond the line. Do not attack the build zone like an all-out start."
+            title.contains("Acceleration", true) -> "Use a comfortable two-point or falling start. Push smoothly through the full distance, keep the face and shoulders relaxed, and decelerate gradually beyond the line. Fast and technically clean does not mean straining."
+            title.contains("Special endurance", true) -> "Use the prescribed percentage of current pain-free 300 m average velocity. Keep posture, rhythm, and relaxation intact; stop the quality portion if pace or mechanics cannot be repeated cleanly."
+            else -> "Run every repetition smoothly and relaxed with mechanically consistent acceleration and gradual deceleration."
+        }
+        val recovery = if (week == 31) "Full recovery means wait until breathing is controlled and the next repetition can match the first; use at least 3 min." else "Use the complete prescribed recovery. Walk and stay loose; do not shorten recovery to create conditioning."
+        return "$technique $recovery ${speedStopRule}"
+    }
+
+    fun engineExecutionGuidance(title: String, prescription: String): String = when {
+        title.contains("Threshold", true) -> {
+            val recovery = if (prescription.contains("easy", true)) "During each listed recovery, jog very easily; walk if necessary to regain control before the next work interval." else "This is continuous work with no planned break."
+            "Run at RPE 7–8: controlled discomfort, breathing hard, and speech limited to short phrases. Hold an even pace from start to finish; this is not a time trial and there is no finishing kick. $recovery"
+        }
+        title.contains("Controlled interval", true) -> "Run every work repetition at RPE 8 with even pacing. The final repetition must remain mechanically as clean as the first and no more than about 3% slower. Use the listed recovery as very easy jogging; walk only if needed to begin the next repetition under control. Stop rather than adding slow replacement repetitions."
+        title.contains("Goal pace", true) -> "Use the fixed 10:00 1.5-mile goal pace: 400 m 1:40; 600 m 2:30; 800 m 3:20; 1000 m 4:10; 1 mile 6:40. Run the listed distance evenly, then take the complete easy recovery. Do not race the first repetition or add repetitions."
+        title.contains("1.5-mile", true) || title.contains("Final", true) -> "Use an external timer and a measured 1.5-mile course. Begin under control, distribute the effort across the full distance, and record results only outside the app. Perform one authorized effort; do not add a replacement test."
+        title.contains("Easy run", true) -> "Keep the entire run at RPE 2–3 with nasal breathing or comfortable full-sentence conversation. The opening 5 min is the warm-up and is included in the listed duration. Do not turn this into tempo work."
+        else -> "Follow the listed work and recovery exactly with even pacing and controlled mechanics."
+    }
 
     private fun roles(vararg pairs: Pair<Muscle, MuscleRole>) = linkedMapOf(*pairs)
     private fun slot(phase: Int, id: String, day: Int, movement: String, dose: String, owner: Muscle, roleMap: Map<Muscle, MuscleRole>, vararg alternatives: String): ResistanceSlot {
