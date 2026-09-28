@@ -36,4 +36,37 @@ class ProgramV71Test {
         for(week in listOf(8,16,24,30,31,32)) assertFalse(SessionResolver.resolve(week,3).rows.any { it.id.endsWith("plyometrics") })
         assertTrue(SessionResolver.resolve(3,3).rows.any { it.id.endsWith("plyometrics") })
     }
+
+    @Test fun everySpeedAndEngineDayHasExactExecutionGuidance() {
+        for (week in 1..32) {
+            val speed = SessionResolver.resolve(week,3).rows
+            val speedWarmup = speed.first()
+            assertEquals("d3_speed_warmup", speedWarmup.id)
+            assertTrue(speedWarmup.prescription.contains("Walk/jog 5 min"))
+            assertTrue(speedWarmup.prescription.contains("Ankle rocks 2 × 15 m"))
+            assertTrue(speedWarmup.prescription.contains("3 × 40 m"))
+            assertTrue(speed.last().note.orEmpty().contains("recovery", true))
+            assertTrue(speed.last().note.orEmpty().contains("Stop", true))
+
+            val engine = SessionResolver.resolve(week,6).rows
+            val engineWarmup = engine.first()
+            assertTrue(engineWarmup.id.endsWith("d6_warmup"))
+            val engineWork = engine.first { it.id == "w${week}_d6" }
+            assertFalse(engineWork.note.isNullOrBlank())
+            assertTrue(engineWork.note.orEmpty().contains("Do not", true) || engineWork.note.orEmpty().contains("RPE", true))
+        }
+        for (week in listOf(1,16,32)) {
+            assertTrue(SessionResolver.resolve(week,3).rows.first().prescription.contains("90%"))
+        }
+        for (week in listOf(8,16)) {
+            val warmup = SessionResolver.resolve(week,6).rows.first()
+            assertEquals("Easy-run opening", warmup.title)
+            assertTrue(warmup.prescription.contains("included"))
+            assertTrue(warmup.prescription.contains("Do not add strides", true))
+        }
+        for (week in listOf(13,18,20,23,26,27,28,29,30,31)) {
+            val work = SessionResolver.resolve(week,6).rows.first { it.id == "w${week}_d6" }
+            assertTrue(work.note.orEmpty().contains("400 m 1:40"))
+        }
+    }
 }
