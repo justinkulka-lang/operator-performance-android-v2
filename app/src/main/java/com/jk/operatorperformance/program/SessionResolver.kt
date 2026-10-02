@@ -28,10 +28,19 @@ data class SessionReference(
     val title: String,
     val rows: List<SessionRow>,
     val phase: ProgramBlock = AresProgramV71.blockForWeek(week),
+    val authority: ProgramAuthority = ProgramAuthority.V71,
 )
 
 object SessionResolver {
-    fun resolve(week: Int, day: Int): SessionReference {
+    fun resolve(week: Int, day: Int, authority: ProgramAuthority = ProgramAuthority.V72): SessionReference = when (authority) {
+        ProgramAuthority.V71 -> resolveV71(week, day)
+        ProgramAuthority.V72 -> V72SessionBuilder.resolve(week, day)
+    }
+
+    fun splitForWeek(week: Int, authority: ProgramAuthority = ProgramAuthority.V72): List<SessionReference> =
+        (1..7).map { resolve(week, it, authority) }
+
+    private fun resolveV71(week: Int, day: Int): SessionReference {
         require(week in 1..AresProgramV71.TOTAL_WEEKS) { "Week must be 1–32." }
         require(day in 1..AresProgramV71.DAYS_PER_WEEK) { "Day must be 1–7." }
         val plan = AresProgramV71.conditioningForWeek(week)
@@ -46,11 +55,8 @@ object SessionResolver {
             else -> error("Unreachable day")
         }
         val title = if (week == 32 && day == 5) "Very easy recovery primer" else requireNotNull(AresProgramV71.dayTitles[day])
-        return SessionReference(week, day, title, rows)
+        return SessionReference(week, day, title, rows, authority = ProgramAuthority.V71)
     }
-
-    fun splitForWeek(week: Int): List<SessionReference> =
-        (1..AresProgramV71.DAYS_PER_WEEK).map { resolve(week, it) }
 
     private fun resistanceRows(week:Int, day:Int):List<SessionRow> =
         AresProgramV71.resistanceForDay(week, day).mapNotNull { slot ->

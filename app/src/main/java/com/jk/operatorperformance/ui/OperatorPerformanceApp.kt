@@ -1,5 +1,7 @@
 package com.jk.operatorperformance.ui
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -55,7 +57,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.jk.operatorperformance.program.AresProgramV71
+import com.jk.operatorperformance.program.AresProgramV72
+import com.jk.operatorperformance.program.ProgramAuthority
 import com.jk.operatorperformance.program.SessionReference
 import com.jk.operatorperformance.program.SessionResolver
 import com.jk.operatorperformance.program.SessionRow
@@ -117,16 +120,16 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
             Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                 Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.Center) {
                     BrandHeader()
-                    Text("ARES v7.1", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                    Text("ARES v7.2", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(12.dp))
                     Text("The approved program uses 32 seven-day weeks with six training days and one rest day each week.")
                     Spacer(Modifier.height(12.dp))
-                    Text("Starting resumes your approved position at Week 2, Day 3. Existing v7.0 progress is migrated when available.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Starting begins at Week 1, Day 1. Existing v7.0 progress is migrated when available. An in-progress v7.1 week finishes under v7.1, and v7.2 starts at the next unstarted Day 1.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(24.dp))
                     Button(
-                        onClick = { clearWorkout(); persist(state.startV71()); selectedProgramWeek = 2 },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("start_v71"),
-                    ) { Text("CONTINUE WEEK 2 • DAY 3", fontWeight = FontWeight.Bold) }
+                        onClick = { clearWorkout(); persist(state.startV72()); selectedProgramWeek = 1 },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("start_v72"),
+                    ) { Text("START WEEK 1 • DAY 1", fontWeight = FontWeight.Bold) }
                 }
             }
             return@MaterialTheme
@@ -138,6 +141,7 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
             } else {
                 WorkoutModeScreen(
                     progress = progress,
+                    authority = state.authorityForWeek(progress.week),
                     onProgress = ::persistWorkout,
                     onReturnToToday = { workoutMode = false },
                 )
@@ -273,8 +277,9 @@ private fun TodayScreen(
     var confirmAdvance by rememberSaveable(state.currentWeek, state.currentDay) { mutableStateOf(false) }
     var confirmReset by rememberSaveable(state.currentWeek, state.currentDay) { mutableStateOf(false) }
 
+    Column(Modifier.fillMaxSize()) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize().testTag("today_screen"),
+        modifier = Modifier.weight(1f).testTag("today_screen"),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
@@ -282,13 +287,16 @@ private fun TodayScreen(
             BrandHeader()
             PhaseIdentityLine(session.phase, Modifier.testTag("today_phase"))
             Text(
-                "WEEK ${session.week} • DAY ${session.day}",
+                "v${session.authority.versionLabel} • WEEK ${session.week} • DAY ${session.day}",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.testTag("today_header"),
             )
             Text(session.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            if (state.retainedV71Week == session.week) {
+                Text("FINISHING THIS WEEK UNDER v7.1", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+            }
             if (!isRest) Text(
                 if (progress == null) "$total SETS / EFFORTS PLANNED" else "$completed / $total COMPLETE",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -333,18 +341,11 @@ private fun TodayScreen(
             )
         }
         item {
-            if (!isRest) {
-                Button(
-                    onClick = onStartWorkout,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("start_resume_workout"),
-                ) { Text(if (progress == null) "START WORKOUT" else "RESUME WORKOUT", fontWeight = FontWeight.Bold) }
-                if (progress != null) {
-                    TextButton(
-                        onClick = { confirmReset = true },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("reset_today_workout"),
-                    ) { Text("RESET TODAY'S WORKOUT") }
-                }
-                Spacer(Modifier.height(8.dp))
+            if (!isRest && progress != null) {
+                TextButton(
+                    onClick = { confirmReset = true },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("reset_today_workout"),
+                ) { Text("RESET TODAY'S WORKOUT") }
             }
             if (atEnd) {
                 Card(Modifier.fillMaxWidth()) {
@@ -357,6 +358,15 @@ private fun TodayScreen(
                 ) { Text("COMPLETE DAY / NEXT DAY") }
             }
         }
+    }
+    if (!isRest) {
+        Surface(color = MaterialTheme.colorScheme.surface) {
+            Button(
+                onClick = onStartWorkout,
+                modifier = Modifier.fillMaxWidth().padding(12.dp).heightIn(min = 56.dp).testTag("start_resume_workout"),
+            ) { Text(if (progress == null) "START WORKOUT" else "RESUME WORKOUT", fontWeight = FontWeight.Bold) }
+        }
+    }
     }
 
     if (confirmAdvance) {
@@ -457,10 +467,11 @@ private fun WorkoutRowCard(
 @Composable
 private fun WorkoutModeScreen(
     progress: ActiveWorkoutState,
+    authority: ProgramAuthority,
     onProgress: (ActiveWorkoutState) -> Unit,
     onReturnToToday: () -> Unit,
 ) {
-    val session = SessionResolver.resolve(progress.week, progress.day)
+    val session = SessionResolver.resolve(progress.week, progress.day, authority)
     val normalized = WorkoutProgress.normalize(progress, session)
     val row = session.rows[normalized.movementIndex]
     val selected = normalized.selectedSubstitutions[row.id]
@@ -662,7 +673,7 @@ private fun WeekScreen(state: ProgramUiState, onOpenDay: (SessionReference) -> U
     ) {
         item {
             BrandHeader()
-            val phase = AresProgramV71.blockForWeek(state.currentWeek)
+            val phase = blockFor(state, state.currentWeek)
             PhaseIdentityLine(phase)
             Text("WEEK ${state.currentWeek} • ${phase.godName} • ${phase.name}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         }
@@ -691,13 +702,13 @@ private fun ProgramScreen(
     onSelectWeek: (Int) -> Unit,
     onOpenDay: (SessionReference) -> Unit,
 ) {
-    val currentPhase = AresProgramV71.blockForWeek(state.currentWeek)
-    val selectedPhase = AresProgramV71.blockForWeek(selectedWeek)
+    val currentPhase = blockFor(state, state.currentWeek)
+    val selectedPhase = blockFor(state, selectedWeek)
     val selectedSplit = splitForWeek(selectedWeek, state)
     val nextWeek = (state.currentWeek + 1).takeIf { it <= 32 }
-    val nextPhase = AresProgramV71.blocks.firstOrNull { it.startWeek > currentPhase.endWeek }
+    val nextPhase = AresProgramV72.blocks.firstOrNull { it.startWeek > currentPhase.endWeek }
     var searchQuery by rememberSaveable { mutableStateOf("") }
-    val searchHits = remember(searchQuery) { searchProgram(searchQuery, state) }
+    val searchHits = remember(searchQuery, state.retainedV71Week, state.authority) { searchProgram(searchQuery, state) }
     val jumpWeeks = remember(state.currentWeek) { listOf(state.currentWeek, 1, 9, 17, 25, 32).distinct() }
 
     LazyColumn(
@@ -779,7 +790,7 @@ private fun ProgramScreen(
         }
         item {
             Text("PHASES", fontWeight = FontWeight.Bold)
-            AresProgramV71.blocks.forEach { phase ->
+            AresProgramV72.blocks.forEach { phase ->
                 PhaseSummaryCard(phase, isCurrent = phase.godName == currentPhase.godName)
             }
         }
@@ -812,7 +823,7 @@ private fun ProgramScreen(
             item {
                 HorizontalDivider()
                 Text("NEXT WEEK • WEEK $nextWeek", fontWeight = FontWeight.Bold, modifier = Modifier.testTag("next_week"))
-                val phase = AresProgramV71.blockForWeek(nextWeek)
+                val phase = blockFor(state, nextWeek)
                 PhaseIdentityLine(phase)
                 splitForWeek(nextWeek, state).forEach { session -> Text("DAY ${session.day} • ${session.title}") }
             }
@@ -905,15 +916,15 @@ private fun DayReferenceDialog(
         onDismissRequest = onDismiss,
         title = { Text("WEEK ${session.week} • DAY ${session.day}\n${session.title}") },
         text = {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                item { PhaseIdentityLine(session.phase) }
-                if (sessionExecutionGuidance(session).isNotEmpty()) {
-                    item { SessionExecutionBanner(session) }
-                }
-                if (foundationReferenceLabel(session, state) != null) {
-                    item { FoundationReferenceBanner(session, state) }
-                }
-                items(session.rows, key = { it.id }) { row ->
+            Column(
+                Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                PhaseIdentityLine(session.phase)
+                Text("AUTHORITY v${session.authority.versionLabel}", style = MaterialTheme.typography.labelMedium)
+                if (sessionExecutionGuidance(session).isNotEmpty()) SessionExecutionBanner(session)
+                if (foundationReferenceLabel(session, state) != null) FoundationReferenceBanner(session, state)
+                session.rows.forEach { row ->
                     VisualRowTitle(row = row, title = row.title, style = MaterialTheme.typography.bodyLarge)
                     Text(row.prescription)
                     row.note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
@@ -936,8 +947,14 @@ private fun BrandHeader() {
 
 private fun newWorkout(state: ProgramUiState) = ActiveWorkoutState(week = state.currentWeek, day = state.currentDay)
 
-private fun resolveSession(week: Int, day: Int, state: ProgramUiState): SessionReference = SessionResolver.resolve(week, day)
+private fun resolveSession(week: Int, day: Int, state: ProgramUiState): SessionReference =
+    SessionResolver.resolve(week, day, state.authorityForWeek(week))
 
-private fun splitForWeek(week: Int, state: ProgramUiState): List<SessionReference> = SessionResolver.splitForWeek(week)
+private fun splitForWeek(week: Int, state: ProgramUiState): List<SessionReference> =
+    SessionResolver.splitForWeek(week, state.authorityForWeek(week))
+
+private fun blockFor(state: ProgramUiState, week: Int) =
+    if (state.authorityForWeek(week) == ProgramAuthority.V71) com.jk.operatorperformance.program.AresProgramV71.blockForWeek(week)
+    else AresProgramV72.blockForWeek(week)
 
 private fun formatRest(seconds: Int): String = "%d:%02d".format(seconds / 60, seconds % 60)

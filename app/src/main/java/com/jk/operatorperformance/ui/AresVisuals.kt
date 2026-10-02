@@ -28,7 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.jk.operatorperformance.R
-import com.jk.operatorperformance.program.AresProgramV71
+import com.jk.operatorperformance.program.AresProgramV72
 import com.jk.operatorperformance.program.ProgramBlock
 import com.jk.operatorperformance.program.SessionReference
 import com.jk.operatorperformance.program.SessionRow
@@ -97,7 +97,7 @@ internal fun AresBrandHeader() {
         Spacer(Modifier.width(10.dp))
         Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
             Text(
-                AresProgramV71.PROGRAM_NAME,
+                AresProgramV72.PROGRAM_NAME,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Black,
                 color = MaterialTheme.colorScheme.primary,
@@ -109,7 +109,7 @@ internal fun AresBrandHeader() {
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
-                AresProgramV71.PROGRAM_TAGLINE,
+                AresProgramV72.PROGRAM_TAGLINE,
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -147,7 +147,7 @@ internal fun PhaseProgressStrip(currentPhase: ProgramBlock) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Top,
     ) {
-        AresProgramV71.blocks.forEach { phase ->
+        AresProgramV72.blocks.forEach { phase ->
             val current = phase.godName == currentPhase.godName
             val tint = if (current) phaseAccent(phase) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.46f)
             Column(

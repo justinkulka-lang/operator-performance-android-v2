@@ -32,7 +32,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.jk.operatorperformance.program.ProgramNotesV71
+import com.jk.operatorperformance.program.ProgramNotesV72
 import com.jk.operatorperformance.state.LegacyDataManager
 import com.jk.operatorperformance.state.ProgramStateStore
 import com.jk.operatorperformance.state.ToolsDataState
@@ -212,19 +212,19 @@ private fun ProgramNotesCard() {
     Card(modifier = Modifier.fillMaxWidth().testTag("program_notes_tool")) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("PROGRAM / COACHING NOTES", fontWeight = FontWeight.Bold)
-            Text("Execution, progression, interference, sprint-volume, run-impact, and planned-overlay guidance from the approved ARES v7.1 authority. No performance logging required.")
+            Text("Execution, progression, interference, sprint-volume, run-impact, and planned-overlay guidance from the approved ARES v7.2 authority. No performance logging required.")
             TextButton(
                 onClick = { expanded = !expanded },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("program_notes_toggle"),
             ) { Text(if (expanded) "HIDE NOTES" else "SHOW NOTES") }
             if (expanded) {
-                NotesSection("EXECUTION", ProgramNotesV71.execution)
-                NotesSection("RESISTANCE PROGRESSION", ProgramNotesV71.resistanceProgression)
-                NotesSection("INTERFERENCE", ProgramNotesV71.interference)
-                NotesSection("SPRINT VOLUME", ProgramNotesV71.sprintVolume)
-                NotesSection("RUN / IMPACT", ProgramNotesV71.runImpact)
-                NotesSection("PLANNED OVERLAYS", ProgramNotesV71.plannedOverlays)
-                NotesSection("AUTHORITY LIMITS", ProgramNotesV71.authorityLimits)
+                NotesSection("EXECUTION", ProgramNotesV72.execution)
+                NotesSection("RESISTANCE PROGRESSION", ProgramNotesV72.resistanceProgression)
+                NotesSection("INTERFERENCE", ProgramNotesV72.interference)
+                NotesSection("SPRINT VOLUME", ProgramNotesV72.sprintVolume)
+                NotesSection("RUN / IMPACT", ProgramNotesV72.runImpact)
+                NotesSection("PLANNED OVERLAYS", ProgramNotesV72.plannedOverlays)
+                NotesSection("AUTHORITY LIMITS", ProgramNotesV72.authorityLimits)
             }
         }
     }
@@ -267,7 +267,7 @@ private fun DataControlsCard() {
             Button(
                 onClick = {
                     pendingExport = legacy.buildLocalExport()
-                    exportLauncher.launch("ares-performance-v7.1-local-export.json")
+                    exportLauncher.launch("ares-performance-v7.2-local-export.json")
                 },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("export_data"),
             ) { Text("EXPORT DATA") }
@@ -294,7 +294,7 @@ private fun DataControlsCard() {
                 TextButton(
                     onClick = {
                         stateStore.clearWorkout()
-                        stateStore.save(stateStore.load().withCurrentPointer(1, 1))
+                        stateStore.save(stateStore.load().resetToV72Start())
                         confirmReset = false
                         context.findActivity()?.recreate()
                     },

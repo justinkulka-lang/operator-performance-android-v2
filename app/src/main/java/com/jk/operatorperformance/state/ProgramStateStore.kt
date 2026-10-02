@@ -1,6 +1,7 @@
 package com.jk.operatorperformance.state
 
 import android.content.Context
+import com.jk.operatorperformance.program.ProgramAuthority
 
 data class ProgramUiState(
     val initialized: Boolean = false,
@@ -8,22 +9,63 @@ data class ProgramUiState(
     val currentDay: Int = 1,
     val restTimerSeconds: Int? = null,
     val utilityRestTimerEndEpochMillis: Long? = null,
+    val authority: ProgramAuthority = ProgramAuthority.V72,
+    val retainedV71Week: Int? = null,
 ) {
     init {
         require(currentWeek in 1..32) { "currentWeek must be 1–32." }
         require(currentDay in 1..7) { "currentDay must be 1–7." }
         require(restTimerSeconds == null || restTimerSeconds > 0)
         require(utilityRestTimerEndEpochMillis == null || utilityRestTimerEndEpochMillis > 0L)
+        require(retainedV71Week == null || retainedV71Week in 1..32)
     }
+    fun authorityForWeek(week: Int): ProgramAuthority =
+        if (retainedV71Week != null && week == retainedV71Week) ProgramAuthority.V71 else ProgramAuthority.V72
+
     fun startV71() = copy(initialized=true,currentWeek=2,currentDay=3)
-    fun advanceDay():ProgramUiState = when {
-        currentDay < 7 -> copy(currentDay=currentDay+1)
-        currentWeek < 32 -> copy(currentWeek=currentWeek+1,currentDay=1)
+    fun startV72() = copy(initialized=true, currentWeek=1, currentDay=1, authority=ProgramAuthority.V72, retainedV71Week=null)
+    fun advanceDay(): ProgramUiState = when {
+        currentDay < 7 -> copy(currentDay = currentDay + 1)
+        currentWeek < 32 -> {
+            val leavingRetainedWeek = retainedV71Week == currentWeek
+            copy(
+                currentWeek = currentWeek + 1,
+                currentDay = 1,
+                authority = if (leavingRetainedWeek) ProgramAuthority.V72 else authority,
+                retainedV71Week = if (leavingRetainedWeek) null else retainedV71Week,
+            )
+        }
         else -> this
     }
     fun withCurrentPointer(week:Int,day:Int):ProgramUiState {
         require(week in 1..32); require(day in 1..7)
-        return copy(currentWeek=week,currentDay=day)
+        val stillRetained = retainedV71Week == week
+        return copy(
+            currentWeek = week,
+            currentDay = day,
+            authority = if (stillRetained) ProgramAuthority.V71 else ProgramAuthority.V72,
+            retainedV71Week = if (stillRetained) retainedV71Week else null,
+        )
+    }
+    fun resetToV72Start() = copy(initialized = true, currentWeek = 1, currentDay = 1, authority = ProgramAuthority.V72, retainedV71Week = null)
+}
+
+object AuthorityMigration {
+    /**
+     * Day 1 with no active workout is treated as an unstarted week.
+     * A stored day greater than 1, or an active workout, keeps that week on v7.1.
+     * Uninitialized installs do not inherit a Week 2 Day 3 pointer.
+     */
+    fun apply(state: ProgramUiState, workoutActive: Boolean): ProgramUiState {
+        if (!state.initialized) {
+            return state.copy(currentWeek = 1, currentDay = 1, authority = ProgramAuthority.V72, retainedV71Week = null)
+        }
+        val retain = workoutActive || state.currentDay > 1
+        return if (retain) {
+            state.copy(authority = ProgramAuthority.V71, retainedV71Week = state.currentWeek)
+        } else {
+            state.copy(authority = ProgramAuthority.V72, retainedV71Week = null)
+        }
     }
 }
 
@@ -63,21 +105,32 @@ class ProgramStateStore(context:Context) {
         if (!prefs.contains(KEY_INITIALIZED) && legacyPrefs.getBoolean(LEGACY_KEY_INITIALIZED,false)) {
             val oldWeek=legacyPrefs.getInt(KEY_CYCLE,2).coerceIn(1,32)
             val oldDay=legacyPrefs.getInt(KEY_DAY,3).coerceIn(1,8)
-            val migrated=if(oldDay==8) ProgramUiState(true,(oldWeek+1).coerceAtMost(32),1)
+            val pointer=if(oldDay==8) ProgramUiState(true,(oldWeek+1).coerceAtMost(32),1)
                 else ProgramUiState(true,oldWeek,oldDay.coerceIn(1,7))
+            val migrated=AuthorityMigration.apply(pointer, workoutActive=false)
             save(migrated)
             return migrated
         }
-        return ProgramUiState(
+        val stored = ProgramUiState(
             initialized=prefs.getBoolean(KEY_INITIALIZED,false),
-            currentWeek=prefs.getInt(KEY_CYCLE,2).coerceIn(1,32),
-            currentDay=prefs.getInt(KEY_DAY,3).coerceIn(1,7),
+            currentWeek=prefs.getInt(KEY_CYCLE,1).coerceIn(1,32),
+            currentDay=prefs.getInt(KEY_DAY,1).coerceIn(1,7),
             restTimerSeconds=prefs.getInt(KEY_REST,0).takeIf { it>0 },
             utilityRestTimerEndEpochMillis=prefs.getLong(KEY_TIMER_END,0L).takeIf { it>0L },
+            authority=runCatching { ProgramAuthority.valueOf(prefs.getString(KEY_AUTHORITY, ProgramAuthority.V72.name).orEmpty()) }.getOrDefault(ProgramAuthority.V72),
+            retainedV71Week=prefs.getInt(KEY_RETAINED_V71_WEEK, 0).takeIf { it in 1..32 },
         )
+        if (prefs.getBoolean(KEY_V72_MIGRATED, false)) return stored
+        val workoutActive = prefs.getBoolean(KEY_WORKOUT_ACTIVE, false) && prefs.getInt(KEY_WORKOUT_SCHEMA, 0) == WORKOUT_SCHEMA
+        val migrated = AuthorityMigration.apply(stored, workoutActive)
+        save(migrated)
+        return migrated
     }
     fun save(state:ProgramUiState) {
         val e=prefs.edit().putBoolean(KEY_INITIALIZED,state.initialized).putInt(KEY_CYCLE,state.currentWeek).putInt(KEY_DAY,state.currentDay)
+            .putString(KEY_AUTHORITY, state.authority.name)
+            .putBoolean(KEY_V72_MIGRATED, true)
+        if (state.retainedV71Week != null) e.putInt(KEY_RETAINED_V71_WEEK, state.retainedV71Week) else e.remove(KEY_RETAINED_V71_WEEK)
         state.restTimerSeconds?.let { e.putInt(KEY_REST,it) } ?: e.remove(KEY_REST)
         state.utilityRestTimerEndEpochMillis?.let { e.putLong(KEY_TIMER_END,it) } ?: e.remove(KEY_TIMER_END)
         e.apply()
@@ -118,6 +171,7 @@ class ProgramStateStore(context:Context) {
         private const val LEGACY_PREFS_NAME="ares_v70_reference_state"
         private const val LEGACY_KEY_INITIALIZED="v70Initialized"
         private const val KEY_INITIALIZED="v71Initialized"; private const val KEY_CYCLE="currentWeek"; private const val KEY_DAY="currentDay"
+        private const val KEY_AUTHORITY="authorityVersion"; private const val KEY_RETAINED_V71_WEEK="retainedV71Week"; private const val KEY_V72_MIGRATED="v72MigrationApplied"
         private const val KEY_REST="manualRestTimerSeconds"; private const val KEY_TIMER_END="utilityRestTimerEndEpochMillis"
         private const val WORKOUT_SCHEMA=5; private const val KEY_WORKOUT_ACTIVE="workoutActive"; private const val KEY_WORKOUT_SCHEMA="workoutSchema"
         private const val KEY_WORKOUT_WEEK="workoutWeek"; private const val KEY_WORKOUT_DAY="workoutDay"; private const val KEY_MOVEMENT="movementIndex"

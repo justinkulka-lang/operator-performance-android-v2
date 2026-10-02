@@ -1,5 +1,10 @@
 package com.jk.operatorperformance.program
 
+enum class ProgramAuthority(val versionLabel: String) {
+    V71("7.1"),
+    V72("7.2"),
+}
+
 enum class Muscle(val label: String) {
     QUADS("Quads"), GLUTES("Glutes"), HAMSTRINGS("Hamstrings"), CHEST("Chest"),
     LATS("Lats"), UPPER_BACK("Upper back"), DELTS("Delts"), BICEPS("Biceps"),
