@@ -119,7 +119,10 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
     MaterialTheme(colorScheme = AresDarkColors) {
         if (!state.initialized) {
             Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.Center) {
+                Column(
+                    Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
                     BrandHeader()
                     Text("ARES v7.2", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(12.dp))
@@ -484,14 +487,15 @@ private fun WorkoutModeScreen(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            Surface(color = MaterialTheme.colorScheme.surface) {
-                Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (normalized.restTimerEndEpochMillis != null) {
+            if (normalized.restTimerEndEpochMillis != null) {
+                Surface(color = MaterialTheme.colorScheme.surface) {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
                         Text(
                             "REST • ${formatRest(restSeconds)}",
-                            style = MaterialTheme.typography.headlineSmall,
+                            style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier
+                                .weight(1f)
                                 .testTag("workout_rest_countdown")
                                 .semantics {
                                     contentDescription = "Workout rest timer"
@@ -499,25 +503,7 @@ private fun WorkoutModeScreen(
                                     liveRegion = LiveRegionMode.Polite
                                 },
                         )
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            TextButton(
-                                onClick = { onProgress(WorkoutProgress.skipRest(normalized)) },
-                                modifier = Modifier.heightIn(min = 48.dp).testTag("workout_rest_skip"),
-                            ) { Text("SKIP REST") }
-                            TextButton(
-                                onClick = { onProgress(WorkoutProgress.addRestSeconds(normalized, 30)) },
-                                modifier = Modifier.heightIn(min = 48.dp).testTag("workout_rest_add_30"),
-                            ) { Text("+30 SEC") }
-                        }
                     }
-                    Button(
-                        onClick = onMarkComplete,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("mark_session_complete"),
-                    ) { Text("MARK SESSION COMPLETE", fontWeight = FontWeight.Bold) }
-                    TextButton(
-                        onClick = onReturnToToday,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("return_today"),
-                    ) { Text("RETURN TO TODAY") }
                 }
             }
         },
@@ -547,6 +533,31 @@ private fun WorkoutModeScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            if (normalized.restTimerEndEpochMillis != null) {
+                item {
+                    Card(
+                        Modifier
+                            .fillMaxWidth()
+                            .testTag("workout_rest")
+                            .semantics {
+                                contentDescription = "Workout rest timer"
+                                stateDescription = "Rest timer remaining ${formatRest(restSeconds)}"
+                                liveRegion = LiveRegionMode.Polite
+                            },
+                    ) {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TextButton(
+                                onClick = { onProgress(WorkoutProgress.skipRest(normalized)) },
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("workout_rest_skip"),
+                            ) { Text("SKIP REST") }
+                            TextButton(
+                                onClick = { onProgress(WorkoutProgress.addRestSeconds(normalized, 30)) },
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("workout_rest_add_30"),
+                            ) { Text("+30 SEC") }
+                        }
+                    }
+                }
+            }
             if (sessionExecutionGuidance(session).isNotEmpty()) {
                 item { SessionExecutionBanner(session) }
             }
@@ -557,15 +568,11 @@ private fun WorkoutModeScreen(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(listOf(60, 90, 120, 180)) { seconds ->
-                        FilterChip(
-                            selected = false,
-                            onClick = { onProgress(WorkoutProgress.startManualRest(normalized, seconds, System.currentTimeMillis())) },
-                            label = { Text(formatRest(seconds)) },
-                            modifier = Modifier.heightIn(min = 48.dp).testTag("start_rest_$seconds"),
-                        )
-                    }
+                listOf(120, 180, 60, 90).forEach { seconds ->
+                    TextButton(
+                        onClick = { onProgress(WorkoutProgress.startManualRest(normalized, seconds, System.currentTimeMillis())) },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("start_rest_$seconds"),
+                    ) { Text("START REST ${formatRest(seconds)}") }
                 }
             }
             items(session.rows, key = { it.id }) { row ->
@@ -593,6 +600,16 @@ private fun WorkoutModeScreen(
                         }
                     }
                 }
+            }
+            item {
+                Button(
+                    onClick = onMarkComplete,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("mark_session_complete"),
+                ) { Text("MARK SESSION COMPLETE", fontWeight = FontWeight.Bold) }
+                TextButton(
+                    onClick = onReturnToToday,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("return_today"),
+                ) { Text("RETURN TO TODAY") }
             }
         }
     }
@@ -687,6 +704,16 @@ private fun ProgramScreen(
                     )
                 }
             }
+            if (searchHits.isNotEmpty()) {
+                TextButton(
+                    onClick = {
+                        val hit = searchHits.first()
+                        onSelectWeek(hit.session.week)
+                        onOpenDay(hit.session)
+                    },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("program_search_open_first"),
+                ) { Text("OPEN FIRST MATCH") }
+            }
         }
         if (searchQuery.isNotBlank()) {
             item {
@@ -697,6 +724,10 @@ private fun ProgramScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.testTag("program_search_status"),
                 )
+                TextButton(
+                    onClick = { searchQuery = "" },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("program_search_clear"),
+                ) { Text("CLEAR SEARCH") }
             }
             items(searchHits, key = { "search_${it.session.week}_${it.session.day}" }) { hit ->
                 Card(
@@ -715,12 +746,6 @@ private fun ProgramScreen(
                         Text(hit.matchSnippet, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
-            }
-            item {
-                TextButton(
-                    onClick = { searchQuery = "" },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("program_search_clear"),
-                ) { Text("CLEAR SEARCH") }
             }
         }
         item {
@@ -791,48 +816,51 @@ private fun ToolsScreen(state: ProgramUiState, onStateChanged: (ProgramUiState) 
         item { BrandHeader(); Text("TOOLS", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }
         item { BuildIntegrityCard() }
         item {
-            Card(Modifier.fillMaxWidth().testTag("rest_timer_tool")) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("INDEPENDENT REST TIMER", fontWeight = FontWeight.Bold)
-                    Text("Utility only. Resistance rest guidance is approximate and set quality takes precedence.", style = MaterialTheme.typography.bodySmall)
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(listOf(60, 90, 120, 180)) { seconds ->
-                            FilterChip(
-                                selected = state.restTimerSeconds == seconds,
-                                onClick = { onStateChanged(state.copy(restTimerSeconds = seconds)) },
-                                label = { Text(formatRest(seconds)) },
-                                modifier = Modifier.heightIn(min = 48.dp),
-                            )
-                        }
-                    }
-                    if (state.utilityRestTimerEndEpochMillis != null && timerRemaining > 0) {
-                        Text(
-                            "RUNNING • ${formatRest(timerRemaining)}",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier
-                                .testTag("utility_rest_countdown")
-                                .semantics {
-                                    contentDescription = "Rest timer countdown"
-                                    stateDescription = "Rest timer remaining ${formatRest(timerRemaining)}"
-                                    liveRegion = LiveRegionMode.Polite
-                                },
-                        )
-                        TextButton(
-                            onClick = { onStateChanged(state.copy(utilityRestTimerEndEpochMillis = null)) },
-                            modifier = Modifier.heightIn(min = 48.dp).testTag("rest_timer_cancel"),
-                        ) { Text("STOP TIMER") }
-                    } else {
-                        Button(
-                            enabled = state.restTimerSeconds != null,
-                            onClick = {
-                                val seconds = state.restTimerSeconds ?: return@Button
-                                onStateChanged(state.copy(utilityRestTimerEndEpochMillis = System.currentTimeMillis() + seconds * 1_000L))
-                            },
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("rest_timer_start"),
-                        ) { Text("START TIMER") }
-                    }
-                }
+            Column(Modifier.fillMaxWidth().testTag("rest_timer_tool"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("INDEPENDENT REST TIMER", fontWeight = FontWeight.Bold)
+                Text(
+                    "Utility only. Resistance rest guidance is approximate and set quality takes precedence.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        }
+        items(listOf(60, 90, 120, 180)) { seconds ->
+            val chosen = state.restTimerSeconds == seconds
+            Button(
+                onClick = { onStateChanged(state.copy(restTimerSeconds = seconds)) },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("rest_choice_$seconds"),
+            ) { Text(if (chosen) "${formatRest(seconds)} SELECTED" else formatRest(seconds)) }
+        }
+        item {
+            val running = state.utilityRestTimerEndEpochMillis != null
+            if (running) {
+                Text(
+                    "RUNNING • ${formatRest(timerRemaining)}",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp)
+                        .testTag("utility_rest_countdown")
+                        .semantics {
+                            contentDescription = "Rest timer countdown"
+                            stateDescription = "Rest timer remaining ${formatRest(timerRemaining)}"
+                            liveRegion = LiveRegionMode.Polite
+                        },
+                )
+                TextButton(
+                    onClick = { onStateChanged(state.copy(utilityRestTimerEndEpochMillis = null)) },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("rest_timer_cancel"),
+                ) { Text("STOP TIMER") }
+            } else {
+                Button(
+                    enabled = state.restTimerSeconds != null,
+                    onClick = {
+                        val seconds = state.restTimerSeconds ?: return@Button
+                        onStateChanged(state.copy(utilityRestTimerEndEpochMillis = System.currentTimeMillis() + seconds * 1_000L))
+                    },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("rest_timer_start"),
+                ) { Text("START TIMER") }
             }
         }
         item { AdditionalToolsCards() }

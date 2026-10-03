@@ -155,13 +155,16 @@ class ProgramStateStore(context:Context) {
         return migrated
     }
     fun save(state:ProgramUiState) {
-        val e=prefs.edit().putBoolean(KEY_INITIALIZED,state.initialized).putInt(KEY_CYCLE,state.currentWeek).putInt(KEY_DAY,state.currentDay)
-            .putString(KEY_AUTHORITY, state.authority.name)
-            .putBoolean(KEY_V72_MIGRATED, true)
-        if (state.retainedV71Week != null) e.putInt(KEY_RETAINED_V71_WEEK, state.retainedV71Week) else e.remove(KEY_RETAINED_V71_WEEK)
-        state.restTimerSeconds?.let { e.putInt(KEY_REST,it) } ?: e.remove(KEY_REST)
-        state.utilityRestTimerEndEpochMillis?.let { e.putLong(KEY_TIMER_END,it) } ?: e.remove(KEY_TIMER_END)
-        e.apply()
+        prefs.edit(commit = true) {
+            putBoolean(KEY_INITIALIZED, state.initialized)
+            putInt(KEY_CYCLE, state.currentWeek)
+            putInt(KEY_DAY, state.currentDay)
+            putString(KEY_AUTHORITY, state.authority.name)
+            putBoolean(KEY_V72_MIGRATED, true)
+            if (state.retainedV71Week != null) putInt(KEY_RETAINED_V71_WEEK, state.retainedV71Week) else remove(KEY_RETAINED_V71_WEEK)
+            if (state.restTimerSeconds != null) putInt(KEY_REST, state.restTimerSeconds) else remove(KEY_REST)
+            if (state.utilityRestTimerEndEpochMillis != null) putLong(KEY_TIMER_END, state.utilityRestTimerEndEpochMillis) else remove(KEY_TIMER_END)
+        }
     }
     fun loadWorkout():ActiveWorkoutState? {
         if(!prefs.getBoolean(KEY_WORKOUT_ACTIVE,false) || prefs.getInt(KEY_WORKOUT_SCHEMA,0)!=WORKOUT_SCHEMA) return null
@@ -181,17 +184,17 @@ class ProgramStateStore(context:Context) {
         val absolute = (week - 1) * 7 + day
         val existing = prefs.getInt(KEY_ENGAGED_ABSOLUTE_DAY, 0)
         if (!prefs.contains(KEY_ENGAGED_ABSOLUTE_DAY) || absolute > existing) {
-            prefs.edit { putInt(KEY_ENGAGED_ABSOLUTE_DAY, absolute) }
+            prefs.edit(commit = true) { putInt(KEY_ENGAGED_ABSOLUTE_DAY, absolute) }
         }
     }
 
     fun clearSessionStatus() {
-        prefs.edit { remove(KEY_ENGAGED_ABSOLUTE_DAY) }
+        prefs.edit(commit = true) { remove(KEY_ENGAGED_ABSOLUTE_DAY) }
     }
 
     fun saveWorkout(s:ActiveWorkoutState) {
         markSessionEngaged(s.week, s.day)
-        prefs.edit {
+        prefs.edit(commit = true) {
             putBoolean(KEY_WORKOUT_ACTIVE, true)
             putInt(KEY_WORKOUT_SCHEMA, WORKOUT_SCHEMA)
             putInt(KEY_WORKOUT_WEEK, s.week)
@@ -207,9 +210,9 @@ class ProgramStateStore(context:Context) {
         }
     }
     fun clearWorkout() {
-        val editor=prefs.edit()
-        WORKOUT_KEYS.forEach(editor::remove)
-        editor.apply()
+        prefs.edit(commit = true) {
+            WORKOUT_KEYS.forEach(::remove)
+        }
     }
     private fun encodeSubstitutions(v:Map<String,String>)=v.mapTo(linkedSetOf()) { (k,x) -> k+SEP+x }
     private fun decodeSubstitutions(v:Set<String>)=v.mapNotNull { x -> x.indexOf(SEP).takeIf { it>0 && it<x.lastIndex }?.let { x.substring(0,it) to x.substring(it+SEP.length) } }.toMap()
