@@ -78,7 +78,7 @@ internal fun FoundationReferenceBanner(session: SessionReference, state: Program
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(label, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+            Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
             Text(
                 "This overlay is part of v${session.authority.versionLabel} and is not a user-selectable deload.",
                 style = MaterialTheme.typography.bodySmall,

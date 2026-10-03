@@ -51,7 +51,7 @@ internal fun BuildIntegrityCard() {
             Text(
                 "${BuildConfig.BUILD_TYPE.uppercase()} BUILD • OFFLINE / LOCAL-ONLY",
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
                 "Signing-certificate identity is enforced by release CI once the owner signing lineage is configured.",

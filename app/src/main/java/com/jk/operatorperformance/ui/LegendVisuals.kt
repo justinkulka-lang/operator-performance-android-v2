@@ -31,7 +31,6 @@ import com.jk.operatorperformance.program.ProgramV72
 import com.jk.operatorperformance.program.ProgramBlock
 import com.jk.operatorperformance.program.SessionReference
 import com.jk.operatorperformance.program.SessionRow
-import com.jk.operatorperformance.program.SessionRowKind
 
 @DrawableRes
 private fun phaseEmblemRes(phase: ProgramBlock): Int = when (phase.name) {
@@ -43,32 +42,13 @@ private fun phaseEmblemRes(phase: ProgramBlock): Int = when (phase.name) {
 }
 
 @DrawableRes
-private fun dayGlyphRes(day: Int): Int = when (day) {
-    1 -> R.drawable.ic_lift_squat
-    2 -> R.drawable.ic_lift_bench
-    3 -> R.drawable.ic_event_sprint
-    4 -> R.drawable.ic_rest_laurel
-    5 -> R.drawable.ic_lift_deadlift
-    6 -> R.drawable.ic_legend_mark
-    7 -> R.drawable.ic_event_engine
-    8 -> R.drawable.ic_rest_laurel
-    else -> R.drawable.ic_legend_mark
-}
-
-@DrawableRes
-private fun rowGlyphRes(row: SessionRow): Int? {
-    val title = row.title.uppercase()
-    return when {
-        row.id == "d1_squat" -> R.drawable.ic_lift_squat
-        row.id == "d2_bench" -> R.drawable.ic_lift_bench
-        row.id == "d5_deadlift" -> R.drawable.ic_lift_deadlift
-        row.kind == SessionRowKind.REST -> R.drawable.ic_rest_laurel
-        row.id.startsWith("d3_") || title.contains("ACCELERATION") || title.contains("MAX VELOCITY") ||
-            title.contains("SPECIAL ENDURANCE") || title.contains("300 M") -> R.drawable.ic_event_sprint
-        row.id.startsWith("d6_engine") || title.contains("1.5-MILE") || title.contains("THRESHOLD") ||
-            title.contains("VO2") || title.contains("GOAL PACE") -> R.drawable.ic_event_engine
-        else -> null
-    }
+internal fun mapSymbolRes(symbol: MapSymbol): Int = when (symbol) {
+    MapSymbol.ENGINE -> R.drawable.ic_day_engine
+    MapSymbol.LOWER -> R.drawable.ic_day_lower
+    MapSymbol.SPEED -> R.drawable.ic_day_speed
+    MapSymbol.REST -> R.drawable.ic_day_rest
+    MapSymbol.UPPER_A -> R.drawable.ic_day_upper_a
+    MapSymbol.UPPER_B -> R.drawable.ic_day_upper_b
 }
 
 @Composable
@@ -99,7 +79,7 @@ internal fun LegendBrandHeader() {
 }
 
 @Composable
-internal fun PhaseIdentityLine(phase: ProgramBlock, modifier: Modifier = Modifier) {
+internal fun PhaseIdentityLine(phase: ProgramBlock, modifier: Modifier = Modifier, active: Boolean = true) {
     Row(
         modifier = modifier.semantics { contentDescription = "${phaseFieldLabel(phase)}. Weeks ${phase.startWeek}–${phase.endWeek}" },
         verticalAlignment = Alignment.CenterVertically,
@@ -108,14 +88,14 @@ internal fun PhaseIdentityLine(phase: ProgramBlock, modifier: Modifier = Modifie
         Icon(
             painter = painterResource(phaseEmblemRes(phase)),
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
+            tint = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(28.dp),
         )
         Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
             Text(
                 phaseFieldLabel(phase),
                 style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.primary,
+                color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
             )
             Text(
                 "Weeks ${phase.startWeek}–${phase.endWeek}",
@@ -167,18 +147,22 @@ internal fun PhaseSummaryCard(phase: ProgramBlock, isCurrent: Boolean) {
             Icon(
                 painter = painterResource(phaseEmblemRes(phase)),
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
                     .padding(end = 12.dp)
                     .size(72.dp)
-                    .alpha(if (isCurrent) 0.16f else 0.08f),
+                    .alpha(if (isCurrent) 0.22f else 0.12f),
             )
             Column(
                 modifier = Modifier.padding(16.dp).padding(end = 64.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Text(phaseFieldLabel(phase), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                Text(
+                    phaseFieldLabel(phase),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                )
                 Text(
                     "Weeks ${phase.startWeek}–${phase.endWeek}",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -204,24 +188,24 @@ internal fun SessionDayCardContent(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Icon(
-            painter = painterResource(dayGlyphRes(session.day)),
+            painter = painterResource(mapSymbolRes(sessionSymbol(session))),
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
+            tint = if (isCurrentDay) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.size(32.dp),
         )
         Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(
                 "DAY ${session.day}${if (isCurrentDay) " • TODAY" else ""}",
                 style = technicalStyle(MaterialTheme.typography.labelLarge),
-                color = MaterialTheme.colorScheme.primary,
+                color = if (isCurrentDay) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(session.title, style = MaterialTheme.typography.titleMedium)
             referenceLabel?.let {
-                Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (showRowCount) {
                 Text(
-                    "${session.rows.size} prescribed rows",
+                    sessionFocusLine(session),
                     style = technicalStyle(MaterialTheme.typography.labelMedium),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -232,6 +216,7 @@ internal fun SessionDayCardContent(
 
 @Composable
 internal fun VisualRowTitle(
+    session: SessionReference,
     row: SessionRow,
     title: String,
     style: TextStyle,
@@ -241,11 +226,11 @@ internal fun VisualRowTitle(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        rowGlyphRes(row)?.let { iconRes ->
+        rowSymbol(session, row)?.let { symbol ->
             Icon(
-                painter = painterResource(iconRes),
+                painter = painterResource(mapSymbolRes(symbol)),
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.size(28.dp),
             )
         }
