@@ -830,12 +830,6 @@ private fun ToolsScreen(state: ProgramUiState, onStateChanged: (ProgramUiState) 
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item { BrandHeader(); Text("TOOLS", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }
-        item {
-            TextButton(
-                onClick = onOpenKey,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("open_key"),
-            ) { Text("OPEN KEY") }
-        }
         item { BuildIntegrityCard() }
         item {
             Column(Modifier.fillMaxWidth().testTag("rest_timer_tool"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -884,6 +878,12 @@ private fun ToolsScreen(state: ProgramUiState, onStateChanged: (ProgramUiState) 
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("rest_timer_start"),
                 ) { Text("START TIMER") }
             }
+        }
+        item {
+            TextButton(
+                onClick = onOpenKey,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("open_key"),
+            ) { Text("OPEN KEY") }
         }
         item { AdditionalToolsCards() }
     }
