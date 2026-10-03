@@ -64,7 +64,7 @@ class ProgramV72ParityTest {
 
     @Test fun conditioningRowsWarnOnlyAt600AndKeepPlyometricsScoped() {
         val expectedEngine = mapOf(
-            1 to "One controlled 1.5-mile time trial",
+            1 to "Controlled 1.5-mile baseline; no short upper",
             2 to "3 × 6 min threshold; 2 min easy",
             8 to "Easy run 25 min; easy-only warm-up",
             12 to "6 × 800 m controlled interval; 2 min easy",
@@ -87,8 +87,13 @@ class ProgramV72ParityTest {
         assertTrue(SessionResolver.resolve(3, 4, ProgramAuthority.V72).rows.any { it.id.endsWith("plyometrics") })
         assertFalse(SessionResolver.resolve(30, 4, ProgramAuthority.V72).rows.any { it.id.endsWith("plyometrics") })
         assertTrue(SessionResolver.resolve(7, 4, ProgramAuthority.V72).rows.any { it.note.orEmpty().contains("no RPE fallback") })
-        assertTrue(SessionResolver.resolve(8, 1, ProgramAuthority.V72).rows.none { it.title == "Cooldown" })
+        assertTrue(SessionResolver.resolve(8, 1, ProgramAuthority.V72).rows.any { it.title == "Cooldown" && it.prescription.contains("8–10 min") })
+        assertTrue(SessionResolver.resolve(16, 1, ProgramAuthority.V72).rows.any { it.title == "Cooldown" && it.prescription.contains("8–10 min") })
+        assertTrue(SessionResolver.resolve(8, 1, ProgramAuthority.V72).rows.none { it.prescription.contains("extra cooldown") || it.note.orEmpty().contains("no added cooldown") })
         assertTrue(SessionResolver.resolve(2, 1, ProgramAuthority.V72).rows.any { it.title == "Cooldown" })
+        val incline = AresProgramV72.resistanceSlots.filter { it.phase > 1 && it.day == 3 && it.id.endsWith("_curl") }
+        assertEquals(3, incline.size)
+        assertTrue(incline.all { it.alternatives.map { alt -> alt.name } == listOf("Behind-body cable curl") })
         assertTrue(SessionResolver.resolve(2, 4, ProgramAuthority.V72).rows.first().prescription.contains("ankle rocks 10/side"))
     }
 

@@ -1,25 +1,23 @@
 # Validation
 
-Local checks on this candidate. This is not a production-readiness claim.
+Local checks on this correction. This is not a production-readiness claim, and it is not an independent audit.
 
 | Gate | Result |
 | --- | --- |
-| `:app:testDebugUnitTest` | Pass. 27 tests, 0 failures, 0 errors, 0 skipped. |
-| `:app:assembleDebug` | Pass. |
-| `:app:lintDebug` | Pass. 0 errors. 26 pre-existing-style warnings (dependency, icon, shared-prefs `apply`, target API). None were suppressed to force a pass. |
-| Instrumented UI | Pass on emulator `ares-dev-api35` (API 35, software rendering). `V71LaunchUiTest.explicitStartGateIsShown` passed in 56.9 s. |
-| Emulator walkthrough | Fresh install shows ARES v7.2 and START WEEK 1 • DAY 1. After start, Today is v7.2 Week 1 Day 1, Engine baseline, with START WORKOUT still visible after the session list scrolls. |
-| Galaxy S26 Ultra | Pending. |
+| `:app:testDebugUnitTest` | Pass. 38 tests, 0 failures, 0 errors, 0 skipped. Includes `V72AuthorityComparisonTest` and the corrected migration cases. |
+| `:app:lintDebug` | Pass. 0 errors. Warnings are the existing dependency, icon, shared-prefs `apply`, and target-API findings. None were suppressed to force a pass. |
+| `:app:assembleDebug` | Rebuilt after this commit with `GITHUB_SHA` set to the commit. The review ZIP `SHA256SUMS` is the APK identity. |
+| Instrumented UI | Not re-run for this correction. The earlier `V71LaunchUiTest` result does not cover the cooldown, curl alternative, or migration fix. |
+| Emulator walkthrough | The earlier start-gate screenshots do not show Week 8 or the incline-curl alternative. |
+| Galaxy S26 Ultra | Pending. Do not start it until this correction is the candidate under review. |
 
-Debug APK:
+Previous APK identities are obsolete:
 
-- Path: `app/build/outputs/apk/debug/app-debug.apk`
-- Copy: `/opt/cursor/artifacts/ares-v72-debug.apk`
-- Package: `com.jk.operatorperformance`
-- versionCode / versionName: 47 / 0.38.0
-- SHA-256: `48f0f394a49ef6e8845e81775973d227ad0ea9edf90c32350cf3d1240011194c`
-- `BUILD_COMMIT`: `LOCAL` because `GITHUB_SHA` was not set for this build.
+- `48f0f394a49ef6e8845e81775973d227ad0ea9edf90c32350cf3d1240011194c` embedded `BUILD_COMMIT=LOCAL`.
+- `2a64957ecf2a4813d5620395cc28caa35422f3e8e77553d190c2eec276a1970e` was built from `1fcd3f3861a1` before these corrections.
 
-The APK was built from the v7.2 source tree before the audit-doc commit. Workflow-only edits do not change the APK bytes. Re-run assemble on CI to embed the commit SHA.
+Package `com.jk.operatorperformance`, versionCode 47, and versionName 0.38.0 are unchanged. The app stores only the first 12 hex characters of `GITHUB_SHA`.
 
 Base CI runs `36364996205` and `36364996241` failed on the starting commit because `build-tools;37.1.0` does not exist. Those workflows now request API 36. Their historical failures are not results for this candidate.
+
+Font scaling and runtime offline behavior remain unverified. The manifest has no `INTERNET` permission; that is not a runtime offline test.

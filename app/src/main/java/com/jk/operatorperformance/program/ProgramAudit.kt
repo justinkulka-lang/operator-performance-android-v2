@@ -66,6 +66,12 @@ object ProgramAudit {
             if (sprint == 600 && !speedNote.contains("WORKLOAD WARNING")) add("Week $week missing 600 m warning.")
             if (sprint in 1..599 && speedNote.contains("WORKLOAD WARNING")) add("Week $week warns below 600 m.")
             if (AresProgramV72.includesPlyometrics(week) != split[3].rows.any { it.id.endsWith("plyometrics") }) add("Week $week plyometric scope mismatch.")
+            if (split[0].rows.none { it.title == "Cooldown" }) add("Week $week Day 1 missing Engine cooldown.")
+            if (split[3].rows.none { it.title == "Cooldown" }) add("Week $week Day 4 missing Speed cooldown.")
+        }
+        val laterCurls = AresProgramV72.resistanceSlots.filter { it.phase > 1 && it.day == 3 && it.id.endsWith("_curl") }
+        if (laterCurls.size != 3 || laterCurls.any { slot -> slot.alternatives.map { it.name } != listOf("Behind-body cable curl") }) {
+            add("Later-phase Day 3 curls must keep the Phase 1 behind-body cable alternative.")
         }
         if (SessionResolver.resolve(1, 1, ProgramAuthority.V72).rows.any { it.kind == SessionRowKind.RESISTANCE }) add("Week 1 Day 1 must omit short upper.")
         if (SessionResolver.resolve(32, 2, ProgramAuthority.V72).rows.any { it.kind == SessionRowKind.RESISTANCE }) add("Week 32 Day 2 must not lift.")

@@ -1,6 +1,7 @@
 package com.jk.operatorperformance.state
 
 import android.content.Context
+import androidx.core.content.edit
 import com.jk.operatorperformance.program.ProgramAuthority
 
 data class ProgramUiState(
@@ -50,22 +51,43 @@ data class ProgramUiState(
     fun resetToV72Start() = copy(initialized = true, currentWeek = 1, currentDay = 1, authority = ProgramAuthority.V72, retainedV71Week = null)
 }
 
+enum class WeekStartEvidence {
+    /** No durable session-status record. Absence is not proof the week never started. */
+    UNKNOWN,
+    /** A recorded session status shows this week has not been started. */
+    NOT_STARTED,
+    /** A workout was started or a day in this week was completed, even if that workout was later cleared. */
+    ENGAGED,
+}
+
 object AuthorityMigration {
     /**
-     * Day 1 with no active workout is treated as an unstarted week.
-     * A stored day greater than 1, or an active workout, keeps that week on v7.1.
-     * Uninitialized installs do not inherit a Week 2 Day 3 pointer.
+     * An initialized Day 1 with no active workout is not treated as unstarted.
+     * clearWorkout() deletes the workout and leaves the pointer in place, so that
+     * pair cannot be distinguished from a week that never began.
+     * v7.2 is activated immediately only when the install is uninitialized, or when
+     * a session-status record positively shows the current Day 1 was never started.
      */
-    fun apply(state: ProgramUiState, workoutActive: Boolean): ProgramUiState {
+    fun apply(
+        state: ProgramUiState,
+        workoutActive: Boolean,
+        evidence: WeekStartEvidence = WeekStartEvidence.UNKNOWN,
+    ): ProgramUiState {
         if (!state.initialized) {
             return state.copy(currentWeek = 1, currentDay = 1, authority = ProgramAuthority.V72, retainedV71Week = null)
         }
-        val retain = workoutActive || state.currentDay > 1
-        return if (retain) {
-            state.copy(authority = ProgramAuthority.V71, retainedV71Week = state.currentWeek)
-        } else {
+        val provenUnstarted = state.currentDay == 1 && !workoutActive && evidence == WeekStartEvidence.NOT_STARTED
+        return if (provenUnstarted) {
             state.copy(authority = ProgramAuthority.V72, retainedV71Week = null)
+        } else {
+            state.copy(authority = ProgramAuthority.V71, retainedV71Week = state.currentWeek)
         }
+    }
+
+    fun evidenceFor(recordPresent: Boolean, engagedAbsoluteDay: Int, week: Int): WeekStartEvidence {
+        if (!recordPresent) return WeekStartEvidence.UNKNOWN
+        val weekStart = (week - 1) * 7 + 1
+        return if (engagedAbsoluteDay >= weekStart) WeekStartEvidence.ENGAGED else WeekStartEvidence.NOT_STARTED
     }
 }
 
@@ -107,7 +129,8 @@ class ProgramStateStore(context:Context) {
             val oldDay=legacyPrefs.getInt(KEY_DAY,3).coerceIn(1,8)
             val pointer=if(oldDay==8) ProgramUiState(true,(oldWeek+1).coerceAtMost(32),1)
                 else ProgramUiState(true,oldWeek,oldDay.coerceIn(1,7))
-            val migrated=AuthorityMigration.apply(pointer, workoutActive=false)
+            val legacyEvidence=if(oldDay==8 && oldWeek<32) WeekStartEvidence.NOT_STARTED else WeekStartEvidence.UNKNOWN
+            val migrated=AuthorityMigration.apply(pointer, workoutActive=false, legacyEvidence)
             save(migrated)
             return migrated
         }
@@ -122,7 +145,12 @@ class ProgramStateStore(context:Context) {
         )
         if (prefs.getBoolean(KEY_V72_MIGRATED, false)) return stored
         val workoutActive = prefs.getBoolean(KEY_WORKOUT_ACTIVE, false) && prefs.getInt(KEY_WORKOUT_SCHEMA, 0) == WORKOUT_SCHEMA
-        val migrated = AuthorityMigration.apply(stored, workoutActive)
+        val evidence = AuthorityMigration.evidenceFor(
+            recordPresent = prefs.contains(KEY_ENGAGED_ABSOLUTE_DAY),
+            engagedAbsoluteDay = prefs.getInt(KEY_ENGAGED_ABSOLUTE_DAY, 0),
+            week = stored.currentWeek,
+        )
+        val migrated = AuthorityMigration.apply(stored, workoutActive, evidence)
         save(migrated)
         return migrated
     }
@@ -147,7 +175,22 @@ class ProgramStateStore(context:Context) {
             undoComplete=if(hasUndo)prefs.getBoolean(KEY_UNDO_COMPLETE,false) else null,undoRestTimerEndEpochMillis=if(hasUndo)prefs.getLong(KEY_UNDO_TIMER,0L).takeIf { it>0L } else null,
             undoCompletedEffortIds=if(hasUndo)prefs.getStringSet(KEY_UNDO_COMPLETED,emptySet()).orEmpty().toSet() else null)
     }
+    fun markSessionEngaged(week: Int, day: Int) {
+        require(week in 1..32)
+        require(day in 1..7)
+        val absolute = (week - 1) * 7 + day
+        val existing = prefs.getInt(KEY_ENGAGED_ABSOLUTE_DAY, 0)
+        if (!prefs.contains(KEY_ENGAGED_ABSOLUTE_DAY) || absolute > existing) {
+            prefs.edit { putInt(KEY_ENGAGED_ABSOLUTE_DAY, absolute) }
+        }
+    }
+
+    fun clearSessionStatus() {
+        prefs.edit { remove(KEY_ENGAGED_ABSOLUTE_DAY) }
+    }
+
     fun saveWorkout(s:ActiveWorkoutState) {
+        markSessionEngaged(s.week, s.day)
         val e=prefs.edit().putBoolean(KEY_WORKOUT_ACTIVE,true).putInt(KEY_WORKOUT_SCHEMA,WORKOUT_SCHEMA).putInt(KEY_WORKOUT_WEEK,s.week).putInt(KEY_WORKOUT_DAY,s.day)
             .putInt(KEY_MOVEMENT,s.movementIndex).putInt(KEY_EFFORT,s.effortIndex).putBoolean(KEY_COMPLETE,s.complete)
             .putStringSet(KEY_SUBSTITUTIONS,encodeSubstitutions(s.selectedSubstitutions)).putStringSet(KEY_COMPLETED,s.completedEffortIds).putBoolean(KEY_HAS_UNDO,s.canUndo)
@@ -172,6 +215,7 @@ class ProgramStateStore(context:Context) {
         private const val LEGACY_KEY_INITIALIZED="v70Initialized"
         private const val KEY_INITIALIZED="v71Initialized"; private const val KEY_CYCLE="currentWeek"; private const val KEY_DAY="currentDay"
         private const val KEY_AUTHORITY="authorityVersion"; private const val KEY_RETAINED_V71_WEEK="retainedV71Week"; private const val KEY_V72_MIGRATED="v72MigrationApplied"
+        private const val KEY_ENGAGED_ABSOLUTE_DAY="engagedAbsoluteDay"
         private const val KEY_REST="manualRestTimerSeconds"; private const val KEY_TIMER_END="utilityRestTimerEndEpochMillis"
         private const val WORKOUT_SCHEMA=5; private const val KEY_WORKOUT_ACTIVE="workoutActive"; private const val KEY_WORKOUT_SCHEMA="workoutSchema"
         private const val KEY_WORKOUT_WEEK="workoutWeek"; private const val KEY_WORKOUT_DAY="workoutDay"; private const val KEY_MOVEMENT="movementIndex"

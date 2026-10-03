@@ -294,6 +294,7 @@ private fun DataControlsCard() {
                 TextButton(
                     onClick = {
                         stateStore.clearWorkout()
+                        stateStore.clearSessionStatus()
                         stateStore.save(stateStore.load().resetToV72Start())
                         confirmReset = false
                         context.findActivity()?.recreate()

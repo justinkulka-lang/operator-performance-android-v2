@@ -43,12 +43,12 @@ internal object V72SessionBuilder {
                 title = if (easyOnly) "Easy-run opening" else "Engine warm-up",
                 prescription = if (easyOnly) AresProgramV72.engineEasyWarmup else AresProgramV72.engineQualityWarmup,
                 kind = SessionRowKind.CONDITIONING,
-                note = if (easyOnly) "Included in the listed easy run. No strides and no added cooldown." else "Complete before threshold, interval, goal-pace, or timed work.",
+                note = if (easyOnly) "Included in the listed easy run. No strides. The 8–10 min cooldown still follows the run." else "Complete before threshold, interval, goal-pace, or timed work.",
                 effortLabel = "WARM-UP",
             ),
         )
         add(engineWork(plan.engine.single()))
-        if (!easyOnly) add(cooldownRow("w${week}_d1_cooldown"))
+        add(cooldownRow("w${week}_d1_cooldown"))
         if (!AresProgramV72.omitShortUpper(week)) addAll(resistanceDay(week, 1))
     }
 

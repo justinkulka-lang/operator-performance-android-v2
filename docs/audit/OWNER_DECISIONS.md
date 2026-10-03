@@ -44,9 +44,11 @@ Shown behavior: Phase 4 ranges are kept, sets change to the 6.2 table, and RIR b
 
 ## 7. Unstarted versus active week
 
-Section 10 says to preserve an active v7.1 week and to activate v7.2 immediately when the initialized week has not begun. Legacy prefs do not have a separate "week started" flag.
+Section 10 says to preserve an active v7.1 week, to activate v7.2 at the next unstarted Day 1, and to activate v7.2 immediately when the install happens before an initialized week begins. It also says never to duplicate or omit a completed session.
 
-Shown behavior: Day 1 with no active workout is treated as unstarted. Any later day, or an active workout, retains v7.1 for that week only. This can misread a pointer that was left on Day 1 after a reset workout.
+`clearWorkout()` removes the workout and leaves the pointer where it is. Day 1 with no active workout is therefore the same stored shape as a Day 1 that was started or completed and then reset.
+
+Shown behavior: an initialized Day 1 is retained on v7.1 unless a session-status record positively says that week has not started. Uninitialized installs still open at Week 1 Day 1 under v7.2. A legacy day-8 pointer, which means the previous week was completed, activates v7.2 on the next Day 1. Going forward, saving a workout or advancing a day writes `engagedAbsoluteDay`, and reset of the workout does not delete it.
 
 ## 8. v7.1 Week 32
 
@@ -54,4 +56,5 @@ There is no Week 33. An active v7.1 Week 32 stays on v7.1 through Day 7 and then
 
 ## 9. DOCX digest
 
-The approved v7.2 file was not available to hash. The expected digest is displayed as unverified.
+`docs/ARES_Performance_Unified_Master_Authority_v7.2_APPROVED.docx` was hashed in this workspace. SHA-256 is `25a7ce497569913c4a56c057bcaa139290adddf20876a2d736790d5fefd436f3`. `DOCX_SHA256_VERIFIED` is true. The bytes were not edited.
+

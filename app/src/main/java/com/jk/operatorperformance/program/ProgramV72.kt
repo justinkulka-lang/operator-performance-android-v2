@@ -2,13 +2,12 @@ package com.jk.operatorperformance.program
 
 /**
  * Immutable ARES Performance v7.2 prescription.
- * The approved DOCX was not in this workspace, so [EXPECTED_DOCX_SHA256] is the
- * owner-supplied digest and has not been recomputed from file bytes.
+ * [EXPECTED_DOCX_SHA256] matches docs/ARES_Performance_Unified_Master_Authority_v7.2_APPROVED.docx.
  */
 object AresProgramV72 {
     const val AUTHORITY_VERSION = "7.2"
     const val EXPECTED_DOCX_SHA256 = "25a7ce497569913c4a56c057bcaa139290adddf20876a2d736790d5fefd436f3"
-    const val DOCX_SHA256_VERIFIED = false
+    const val DOCX_SHA256_VERIFIED = true
     const val PROGRAM_NAME = "ARES PERFORMANCE"
     const val PROGRAM_TAGLINE = "Muscle · Strength · Speed · Engine"
     const val TOTAL_WEEKS = 32
@@ -51,7 +50,7 @@ object AresProgramV72 {
     const val engineQualityWarmup =
         "10 min easy jog; ankle rocks and leg swings 10/side; 4 × 20 s progressive strides with 60 s easy walking/jogging."
     const val engineEasyWarmup =
-        "5 min easy movement and no strides. This opening starts the listed easy run. Do not add strides or an extra cooldown."
+        "5 min easy movement and no strides. This opening starts the listed easy run."
     const val cooldown =
         "Walk or jog very easily for 8–10 min. Do not add strides, intervals, or conditioning."
     const val plyometrics =
@@ -144,6 +143,8 @@ object AresProgramV72 {
         "d5_ohp" to 1, "d5_pull" to 2, "d5_row" to 1, "d5_rear" to 1,
     )
 
+    private val inclineCurlAlt = listOf("Behind-body cable curl")
+
     val resistanceSlots: List<ResistanceSlot> = buildList {
         phase1(); phase2(); phase3(); phase4()
     }
@@ -206,7 +207,7 @@ object AresProgramV72 {
         lift(2, 3, "pull", "Lat pulldown or pull-up", "3 × 6–10 @ 1–2 RIR", Muscle.LATS, true, laterAlts("pull"))
         lift(2, 3, "lateral", "Lateral raise", "3 × 12–20 @ 0–1 RIR", Muscle.DELTS, false, laterAlts("lateral"))
         lift(2, 3, "triceps", "Triceps extension", "3 × 8–12 @ 1 RIR", Muscle.TRICEPS, false, laterAlts("triceps"))
-        lift(2, 3, "curl", "Incline curl", "3 × 8–12 @ 1 RIR", Muscle.BICEPS, false, laterAlts("curl"))
+        lift(2, 3, "curl", "Incline curl", "3 × 8–12 @ 1 RIR", Muscle.BICEPS, false, inclineCurlAlt)
         lift(2, 3, "shrug", "Paused shrug", "2 × 8–12 @ 1 RIR", Muscle.TRAPS, false, laterAlts("shrug"))
         lift(2, 5, "ohp", "Standing overhead press", "4 × 4–6 @ 2 RIR", Muscle.DELTS, true, laterAlts("ohp"))
         lift(2, 5, "pull", "Weighted pull-up or pulldown", "4 × 5–8 @ 2 RIR", Muscle.LATS, true, laterAlts("pull"))
@@ -244,7 +245,7 @@ object AresProgramV72 {
         lift(3, 3, "pull", "Pulldown or pull-up", "3 × 8–12 @ 1–2 RIR", Muscle.LATS, true, laterAlts("pull"))
         lift(3, 3, "lateral", "Lateral raise", "3 × 12–20 @ 0–1 RIR", Muscle.DELTS, false, laterAlts("lateral"))
         lift(3, 3, "triceps", "Triceps extension", "3 × 10–15 @ 1 RIR", Muscle.TRICEPS, false, laterAlts("triceps"))
-        lift(3, 3, "curl", "Curl", "3 × 10–15 @ 1 RIR", Muscle.BICEPS, false, laterAlts("curl"))
+        lift(3, 3, "curl", "Curl", "3 × 10–15 @ 1 RIR", Muscle.BICEPS, false, inclineCurlAlt)
         lift(3, 5, "ohp", "Overhead press", "3 × 4–6 @ 2 RIR", Muscle.DELTS, true, laterAlts("ohp"))
         lift(3, 5, "pull", "Pull-up or pulldown", "3 × 6–10 @ 2 RIR", Muscle.LATS, true, laterAlts("pull"))
         lift(3, 5, "row", "Cable or chest-supported row", "3 × 8–12 @ 1–2 RIR", Muscle.UPPER_BACK, true, laterAlts("row"))
@@ -280,7 +281,7 @@ object AresProgramV72 {
         lift(4, 3, "pull", "Pulldown or pull-up", "2 × 8–10 @ 2 RIR", Muscle.LATS, true, laterAlts("pull"))
         lift(4, 3, "lateral", "Lateral raise", "2 × 12–20 @ 1 RIR", Muscle.DELTS, false, laterAlts("lateral"))
         lift(4, 3, "triceps", "Triceps extension", "3 × 10–15 @ 1 RIR", Muscle.TRICEPS, false, laterAlts("triceps"))
-        lift(4, 3, "curl", "Curl", "2 × 10–15 @ 1 RIR", Muscle.BICEPS, false, laterAlts("curl"))
+        lift(4, 3, "curl", "Curl", "2 × 10–15 @ 1 RIR", Muscle.BICEPS, false, inclineCurlAlt)
         lift(4, 5, "ohp", "Overhead press", "2 × 4–6 @ 2 RIR", Muscle.DELTS, true, laterAlts("ohp"))
         lift(4, 5, "pull", "Pull-up or pulldown", "3 × 6–10 @ 2 RIR", Muscle.LATS, true, laterAlts("pull"))
         lift(4, 5, "row", "Cable or chest-supported row", "2 × 8–12 @ 2 RIR", Muscle.UPPER_BACK, true, laterAlts("row"))
@@ -374,7 +375,7 @@ object AresProgramV72 {
     }
 
     val conditioningByWeek: Map<Int, WeekConditioning> = listOf(
-        c(1, "Controlled 1.5-mile baseline", "One controlled 1.5-mile time trial", "Timed 300 m baseline", "One timed 300 m if the eligibility gate is met; no jumps", 300, "Bike 20 min easy"),
+        c(1, "Controlled 1.5-mile baseline", "Controlled 1.5-mile baseline; no short upper", "Timed 300 m baseline", "Timed 300 m only if eligibility gate is met; otherwise 6 × 30 m at 70–85%; no jumps", 300, "Bike 20 min easy"),
         c(2, "Threshold", "3 × 6 min threshold; 2 min easy", "Acceleration", "6 × 20 m acceleration; 3 min recovery", 120, "Bike 25 min easy"),
         c(3, "Controlled interval", "5 × 3 min controlled interval; 2 min easy", "Acceleration", "6 × 30 m acceleration; 3–4 min recovery", 180, "Bike 25 min easy"),
         c(4, "Threshold", "20 min continuous threshold", "Build + fly", "4 × (20 m build + 20 m fly); 5 min recovery", 80, "Bike 30 min easy"),
@@ -389,7 +390,7 @@ object AresProgramV72 {
         c(13, "Goal pace", "6 × 400 m at goal pace; 90 s easy", "Acceleration + fly", "4 × 30 m acceleration + 3 × 20 m fly; full recovery", 180, "Easy run 25 min"),
         c(14, "Threshold", "2 × 1 mile threshold; 2 min easy", "Special endurance", "2 × 250 m at 90–93%; 7–8 min recovery", 500, "Bike 30 min easy"),
         c(15, "Controlled interval", "5 × 1000 m controlled interval; 2 min easy", "Acceleration", "6 × 30 m acceleration; full recovery", 180, "Easy run 25 min"),
-        c(16, "Easy run", "Easy run 20 min; easy-only warm-up", "Timed 300 m checkpoint", "300 m checkpoint only if the gate is met; no jumps", 300, "Bike 20 min easy"),
+        c(16, "Easy run", "Easy run 20 min; easy-only warm-up", "Timed 300 m checkpoint", "300 m checkpoint only if gate is met; no jumps", 300, "Bike 20 min easy"),
         c(17, "Threshold", "25 min continuous threshold", "Build + fly", "5 × (20 m build + 20 m fly); 5 min recovery", 100, "Easy run 25 min"),
         c(18, "Goal pace", "3 × 800 m at goal pace; 3 min easy", "Special endurance", "3 × 200 m at 92–95%; 6–8 min recovery; 600 m warning", 600, "Bike 30 min easy"),
         c(19, "Controlled interval", "6 × 800 m controlled interval; 2 min easy", "Special endurance", "2 × 300 m at 88–92%; 8–10 min recovery; 600 m warning", 600, "Easy run 30 min"),
@@ -405,7 +406,7 @@ object AresProgramV72 {
         c(29, "Goal pace", "3 × 800 m at goal pace; 3 min easy", "Special endurance", "2 × 200 m at 95%; 8 min recovery", 400, "Bike 20 min easy"),
         c(30, "Goal pace", "4 × 400 m at goal pace; 2 min easy", "Acceleration + fly", "4 × 30 m acceleration + 2 × 20 m fly; full recovery; no jumps", 160, "Bike 15–20 min easy"),
         c(31, "Goal pace", "3 × 400 m at goal pace; 2.5 min easy", "Relaxed acceleration", "4 × 20 m relaxed acceleration; full recovery; no jumps", 80, "Bike 15 min very easy"),
-        c(32, "Final 1.5-mile", "Final timed 1.5-mile; no short upper", "Final 300 m", "Final timed 300 m only if the gate is met; no jumps", 300, "No Day 5 aerobic; final-test overlay"),
+        c(32, "Final 1.5-mile", "Final timed 1.5-mile; no short upper", "Final 300 m", "Final timed 300 m only if gate is met; no jumps", 300, "No Day 5 aerobic; use final-test overlay"),
     ).associateBy { it.week }
 
     fun conditioningForWeek(week: Int) = requireNotNull(conditioningByWeek[week])

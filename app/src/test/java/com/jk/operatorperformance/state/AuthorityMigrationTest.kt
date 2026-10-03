@@ -15,12 +15,55 @@ class AuthorityMigrationTest {
         assertNull(migrated.retainedV71Week)
     }
 
-    @Test fun unstartedDay1ActivatesV72Immediately() {
-        val migrated = AuthorityMigration.apply(ProgramUiState(initialized = true, currentWeek = 5, currentDay = 1), workoutActive = false)
+    @Test fun day1WithoutSessionEvidenceRetainsV71() {
+        val migrated = AuthorityMigration.apply(
+            ProgramUiState(initialized = true, currentWeek = 5, currentDay = 1),
+            workoutActive = false,
+            evidence = WeekStartEvidence.UNKNOWN,
+        )
+        assertEquals(5, migrated.currentWeek)
+        assertEquals(1, migrated.currentDay)
+        assertEquals(ProgramAuthority.V71, migrated.authority)
+        assertEquals(5, migrated.retainedV71Week)
+    }
+
+    @Test fun resetAfterCompletionOnDay1RetainsV71() {
+        val migrated = AuthorityMigration.apply(
+            ProgramUiState(initialized = true, currentWeek = 5, currentDay = 1),
+            workoutActive = false,
+            evidence = WeekStartEvidence.ENGAGED,
+        )
+        assertEquals(ProgramAuthority.V71, migrated.authority)
+        assertEquals(5, migrated.retainedV71Week)
+    }
+
+    @Test fun provenUnstartedDay1ActivatesV72() {
+        val migrated = AuthorityMigration.apply(
+            ProgramUiState(initialized = true, currentWeek = 5, currentDay = 1),
+            workoutActive = false,
+            evidence = WeekStartEvidence.NOT_STARTED,
+        )
         assertEquals(5, migrated.currentWeek)
         assertEquals(1, migrated.currentDay)
         assertEquals(ProgramAuthority.V72, migrated.authority)
         assertNull(migrated.retainedV71Week)
+    }
+
+    @Test fun laterDayRetainsEvenWhenEvidenceSaysNotStarted() {
+        val migrated = AuthorityMigration.apply(
+            ProgramUiState(initialized = true, currentWeek = 5, currentDay = 2),
+            workoutActive = false,
+            evidence = WeekStartEvidence.NOT_STARTED,
+        )
+        assertEquals(ProgramAuthority.V71, migrated.authority)
+        assertEquals(5, migrated.retainedV71Week)
+    }
+
+    @Test fun sessionEvidenceDoesNotTreatAMissingRecordAsUnstarted() {
+        assertEquals(WeekStartEvidence.UNKNOWN, AuthorityMigration.evidenceFor(recordPresent = false, engagedAbsoluteDay = 0, week = 1))
+        assertEquals(WeekStartEvidence.ENGAGED, AuthorityMigration.evidenceFor(recordPresent = true, engagedAbsoluteDay = 1, week = 1))
+        assertEquals(WeekStartEvidence.NOT_STARTED, AuthorityMigration.evidenceFor(recordPresent = true, engagedAbsoluteDay = 7, week = 2))
+        assertEquals(WeekStartEvidence.ENGAGED, AuthorityMigration.evidenceFor(recordPresent = true, engagedAbsoluteDay = 8, week = 2))
     }
 
     @Test fun activeMidweekRetainsV71UntilTheNextDay1() {

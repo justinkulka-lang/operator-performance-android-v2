@@ -127,7 +127,7 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
                     Text("Starting begins at Week 1, Day 1. Existing v7.0 progress is migrated when available. An in-progress v7.1 week finishes under v7.1, and v7.2 starts at the next unstarted Day 1.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(24.dp))
                     Button(
-                        onClick = { clearWorkout(); persist(state.startV72()); selectedProgramWeek = 1 },
+                        onClick = { clearWorkout(); stateStore.clearSessionStatus(); persist(state.startV72()); selectedProgramWeek = 1 },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("start_v72"),
                     ) { Text("START WEEK 1 • DAY 1", fontWeight = FontWeight.Bold) }
                 }
@@ -194,6 +194,7 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
                         onProgress = ::persistWorkout,
                         onResetWorkout = ::clearWorkout,
                         onAdvance = {
+                            stateStore.markSessionEngaged(state.currentWeek, state.currentDay)
                             clearWorkout()
                             val next = state.advanceDay()
                             persist(next)
