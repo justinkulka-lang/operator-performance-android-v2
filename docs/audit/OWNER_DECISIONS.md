@@ -32,9 +32,14 @@ Shown behavior: the written distances only. No extra approach and no extra repet
 
 ## 5. Substitution precedence
 
-Section 4 says Phase 1 alternatives remain the later-phase map. Section 7.1 is the pattern order. Trap-bar deadlift is not an RDL alternative.
+Section 4 says: "Alternatives in Phase 1 remain the substitution map for later phases." Section 7.1 is the ranked pattern order. Trap-bar deadlift is not an RDL alternative.
 
-Shown behavior: Phase 1 slots use the Phase 1 table. Later phases use the section 7.1 order, capped at four alternatives, with RDL limited to barbell, Smith, and dumbbell RDL.
+Shown behavior: every later-phase slot copies the Phase 1 alternative list for the same day and key. A later movement with no Phase 1 twin stays inside that pattern:
+
+- Day 3 vertical pull uses Assisted pull-up and Band pulldown, from the Phase 1 Day 5 vertical pull.
+- Day 5 cable or chest-supported row uses T-bar row and One-arm row, from the Phase 1 Day 3 cable or DB row. It does not use the chest-supported row list.
+
+Section 7.1 names that are absent from the Phase 1 cell are not added: trap-bar deadlift, hack squat, leg press as a squat alternative, machine shoulder press, supported split squat, and a straight-knee calf on the seated calf. Phase 2 Day 6 "Leg curl" inherits Phase 1 Day 6, which is Slider curl only.
 
 ## 6. Weeks 30–31 rep ranges
 
@@ -57,4 +62,12 @@ There is no Week 33. An active v7.1 Week 32 stays on v7.1 through Day 7 and then
 ## 9. DOCX digest
 
 `docs/ARES_Performance_Unified_Master_Authority_v7.2_APPROVED.docx` was hashed in this workspace. SHA-256 is `25a7ce497569913c4a56c057bcaa139290adddf20876a2d736790d5fefd436f3`. `DOCX_SHA256_VERIFIED` is true. The bytes were not edited.
+
+## 10. Session status is not a set log
+
+Section 10 says the app stores current week/day, session status, substitutions, timer state, authority activation state, and permitted settings only. It also says the product must not become a workout logger.
+
+Per-set completion is not required to decide START or RESUME. Those actions need only whether a session record exists and whether that record is complete.
+
+Shown behavior: not started, active, paused/resumable, and completed. Choosing an alternative or starting a manual rest timer creates the session record, because substitutions and timer state are authorized. Resetting the workout clears that record and the rest timer. It does not clear `engagedAbsoluteDay`. The stored schema still has unused effort fields so an older in-progress record can be read; every save clears them and does not write loads, reps, RIR, pace, or results.
 

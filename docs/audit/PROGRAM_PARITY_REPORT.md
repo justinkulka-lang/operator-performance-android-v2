@@ -9,8 +9,7 @@ v7.2 is the runtime source for every week that is not an explicitly retained v7.
 - Week 1 Day 1, Week 24 Day 1, and Week 32 Day 1 omit short upper.
 - Weeks 8 and 16 use the easy-only engine opening: 5 minutes of easy movement and no strides.
 - Every Engine session, including those two weeks, and every Speed session then adds the 8–10 minute cooldown from section 3.2.
-- Phase 2 Incline curl, and the Phase 3 and Phase 4 Day 3 curl that continues that slot, keep the Phase 1 alternative Behind-body cable curl.
-- Other later-phase alternatives still follow the section 7.1 pattern list. That is not a second copy of every Phase 1 alternative cell.
+- Every later-phase slot inherits the Phase 1 alternative cell for the same day and key, including Behind-body cable curl on the Day 3 curl. Day 3 vertical pull and Day 5 cable row use the same-pattern ranks because those movements have no Phase 1 twin on that day.
 - Plyometrics are only on Speed in weeks 3–7, 9–15, 17–23, and 25–29.
 
 ## Volume

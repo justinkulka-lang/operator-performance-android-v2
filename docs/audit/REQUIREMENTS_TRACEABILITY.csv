@@ -2,7 +2,7 @@ requirement,authority,implementation,verification,status
 224 days and days 1-7 only,v7.2 section 2 and 11,AresProgramV72.TOTAL_DAYS and SessionResolver V72,ProgramV72ParityTest.durationIs224DaysWithOneRestAndNoWeek33,pass
 One rest day and quality-run spacing,v7.2 sections 2.1 and 11,Day titles and day 7 rest row,ProgramV72ParityTest day-order test,pass
 Resistance movement sets reps and RIR,v7.2 section 4 and 6,AresProgramV72.resistanceSlots and plannedDose,V72AuthorityComparisonTest against transcribed DOCX rows for phases 1-4 plus consolidation realization and week 32,pass
-Later-phase alternatives,v7.2 section 4 sentence that Phase 1 alternatives remain the later-phase map,Day 3 curl slots keep Behind-body cable curl,other later-phase alternatives still use the section 7.1 pattern list and were not re-copied cell by cell from Phase 1,partial
+Later-phase alternatives,v7.2 section 4 sentence that Phase 1 alternatives remain the later-phase map,later slots inherit the Phase 1 cell for the same day and key; Day 3 pull and Day 5 row use the same-pattern ranks,V72AlternativeMapTest transcribes all 36 Phase 1 cells and all 100 later slots,pass
 Section 4 muscle-set audit,v7.2 section 4 table,phaseVolume chest back quads hamstrings direct arms,ProgramAudit.validateV72,pass
 All 32 conditioning rows,v7.2 sections 5.2-5.5,AresProgramV72.conditioningByWeek,V72AuthorityComparisonTest checks every Engine Speed and easy-aerobic cell,pass
 Warm-up plyometrics cooldown,v7.2 sections 3.2 and 3.3,V72SessionBuilder,every Engine and Speed day includes the 8-10 min cooldown including weeks 8 and 16,pass
@@ -13,11 +13,11 @@ Week 32 final taper,v7.2 section 6.3,week32Sets without invented rep ranges,week
 Exact pace table,v7.2 section 5.6,GOAL_PACE_TABLE and targetSeconds,pace math test rejects 1:40 2:30 3:20 4:10,pass
 TODAY WEEK PROGRAM TOOLS,v7.2 section 10,existing Destination navigation,unchanged navigation labels,pass
 START or RESUME without scrolling,v7.2 section 10,Today footer button,emulator Today scroll kept START WORKOUT visible; Galaxy pending,pass on emulator
-Scroll and large type,v7.2 section 10,dialog Column verticalScroll heightIn 520dp,code review; device check pending,partial
-Dark theme,v7.2 section 10,existing Ares dark color scheme,code review; device check pending,partial
-Timer survival,v7.2 section 10,existing epoch-millis timer fields preserved by migration save,existing store behavior; device reboot pending,partial
+Scroll and large type,v7.2 section 10,session and dialog columns scroll; controls use at least 48dp,API 35 emulator font scale 1.5 reached the last line of the longest session; density 560 and 720px width kept START or RESUME and the workout rest line visible; Galaxy pending,pass on emulator
+Dark theme,v7.2 section 10,fixed Ares dark color scheme,API 35 emulator night mode stayed usable in the reference and airplane tests; Galaxy pending,pass on emulator
+Timer survival,v7.2 section 10,timer end stored with commit; rotation recreate kept RESUME,API 35 force-stop after START WORKOUT relaunched at Week 1 Day 1 with SESSION PAUSED and RESUME; reboot was not run,partial
 v7.1 week retention,v7.2 section 10,AuthorityMigration and retainedV71Week,AuthorityMigrationTest: Day 1 without a session-status record retains v7.1; a recorded not-started Day 1 activates v7.2,pass
 Search and export use one source,v7.2 section 10,SessionResolver authority dispatch and ProgramExport V72,ProgramSearchV71Test and export source review,pass
-No prohibited logging,v7.2 section 10,no new result or body stores; manifest has no extra permissions,CI privacy grep still matches; unit tests,pass
-Offline,v7.2 section 10,manifest has no INTERNET permission,permission review only; runtime offline behavior was not tested,partial
+No prohibited logging,v7.2 section 10,session status only; effort ids are cleared and not written,WorkoutProgressTest scans the store source and the four session states,pass
+Offline,v7.2 section 10,no INTERNET permission; backup and device transfer exclude app data,API 35 airplane mode covered start workout rest Week Program Tools and recreate; search was exercised on the local source without airplane mode; Galaxy pending,partial
 Version identity,project CI,versionCode 47 and versionName 0.38.0 unchanged,aapt badging,pass

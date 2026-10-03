@@ -1,6 +1,17 @@
 # Galaxy S26 Ultra checklist
 
-An API 35 software emulator confirmed the fresh-start gate and the pinned START WORKOUT control. Physical Galaxy S26 Ultra checks are still pending. Do not treat the debug APK as production-ready.
+An API 35 software emulator ran the checks below. Physical Galaxy S26 Ultra checks are still pending. Reboot was not run. Do not treat the debug APK as production-ready.
+
+Emulator results on this candidate:
+
+- Font scale 1.5 reached START and the last line of the longest v7.2 session.
+- Display density 560 and a 720×1280 px viewport, in night mode, kept START or RESUME visible, showed the workout rest countdown, and opened Tools. The START control was at least 48 dp.
+- Airplane mode, night mode, and landscape rotation covered Today, the workout rest timer, Week, Program, the Tools timer, and a configuration recreate that still showed RESUME.
+- Week 32 Day 7 shows the rest prescription and does not offer Week 33.
+- Search and the longest-session dialog were exercised with the network available. Search reads the local program only.
+- `am force-stop` after START WORKOUT relaunched the same Week 1 Day 1 with SESSION PAUSED and RESUME WORKOUT. Reboot was not run.
+
+These emulator results do not close the physical checklist.
 
 Install the debug APK over a copy of the current v7.1 build only on a test profile. Confirm:
 

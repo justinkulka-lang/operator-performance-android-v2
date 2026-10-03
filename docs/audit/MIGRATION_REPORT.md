@@ -21,4 +21,4 @@ Explicit START is Week 1 Day 1 under v7.2 and clears session status. Explicit po
 
 v7.1 never wrote `engagedAbsoluteDay`. The first upgrade therefore treats an initialized Day 1 as unknown and retains v7.1. That can keep a genuinely unstarted Day 1 on v7.1 for the rest of that week. It does not replace a completed v7.1 Day 1 with a different v7.2 Day 1.
 
-A device that already applied the earlier Day-1 heuristic cannot be repaired from prefs alone: the cleared workout is gone, and `v72MigrationApplied` will not run the decision again.
+A device that already applied the earlier Day-1 heuristic cannot be repaired from prefs alone: the cleared workout is gone, and `v72MigrationApplied` will not run the decision again. `AuthorityMigrationTest` repeats every evidence case. A completed v7.1 week does not become v7.2 on the same Day 1. Advancing from retained Day 7 opens the next Day 1 under v7.2. Week 32 Day 7 does not create Week 33.
