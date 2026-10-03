@@ -251,8 +251,16 @@ class V72ReferenceUiTest {
         repeat(2) { pass ->
             repeat(8) {
                 if (rule.onAllNodesWithTag(targetTag).fetchSemanticsNodes().isNotEmpty()) {
-                    rule.onNodeWithTag(targetTag).performScrollTo()
-                    return
+                    try {
+                        rule.onNodeWithTag(targetTag).performScrollTo()
+                    } catch (_: AssertionError) {
+                        // A lazy item can leave the tree while the scroll settles.
+                    }
+                    val screen = rule.onAllNodesWithTag(screenTag).fetchSemanticsNodes().firstOrNull()
+                    val visible = screen != null && rule.onAllNodesWithTag(targetTag).fetchSemanticsNodes().any {
+                        it.boundsInRoot.height > 8f && it.boundsInRoot.overlaps(screen.boundsInRoot)
+                    }
+                    if (visible) return
                 }
                 rule.onNodeWithTag(screenTag).performTouchInput {
                     if (pass == 0) swipeUp(startY = bottom * 0.8f, endY = top + 80f)
