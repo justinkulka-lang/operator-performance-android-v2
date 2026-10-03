@@ -64,7 +64,7 @@ class WorkoutProgressTest {
         assertTrue(source.contains("putBoolean(KEY_HAS_UNDO, false)"))
         assertFalse(source.contains("putStringSet(KEY_COMPLETED"))
         assertFalse(source.contains("putStringSet(KEY_UNDO_COMPLETED"))
-        val workoutKeys = source.substringAfter("WORKOUT_KEYS=listOf(").substringBefore(")")
+        val workoutKeys = source.substringAfter("WORKOUT_KEYS").substringAfter("listOf(").substringBefore(")")
         assertFalse(workoutKeys.contains("ENGAGED"))
         assertTrue(workoutKeys.contains("KEY_COMPLETED"))
     }

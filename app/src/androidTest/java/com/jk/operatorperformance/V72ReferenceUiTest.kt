@@ -56,6 +56,15 @@ class V72ReferenceUiTest {
         rule.onNodeWithTag("today_header").assertTextContains("v7.2", substring = true)
         rule.onNodeWithTag("start_resume_workout").assertIsDisplayed()
         assertTouchTarget("start_resume_workout")
+        rule.onNodeWithTag("today_screen").performTouchInput {
+            swipeUp(startY = bottom * 0.8f, endY = top + 80f)
+        }
+        rule.onNodeWithTag("start_resume_workout").assertIsDisplayed()
+        rule.onAllNodesWithTag("set_done").assertCountEquals(0)
+        rule.onAllNodesWithTag("load_field").assertCountEquals(0)
+        rule.onAllNodesWithTag("rep_field").assertCountEquals(0)
+        rule.onAllNodesWithTag("result_field").assertCountEquals(0)
+        rule.onAllNodesWithText("LOG SET", substring = true).assertCountEquals(0)
         listOf("WEEK", "PROGRAM", "TOOLS", "TODAY").forEach { destination ->
             rule.onNodeWithTag("nav_$destination").performClick()
             assertTouchTarget("nav_$destination")
@@ -171,6 +180,41 @@ class V72ReferenceUiTest {
         rule.activityRule.scenario.recreate()
         rule.onNodeWithTag("nav_TODAY").performClick()
         rule.onNodeWithTag("start_resume_workout").assertTextContains("RESUME", substring = true)
+    }
+
+    @Test fun airplaneModeSearchReadsLocalSessions() {
+        shell("cmd connectivity airplane-mode enable")
+        Thread.sleep(500)
+        val airplane = shell("settings get global airplane_mode_on").trim()
+        assertTrue("airplane_mode_on=$airplane", airplane == "1")
+        rule.activityRule.scenario.recreate()
+        rule.waitForIdle()
+        rule.onNodeWithTag("start_v72").performScrollTo().performClick()
+        rule.onNodeWithTag("nav_PROGRAM").performClick()
+        rule.onNodeWithTag("program_search").performTextInput("Behind-body cable curl")
+        hideIme()
+        rule.waitUntil(8_000) {
+            rule.onAllNodesWithTag("program_search_open_first").fetchSemanticsNodes().isNotEmpty()
+        }
+        rule.onNodeWithTag("program_search_open_first").performScrollTo().performClick()
+        rule.waitUntil(8_000) {
+            rule.onAllNodesWithTag("day_reference_scroll").fetchSemanticsNodes().isNotEmpty()
+        }
+        rule.onNodeWithText("CLOSE").performClick()
+        rule.onNodeWithTag("program_search_clear").performScrollTo().performClick()
+        rule.onNodeWithTag("program_search").performTextInput("week 32 day 2")
+        hideIme()
+        rule.waitUntil(8_000) {
+            rule.onAllNodesWithTag("program_search_result_32_2").fetchSemanticsNodes().isNotEmpty()
+        }
+        rule.onNodeWithTag("program_search_result_32_2").performScrollTo().performClick()
+        rule.waitUntil(8_000) {
+            rule.onAllNodesWithTag("day_reference_scroll").fetchSemanticsNodes().isNotEmpty()
+        }
+        revealOnScreen("day_reference_scroll", "day_prescription_w32_d2")
+        rule.onNodeWithTag("day_prescription_w32_d2").assertTextContains("very easy bike", substring = true)
+        rule.onAllNodesWithTag("program_week_33").assertCountEquals(0)
+        rule.onNodeWithText("CLOSE").performClick()
     }
 
     private fun revealInWorkout(tag: String) = revealOnScreen("workout_mode", tag)

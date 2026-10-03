@@ -2,7 +2,9 @@ package com.jk.operatorperformance.state
 
 import com.jk.operatorperformance.program.ProgramAuthority
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AuthorityMigrationTest {
@@ -13,6 +15,7 @@ class AuthorityMigrationTest {
         assertEquals(1, migrated.currentDay)
         assertEquals(ProgramAuthority.V72, migrated.authority)
         assertNull(migrated.retainedV71Week)
+        assertFalse(migrated.v72ActivationProven)
     }
 
     @Test fun day1WithoutSessionEvidenceRetainsV71() {
@@ -47,6 +50,7 @@ class AuthorityMigrationTest {
         assertEquals(1, migrated.currentDay)
         assertEquals(ProgramAuthority.V72, migrated.authority)
         assertNull(migrated.retainedV71Week)
+        assertTrue(migrated.v72ActivationProven)
     }
 
     @Test fun laterDayRetainsEvenWhenEvidenceSaysNotStarted() {
@@ -75,6 +79,7 @@ class AuthorityMigrationTest {
         assertEquals(1, finished.currentDay)
         assertEquals(ProgramAuthority.V72, finished.authority)
         assertNull(finished.retainedV71Week)
+        assertTrue(finished.v72ActivationProven)
         assertEquals(ProgramAuthority.V72, finished.authorityForWeek(2))
         assertEquals(ProgramAuthority.V72, finished.authorityForWeek(3))
     }
@@ -102,7 +107,17 @@ class AuthorityMigrationTest {
 
     @Test fun explicitStartIsWeek1Day1() {
         val started = ProgramUiState().startV72()
-        assertEquals(ProgramUiState(initialized = true, currentWeek = 1, currentDay = 1, authority = ProgramAuthority.V72), started)
+        assertEquals(
+            ProgramUiState(
+                initialized = true,
+                currentWeek = 1,
+                currentDay = 1,
+                authority = ProgramAuthority.V72,
+                v72ActivationProven = true,
+            ),
+            started,
+        )
+        assertEquals(started, ProgramUiState().resetToV72Start())
     }
 
     @Test fun repeatedApplyIsStableForEveryEvidenceCase() {
@@ -142,4 +157,106 @@ class AuthorityMigrationTest {
         val end = ProgramUiState(initialized = true, currentWeek = 32, currentDay = 7, authority = ProgramAuthority.V72)
         assertEquals(end, end.advanceDay())
     }
+
+    @Test fun alreadyMigratedAmbiguousDay1ReturnsToV71() {
+        val repaired = reconcileLegacy(week = 1, day = 1, authority = ProgramAuthority.V72)
+        assertEquals(ProgramAuthority.V71, repaired.authority)
+        assertEquals(1, repaired.retainedV71Week)
+        assertEquals(1, repaired.currentDay)
+        assertFalse(repaired.v72ActivationProven)
+    }
+
+    @Test fun alreadyMigratedUnstartedDay1StaysOnV72() {
+        val repaired = AuthorityMigration.reconcileAlreadyMigrated(
+            ProgramUiState(initialized = true, currentWeek = 5, currentDay = 1, authority = ProgramAuthority.V72),
+            workoutActive = false,
+            evidence = WeekStartEvidence.NOT_STARTED,
+        )
+        assertEquals(ProgramAuthority.V72, repaired.authority)
+        assertNull(repaired.retainedV71Week)
+        assertTrue(repaired.v72ActivationProven)
+        assertEquals(repaired, AuthorityMigration.reconcileAlreadyMigrated(repaired, false, WeekStartEvidence.NOT_STARTED))
+    }
+
+    @Test fun alreadyMigratedActiveDay1IsNotReplaced() {
+        val retained = AuthorityMigration.reconcileAlreadyMigrated(
+            ProgramUiState(initialized = true, currentWeek = 1, currentDay = 1, authority = ProgramAuthority.V71, retainedV71Week = 1),
+            workoutActive = true,
+            evidence = WeekStartEvidence.ENGAGED,
+        )
+        assertEquals(1, retained.currentWeek)
+        assertEquals(1, retained.currentDay)
+        assertEquals(ProgramAuthority.V71, retained.authority)
+        assertEquals(1, retained.retainedV71Week)
+    }
+
+    @Test fun completedDay1BeforePointerAdvanceStaysOnV71() {
+        val retained = AuthorityMigration.reconcileAlreadyMigrated(
+            ProgramUiState(initialized = true, currentWeek = 6, currentDay = 1, authority = ProgramAuthority.V71, retainedV71Week = 6),
+            workoutActive = true,
+            evidence = WeekStartEvidence.ENGAGED,
+        )
+        assertEquals(6, retained.currentWeek)
+        assertEquals(1, retained.currentDay)
+        assertEquals(ProgramAuthority.V71, retained.authority)
+        assertEquals(6, retained.retainedV71Week)
+    }
+
+    @Test fun resetDay1WithoutPositiveProofReturnsToV71() {
+        val repaired = AuthorityMigration.reconcileAlreadyMigrated(
+            ProgramUiState(initialized = true, currentWeek = 6, currentDay = 1, authority = ProgramAuthority.V72),
+            workoutActive = false,
+            evidence = WeekStartEvidence.ENGAGED,
+        )
+        assertEquals(6, repaired.currentWeek)
+        assertEquals(1, repaired.currentDay)
+        assertEquals(ProgramAuthority.V71, repaired.authority)
+        assertEquals(6, repaired.retainedV71Week)
+    }
+
+    @Test fun day2OrLaterOnARetainedWeekStaysOnV71() {
+        val retained = AuthorityMigration.reconcileAlreadyMigrated(
+            ProgramUiState(initialized = true, currentWeek = 4, currentDay = 2, authority = ProgramAuthority.V71, retainedV71Week = 4),
+            workoutActive = false,
+            evidence = WeekStartEvidence.UNKNOWN,
+        )
+        assertEquals(ProgramAuthority.V71, retained.authority)
+        assertEquals(4, retained.retainedV71Week)
+        assertEquals(2, retained.currentDay)
+    }
+
+    @Test fun explicitActivationIsNotReverted() {
+        val started = ProgramUiState().startV72()
+        val reconciled = AuthorityMigration.reconcileAlreadyMigrated(started, workoutActive = false, evidence = WeekStartEvidence.UNKNOWN)
+        assertEquals(started, reconciled)
+    }
+
+    @Test fun activeV71Week32DoesNotCreateWeek33() {
+        val week = AuthorityMigration.reconcileAlreadyMigrated(
+            ProgramUiState(initialized = true, currentWeek = 32, currentDay = 4, authority = ProgramAuthority.V71, retainedV71Week = 32),
+            workoutActive = true,
+            evidence = WeekStartEvidence.ENGAGED,
+        )
+        val finished = week.copy(currentDay = 7).advanceDay()
+        assertEquals(32, week.currentWeek)
+        assertEquals(ProgramAuthority.V71, week.authority)
+        assertEquals(finished, finished.advanceDay())
+        assertEquals(32, finished.currentWeek)
+        assertEquals(7, finished.currentDay)
+    }
+
+    @Test fun reconcileIsIdempotentForLegacyDay1() {
+        val once = reconcileLegacy(week = 9, day = 1, authority = ProgramAuthority.V72)
+        val twice = AuthorityMigration.reconcileAlreadyMigrated(once, workoutActive = false, evidence = WeekStartEvidence.UNKNOWN)
+        assertEquals(once, twice)
+        assertEquals(ProgramAuthority.V71, twice.authority)
+        assertEquals(9, twice.retainedV71Week)
+    }
+
+    private fun reconcileLegacy(week: Int, day: Int, authority: ProgramAuthority): ProgramUiState =
+        AuthorityMigration.reconcileAlreadyMigrated(
+            ProgramUiState(initialized = true, currentWeek = week, currentDay = day, authority = authority),
+            workoutActive = false,
+            evidence = WeekStartEvidence.UNKNOWN,
+        )
 }
