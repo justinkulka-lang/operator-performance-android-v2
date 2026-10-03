@@ -10,7 +10,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.jk.operatorperformance.BuildConfig
 import com.jk.operatorperformance.program.AresProgramV72
@@ -19,27 +18,27 @@ import com.jk.operatorperformance.program.AresProgramV72
 internal fun BuildIntegrityCard() {
     Card(Modifier.fillMaxWidth().testTag("build_integrity_card")) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("BUILD / AUTHORITY INTEGRITY", fontWeight = FontWeight.Bold)
+            Text("BUILD / AUTHORITY INTEGRITY", style = MaterialTheme.typography.titleSmall)
             Text(
                 "APP • ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
-                style = MaterialTheme.typography.bodyMedium,
+                style = technicalStyle(MaterialTheme.typography.bodyMedium),
             )
             Text(
                 "BUILD • ${BuildConfig.BUILD_COMMIT}",
-                style = MaterialTheme.typography.bodyMedium,
+                style = technicalStyle(MaterialTheme.typography.bodyMedium),
                 modifier = Modifier.testTag("build_commit"),
             )
             Text(
                 "PACKAGE • ${BuildConfig.APPLICATION_ID}",
-                style = MaterialTheme.typography.bodyMedium,
+                style = technicalStyle(MaterialTheme.typography.bodyMedium),
             )
             Text(
                 "AUTHORITY • v${AresProgramV72.AUTHORITY_VERSION}",
-                style = MaterialTheme.typography.bodyMedium,
+                style = technicalStyle(MaterialTheme.typography.bodyMedium),
             )
             Text(
                 "EXPECTED DOCX SHA-256 • ${AresProgramV72.EXPECTED_DOCX_SHA256}",
-                style = MaterialTheme.typography.bodySmall,
+                style = technicalStyle(MaterialTheme.typography.bodySmall),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.testTag("authority_sha"),
             )

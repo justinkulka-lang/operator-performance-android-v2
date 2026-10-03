@@ -29,7 +29,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.jk.operatorperformance.program.ProgramNotesV72
@@ -79,7 +78,7 @@ private fun PlateCalculatorCard() {
 
     Card(modifier = Modifier.fillMaxWidth().testTag("plate_math_tool")) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("PLATE CALCULATOR", fontWeight = FontWeight.Bold)
+            Text("PLATE CALCULATOR", style = MaterialTheme.typography.titleSmall)
             Text("Standalone utility. Workout-row plate-math eligibility is not inferred.")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 UnitSystem.entries.forEach { unit ->
@@ -116,13 +115,17 @@ private fun PlateCalculatorCard() {
             Button(
                 onClick = { persist(state.copy(equipmentEffectiveWeight = equipment, collarPairWeight = collars)) },
                 enabled = equipment != null && (collarDraft.isBlank() || collars != null),
+                colors = aresButtonColors(),
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("plate_config_save"),
             ) { Text("SAVE EQUIPMENT") }
 
-            Text("AVAILABLE PLATE PAIRS", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            Text("AVAILABLE PLATE PAIRS", style = MaterialTheme.typography.titleSmall)
             state.plateInventory.forEach { item ->
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("${formatWeight(item.weight)} ${state.unitSystem.name} × ${item.pairs} pair${if (item.pairs == 1) "" else "s"}")
+                    Text(
+                        "${formatWeight(item.weight)} ${state.unitSystem.name} × ${item.pairs} pair${if (item.pairs == 1) "" else "s"}",
+                        style = technicalStyle(MaterialTheme.typography.bodyMedium),
+                    )
                     TextButton(
                         onClick = { persist(state.copy(plateInventory = state.plateInventory.filterNot { it.weight == item.weight })) },
                         modifier = Modifier.heightIn(min = 48.dp),
@@ -158,6 +161,7 @@ private fun PlateCalculatorCard() {
                     pairDraft = ""
                 },
                 enabled = newPlate != null && newPairs != null,
+                colors = aresButtonColors(),
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("plate_inventory_add"),
             ) { Text("ADD / REPLACE PLATE") }
 
@@ -200,9 +204,11 @@ private fun PlateCalculatorCard() {
 @Composable
 private fun PlateLoadResult(label: String, load: PlateLoad) {
     Column(modifier = Modifier.fillMaxWidth().testTag("plate_result")) {
-        Text("$label • ${formatWeight(load.totalLoad)} total", fontWeight = FontWeight.Bold)
+        Text("$label • ${formatWeight(load.totalLoad)} total", style = technicalStyle(MaterialTheme.typography.titleSmall))
         if (load.perSide.isEmpty()) Text("No plates required per side.")
-        else load.perSide.forEach { (weight, count) -> Text("Per side: ${formatWeight(weight)} × $count") }
+        else load.perSide.forEach { (weight, count) ->
+            Text("Per side: ${formatWeight(weight)} × $count", style = technicalStyle(MaterialTheme.typography.bodyMedium))
+        }
     }
 }
 
@@ -211,7 +217,7 @@ private fun ProgramNotesCard() {
     var expanded by rememberSaveable { mutableStateOf(false) }
     Card(modifier = Modifier.fillMaxWidth().testTag("program_notes_tool")) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("PROGRAM / COACHING NOTES", fontWeight = FontWeight.Bold)
+            Text("PROGRAM / COACHING NOTES", style = MaterialTheme.typography.titleSmall)
             Text("Execution, progression, interference, sprint-volume, run-impact, and planned-overlay guidance from the approved ARES v7.2 authority. No performance logging required.")
             TextButton(
                 onClick = { expanded = !expanded },
@@ -232,7 +238,7 @@ private fun ProgramNotesCard() {
 
 @Composable
 private fun NotesSection(title: String, rows: List<String>) {
-    Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+    Text(title, style = MaterialTheme.typography.titleSmall)
     rows.forEach { Text("• $it", style = MaterialTheme.typography.bodyMedium) }
 }
 
@@ -262,7 +268,7 @@ private fun DataControlsCard() {
 
     Card(modifier = Modifier.fillMaxWidth().testTag("data_controls_tool")) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("DATA / RESET", fontWeight = FontWeight.Bold)
+            Text("DATA / RESET", style = MaterialTheme.typography.titleSmall)
             Text("Export is local-only. Reset and legacy deletion require confirmation.")
             Button(
                 onClick = {

@@ -35,7 +35,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -46,7 +45,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
@@ -69,22 +67,6 @@ import com.jk.operatorperformance.state.ProgramUiState
 import com.jk.operatorperformance.state.SessionStatus
 import com.jk.operatorperformance.state.WorkoutProgress
 import kotlinx.coroutines.delay
-
-private val AresDarkColors = darkColorScheme(
-    primary = Color(0xFFD7A93A),
-    onPrimary = Color(0xFF161009),
-    primaryContainer = Color(0xFF3A2A12),
-    onPrimaryContainer = Color(0xFFFFE7A5),
-    secondary = Color(0xFFB8BEC8),
-    background = Color(0xFF0B0D10),
-    onBackground = Color(0xFFF4F5F7),
-    surface = Color(0xFF13171D),
-    onSurface = Color(0xFFF4F5F7),
-    surfaceVariant = Color(0xFF20262E),
-    onSurfaceVariant = Color(0xFFB8BEC8),
-    tertiary = Color(0xFF69D18B),
-    error = Color(0xFFF0C55B),
-)
 
 private enum class Destination(val label: String) {
     TODAY("TODAY"), WEEK("WEEK"), PROGRAM("PROGRAM"), TOOLS("TOOLS")
@@ -116,7 +98,7 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
         stateStore.clearWorkout()
     }
 
-    MaterialTheme(colorScheme = AresDarkColors) {
+    MaterialTheme(colorScheme = AresDarkColors, typography = aresTypography()) {
         if (!state.initialized) {
             Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                 Column(
@@ -295,9 +277,8 @@ private fun TodayScreen(
             PhaseIdentityLine(session.phase, Modifier.testTag("today_phase"))
             Text(
                 "v${session.authority.versionLabel} • WEEK ${session.week} • DAY ${session.day}",
-                style = MaterialTheme.typography.labelLarge,
+                style = technicalStyle(MaterialTheme.typography.labelLarge),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontWeight = FontWeight.Bold,
                 modifier = Modifier.testTag("today_header"),
             )
             Text(session.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
@@ -371,6 +352,7 @@ private fun TodayScreen(
         Surface(color = MaterialTheme.colorScheme.surface) {
             Button(
                 onClick = onStartWorkout,
+                colors = aresButtonColors(),
                 modifier = Modifier.fillMaxWidth().padding(12.dp).heightIn(min = 56.dp).testTag("start_resume_workout"),
             ) { Text(if (sessionStatus == SessionStatus.NOT_STARTED) "START WORKOUT" else "RESUME WORKOUT", fontWeight = FontWeight.Bold) }
         }
@@ -426,8 +408,8 @@ private fun WorkoutRowCard(
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             VisualRowTitle(row = row, title = title, style = MaterialTheme.typography.titleMedium)
             if (selected != null) Text("ALTERNATIVE FOR ${row.title}", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
-            Text(row.prescription, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.testTag("prescription_${row.id}"))
-            if (row.optional) Text("OPTIONAL", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+            Text(row.prescription, style = technicalStyle(), modifier = Modifier.testTag("prescription_${row.id}"))
+            if (row.optional) Text("OPTIONAL", color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
             if (hasDetails) {
                 val detailLabel = when {
                     row.note != null && row.alternatives.isNotEmpty() -> "COACHING / ALTERNATIVES"
@@ -492,8 +474,7 @@ private fun WorkoutModeScreen(
                     Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
                         Text(
                             "REST • ${formatRest(restSeconds)}",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
+                            style = technicalStyle(MaterialTheme.typography.titleLarge),
                             modifier = Modifier
                                 .weight(1f)
                                 .testTag("workout_rest_countdown")
@@ -518,7 +499,7 @@ private fun WorkoutModeScreen(
                 PhaseIdentityLine(session.phase)
                 Text(
                     "WEEK ${session.week} • DAY ${session.day} • ${session.title}",
-                    style = MaterialTheme.typography.labelLarge,
+                    style = technicalStyle(MaterialTheme.typography.labelLarge),
                     modifier = Modifier.testTag("workout_context"),
                 )
                 Text(
@@ -584,9 +565,9 @@ private fun WorkoutModeScreen(
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         VisualRowTitle(row = row, title = selected ?: row.title, style = MaterialTheme.typography.titleMedium)
                         if (selected != null) Text("ALTERNATIVE FOR ${row.title}", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
-                        Text(row.prescription, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.testTag("workout_prescription_${row.id}"))
+                        Text(row.prescription, style = technicalStyle(), modifier = Modifier.testTag("workout_prescription_${row.id}"))
                         row.note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                        if (row.optional) Text("OPTIONAL", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                        if (row.optional) Text("OPTIONAL", color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
                         row.alternatives.forEachIndexed { index, alternative ->
                             FilterChip(
                                 selected = selected == alternative,
@@ -627,7 +608,10 @@ private fun WeekScreen(state: ProgramUiState, onOpenDay: (SessionReference) -> U
             BrandHeader()
             val phase = blockFor(state, state.currentWeek)
             PhaseIdentityLine(phase)
-            Text("WEEK ${state.currentWeek} • ${phase.godName} • ${phase.name}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text(
+                "WEEK ${state.currentWeek}",
+                style = technicalStyle(MaterialTheme.typography.headlineSmall),
+            )
         }
         items(split, key = { it.day }) { session ->
             Card(
@@ -670,12 +654,17 @@ private fun ProgramScreen(
     ) {
         item {
             BrandHeader()
-            Text("32 WEEKS • 7 DAYS • 224 DAYS", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text("32 WEEKS • 7 DAYS • 224 DAYS", style = technicalStyle(MaterialTheme.typography.headlineSmall))
             PhaseProgressStrip(currentPhase)
-            Text("CURRENT • ${currentPhase.godName} — ${currentPhase.name} • Weeks ${currentPhase.startWeek}–${currentPhase.endWeek}", color = phaseAccent(currentPhase), fontWeight = FontWeight.Bold, modifier = Modifier.testTag("current_phase"))
             Text(
-                nextPhase?.let { "NEXT PHASE • ${it.godName} — ${it.name} • POPULATED / APPROVED" }
-                    ?: "NEXT PHASE • PROGRAM COMPLETE AT WEEK 32 • NO WEEK 33+ AUTHORIZED",
+                "${phaseFieldLabel(currentPhase)} • Weeks ${currentPhase.startWeek}–${currentPhase.endWeek}",
+                color = phaseAccent(currentPhase),
+                modifier = Modifier.testTag("current_phase"),
+            )
+            Text(currentPhase.godName, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                nextPhase?.let { "Next • ${phaseFieldLabel(it)}" }
+                    ?: "Next • Program complete at week 32. No week 33 is authorized.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.testTag("next_phase_status"),
@@ -836,8 +825,7 @@ private fun ToolsScreen(state: ProgramUiState, onStateChanged: (ProgramUiState) 
             if (running) {
                 Text(
                     "RUNNING • ${formatRest(timerRemaining)}",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
+                    style = technicalStyle(MaterialTheme.typography.titleLarge),
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 48.dp)
@@ -851,10 +839,11 @@ private fun ToolsScreen(state: ProgramUiState, onStateChanged: (ProgramUiState) 
                 TextButton(
                     onClick = { onStateChanged(state.copy(utilityRestTimerEndEpochMillis = null)) },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("rest_timer_cancel"),
-                ) { Text("STOP TIMER") }
+                ) { Text("STOP TIMER", color = MaterialTheme.colorScheme.error) }
             } else {
                 Button(
                     enabled = state.restTimerSeconds != null,
+                    colors = aresButtonColors(),
                     onClick = {
                         val seconds = state.restTimerSeconds ?: return@Button
                         onStateChanged(state.copy(utilityRestTimerEndEpochMillis = System.currentTimeMillis() + seconds * 1_000L))
@@ -897,7 +886,7 @@ private fun DayReferenceDialog(
                         style = MaterialTheme.typography.bodyLarge,
                         modifier = Modifier.testTag("day_row_${row.id}"),
                     )
-                    Text(row.prescription, modifier = Modifier.testTag("day_prescription_${row.id}"))
+                    Text(row.prescription, style = technicalStyle(), modifier = Modifier.testTag("day_prescription_${row.id}"))
                     row.note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     row.alternatives.forEachIndexed { index, alt -> Text("ALT ${index + 1} • $alt", style = MaterialTheme.typography.bodySmall) }
                 }
