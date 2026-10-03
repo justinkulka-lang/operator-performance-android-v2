@@ -28,7 +28,7 @@ internal object V72SessionBuilder {
     private fun titleFor(week: Int, day: Int): String = when {
         week == 1 && day == 1 -> "Engine baseline"
         week == 24 && day == 1 -> "1.5-mile checkpoint"
-        week == 32 && day == 1 -> "Final 1.5-mile"
+        week == 32 && day == 1 -> "1.5-mile benchmark"
         week == 32 && day == 2 -> "Very easy bike and mobility"
         week == 32 && day == 5 -> "Upper B"
         week == 32 && day == 6 -> "Very easy bike and mobility"
@@ -43,7 +43,7 @@ internal object V72SessionBuilder {
                 title = if (easyOnly) "Easy-run opening" else "Engine warm-up",
                 prescription = if (easyOnly) ProgramV72.engineEasyWarmup else ProgramV72.engineQualityWarmup,
                 kind = SessionRowKind.CONDITIONING,
-                note = if (easyOnly) "Included in the listed easy run. No strides. The 8–10 min cooldown still follows the run." else "Complete before threshold, interval, goal-pace, or timed work.",
+                note = if (easyOnly) "Included in the listed easy run. No strides. The 8–10 min cooldown still follows the run." else "Complete before threshold conditioning, intervals, goal-pace, or timed work.",
                 effortLabel = "WARM-UP",
             ),
         )
@@ -79,7 +79,7 @@ internal object V72SessionBuilder {
             val overlay = when {
                 ProgramV72.isConsolidation(week) -> "Planned consolidation: about half the working sets, odd counts rounded down, at least one set, 3–4 RIR. Do not chase progression."
                 week in setOf(30, 31) -> "Planned realization. Familiar loads, 2–3 RIR on compounds and 1–2 RIR on isolation. Phase 4 rep ranges are kept. Do not add omitted sets."
-                week == 32 -> "Fixed-prescription overlay. Sets and 3 RIR only. Rep ranges are not stated for these movements, so none are shown."
+                week == 32 -> "Fixed-prescription Week 32 overlay. Sets and 3 RIR only. Rep ranges are not stated for these movements, so none are shown."
                 else -> null
             }
             SessionRow(
@@ -101,7 +101,7 @@ internal object V72SessionBuilder {
 
     private fun engineWork(segment: ConditioningSegment): SessionRow {
         val guidance = when {
-            segment.title.contains("Threshold", true) -> "RPE 7–8. Controlled discomfort, speech limited to short phrases, even pace, never a time trial."
+            segment.title.contains("Threshold", true) -> "Threshold conditioning at RPE 7–8. Controlled discomfort, speech limited to short phrases, even pace, no closing surge."
             segment.title.contains("Controlled interval", true) -> "RPE 8 with even repetitions. The last repetition stays mechanically clean and no slower than the first by more than 3%."
             segment.title.contains("Goal pace", true) -> "Exact 10:00 1.5-mile reference: ${ProgramV72.GOAL_PACE_TABLE}. One and one-half statute miles equals ${ProgramV72.STATUTE_MILE_AND_HALF_METRES} m. If the pace cannot be repeated inside the 3% rule, use the fastest clean repeatable pace and record the session as not attained outside the app."
             segment.title.contains("1.5-mile", true) || segment.title.contains("Final", true) -> "Use an external timer and a measured course. One authorized effort. Record the result only outside the app."

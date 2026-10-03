@@ -64,7 +64,7 @@ object SessionResolver {
             val overlay = when {
                 ProgramV71.isConsolidation(week) -> "Planned consolidation: half normal sets (odd totals rounded down, minimum one), 3–4 RIR; no extra work."
                 week in setOf(30,31) -> "Planned realization overlay. Do not add omitted sets or movements."
-                week == 32 -> "Fixed-prescription overlay. Do not add omitted sets or movements."
+                week == 32 -> "Fixed-prescription Week 32 overlay. Do not add omitted sets or movements."
                 else -> null
             }
             SessionRow(
@@ -86,7 +86,7 @@ object SessionResolver {
         }
         if (ProgramV71.includesPlyometrics(week)) {
             add(SessionRow("w${week}_plyometrics","Low-volume plyometrics","3 × 3 pogo jumps + 3 × 2 broad jumps. Full-quality contacts; stop before output falls.",SessionRowKind.CONDITIONING,
-                note="Approved only for this week; omitted during consolidations and tests.",effortCount=6,effortLabel="SET"))
+                note="Approved only for this week; omitted during consolidations and timed speed sessions.",effortCount=6,effortLabel="SET"))
         }
         addAll(plan.speed.map { speedRow(week, it) })
     }
@@ -98,7 +98,7 @@ object SessionResolver {
             title=if (easyOnly) "Easy-run opening" else "Engine warm-up",
             prescription=if (easyOnly) ProgramV71.engineEasyWarmupPrescription else ProgramV71.engineQualityWarmupPrescription,
             kind=SessionRowKind.CONDITIONING,
-            note=if (easyOnly) "This opening is part of the prescribed easy-run duration." else "Complete before threshold, interval, goal-pace, or timed work.",
+            note=if (easyOnly) "This opening is part of the prescribed easy-run duration." else "Complete before threshold conditioning, intervals, goal-pace, or timed work.",
             effortLabel="WARM-UP",
         )
     }
