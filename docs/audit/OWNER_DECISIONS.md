@@ -71,3 +71,15 @@ Per-set completion is not required to decide START or RESUME. Those actions need
 
 Shown behavior: not started, active, paused/resumable, and completed. Choosing an alternative or starting a manual rest timer creates the session record, because substitutions and timer state are authorized. Resetting the workout clears that record and the rest timer. It does not clear `engagedAbsoluteDay`. The stored schema still has unused effort fields so an older in-progress record can be read; every save clears them and does not write loads, reps, RIR, pace, or results.
 
+## 11. Already-migrated Day 1
+
+The earlier Day 1 heuristic and the corrected migration both set `v72MigrationApplied` and neither wrote a revision. A missing revision cannot tell them apart.
+
+Shown behavior: the first load writes `v72MigrationRevision` 2 after one repair. An unproven Day 1, including an ambiguous Week 1 Day 1 from that older heuristic, returns to v7.1. A Day 1 with a session-status record that proves the week has not started stays on v7.2. An engaged or completed v7.1 week, including Week 32, is not overwritten and does not become Week 33. Explicit START and pointer reset on this build set `v72ActivationProven`. A start saved by the previous build has the same shape as an ambiguous Week 1 Day 1 and returns to v7.1 until the pointer is reset.
+
+## 12. Export namespaces
+
+Tools export does not read `ares_v71_reference_state`.
+
+`operator_v54_reference_state` remains because older builds stored pointer migration there and the plate calculator still uses that file. `operator_performance_state`, `operator_performance_references`, and `operator_performance_benchmarks` remain so the user can keep a local copy of retained v5.7 tracking before deleting it. The exporter copies only those four namespaces. It does not create load, rep, RIR, pace, bodyweight, or calorie fields.
+

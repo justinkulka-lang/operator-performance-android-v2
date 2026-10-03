@@ -15,9 +15,9 @@ TODAY WEEK PROGRAM TOOLS,v7.2 section 10,existing Destination navigation,unchang
 START or RESUME without scrolling,v7.2 section 10,Today footer button,emulator Today scroll kept START WORKOUT visible; Galaxy pending,pass on emulator
 Scroll and large type,v7.2 section 10,session and dialog columns scroll; controls use at least 48dp,API 35 emulator font scale 1.5 reached the last line of the longest session; density 560 and 720px width kept START or RESUME and the workout rest line visible; Galaxy pending,pass on emulator
 Dark theme,v7.2 section 10,fixed Ares dark color scheme,API 35 emulator night mode stayed usable in the reference and airplane tests; Galaxy pending,pass on emulator
-Timer survival,v7.2 section 10,timer end stored with commit; rotation recreate kept RESUME,API 35 force-stop after START WORKOUT relaunched at Week 1 Day 1 with SESSION PAUSED and RESUME; reboot was not run,partial
-v7.1 week retention,v7.2 section 10,AuthorityMigration and retainedV71Week,AuthorityMigrationTest: Day 1 without a session-status record retains v7.1; a recorded not-started Day 1 activates v7.2,pass
-Search and export use one source,v7.2 section 10,SessionResolver authority dispatch and ProgramExport V72,ProgramSearchV71Test and export source review,pass
+Timer survival,v7.2 section 10,timer end stored with commit; rotation recreate kept RESUME,API 35 force-stop and adb reboot kept the preference file and Week 1 Day 1 RESUME; Galaxy pending,pass on emulator
+v7.1 week retention,v7.2 section 10,AuthorityMigration apply plus one revision-2 repair for an already migrated Day 1,AuthorityMigrationTest and ProgramStateStorePersistenceTest cover fresh install unstarted Day 1 active Day 1 completed Day 1 reset Day 1 later days legacy devices and Week 32,pass
+Search and export use one source,v7.2 section 10,SessionResolver authority dispatch and ProgramExport V72,ProgramSearchOfflineTest reads all 224 local sessions; LegacyExportTest omits the v7.2 session store,pass
 No prohibited logging,v7.2 section 10,session status only; effort ids are cleared and not written,WorkoutProgressTest scans the store source and the four session states,pass
-Offline,v7.2 section 10,no INTERNET permission; backup and device transfer exclude app data,API 35 airplane mode covered start workout rest Week Program Tools and recreate; search was exercised on the local source without airplane mode; Galaxy pending,partial
+Offline,v7.2 section 10,no INTERNET permission; backup and device transfer exclude app data,API 35 airplane mode covered search of a substitution and Week 32 Day 2 plus the earlier navigation flow; Galaxy pending,pass on emulator
 Version identity,project CI,versionCode 47 and versionName 0.38.0 unchanged,aapt badging,pass

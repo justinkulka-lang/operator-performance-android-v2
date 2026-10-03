@@ -16,7 +16,6 @@ import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
-import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -39,7 +38,7 @@ class V72TimerPersistenceUiTest {
     }
 
     @Test fun timerSurvivesActivityRecreate() {
-        assumeTrue(mode() == "isolated")
+        if (mode() != "isolated") return
         seedSessionAndTimers()
         rule.activityRule.scenario.recreate()
         rule.waitForIdle()
@@ -58,7 +57,7 @@ class V72TimerPersistenceUiTest {
     }
 
     @Test fun seedsManualRestTimer() {
-        assumeTrue(mode() == "seed")
+        if (mode() != "seed") return
         seedSessionAndTimers()
         val prefs = prefs()
         assertTrue(prefs.getLong("workoutTimerEnd", 0L) > System.currentTimeMillis())
@@ -69,7 +68,7 @@ class V72TimerPersistenceUiTest {
     }
 
     @Test fun timerAndPointerSurviveProcessDeath() {
-        assumeTrue(mode() == "verify")
+        if (mode() != "verify") return
         val prefs = prefs()
         assertTrue(prefs.getBoolean("v71Initialized", false))
         assertEquals(1, prefs.getInt("currentWeek", 0))

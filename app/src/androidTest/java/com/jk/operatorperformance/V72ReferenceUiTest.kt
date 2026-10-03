@@ -14,6 +14,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.test.swipeUp
@@ -107,7 +108,11 @@ class V72ReferenceUiTest {
         rule.onNodeWithTag("nav_WEEK").performClick()
         revealOnScreen("week_screen", "week_day_7")
         rule.onNodeWithTag("week_day_7").performClick()
-        rule.onNodeWithText("Walking and ordinary daily activity only. No lifting and no running.").performScrollTo().assertIsDisplayed()
+        rule.waitUntil(8_000) {
+            rule.onAllNodesWithTag("day_reference_scroll").fetchSemanticsNodes().isNotEmpty()
+        }
+        revealOnScreen("day_reference_scroll", "day_prescription_d7_rest")
+        rule.onNodeWithTag("day_prescription_d7_rest").assertTextContains("Walking and ordinary daily activity only", substring = true)
         rule.onNodeWithText("CLOSE").performClick()
     }
 
@@ -202,12 +207,15 @@ class V72ReferenceUiTest {
         }
         rule.onNodeWithText("CLOSE").performClick()
         rule.onNodeWithTag("program_search_clear").performScrollTo().performClick()
-        rule.onNodeWithTag("program_search").performTextInput("week 32 day 2")
+        rule.waitUntil(8_000) {
+            rule.onAllNodesWithTag("program_search_open_first").fetchSemanticsNodes().isEmpty()
+        }
+        rule.onNodeWithTag("program_search").performTextReplacement("week 32 day 2")
         hideIme()
         rule.waitUntil(8_000) {
-            rule.onAllNodesWithTag("program_search_result_32_2").fetchSemanticsNodes().isNotEmpty()
+            rule.onAllNodesWithTag("program_search_open_first").fetchSemanticsNodes().isNotEmpty()
         }
-        rule.onNodeWithTag("program_search_result_32_2").performScrollTo().performClick()
+        rule.onNodeWithTag("program_search_open_first").performScrollTo().performClick()
         rule.waitUntil(8_000) {
             rule.onAllNodesWithTag("day_reference_scroll").fetchSemanticsNodes().isNotEmpty()
         }
