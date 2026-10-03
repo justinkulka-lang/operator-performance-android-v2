@@ -1,7 +1,6 @@
 package com.jk.operatorperformance.ui
 
 import androidx.annotation.DrawableRes
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Card
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -20,11 +20,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.jk.operatorperformance.R
@@ -33,19 +32,6 @@ import com.jk.operatorperformance.program.ProgramBlock
 import com.jk.operatorperformance.program.SessionReference
 import com.jk.operatorperformance.program.SessionRow
 import com.jk.operatorperformance.program.SessionRowKind
-
-private val HephaestusCopper = Color(0xFFD17A45)
-private val HermesBlue = Color(0xFF62A9FF)
-private val AresRed = Color(0xFFD95A57)
-private val ZeusGold = Color(0xFFE0B743)
-
-internal fun phaseAccent(phase: ProgramBlock): Color = when (phase.godName) {
-    "HEPHAESTUS" -> HephaestusCopper
-    "HERMES" -> HermesBlue
-    "ARES" -> AresRed
-    "ZEUS" -> ZeusGold
-    else -> ZeusGold
-}
 
 @DrawableRes
 private fun phaseEmblemRes(phase: ProgramBlock): Int = when (phase.godName) {
@@ -92,21 +78,14 @@ internal fun AresBrandHeader() {
             painter = painterResource(R.drawable.ic_ares_master),
             contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(42.dp),
+            modifier = Modifier.size(36.dp),
         )
         Spacer(Modifier.width(10.dp))
         Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
             Text(
                 AresProgramV72.PROGRAM_NAME,
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Black,
                 color = MaterialTheme.colorScheme.primary,
-            )
-            Text(
-                "THE THRESHOLD",
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
                 AresProgramV72.PROGRAM_TAGLINE,
@@ -115,28 +94,35 @@ internal fun AresBrandHeader() {
             )
         }
     }
-    GreekKeyDivider()
+    HorizontalDivider(Modifier.padding(top = 8.dp), color = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f))
     Spacer(Modifier.height(4.dp))
 }
 
 @Composable
 internal fun PhaseIdentityLine(phase: ProgramBlock, modifier: Modifier = Modifier) {
     Row(
-        modifier = modifier,
+        modifier = modifier.semantics { contentDescription = "${phaseFieldLabel(phase)}. ${phase.godName}" },
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Icon(
             painter = painterResource(phaseEmblemRes(phase)),
             contentDescription = null,
-            tint = phaseAccent(phase),
-            modifier = Modifier.size(34.dp),
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(28.dp),
         )
-        Text(
-            "${phase.godName} • ${phase.name}",
-            color = phaseAccent(phase),
-            fontWeight = FontWeight.Bold,
-        )
+        Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+            Text(
+                phaseFieldLabel(phase),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Text(
+                phase.godName,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
@@ -149,9 +135,12 @@ internal fun PhaseProgressStrip(currentPhase: ProgramBlock) {
     ) {
         AresProgramV72.blocks.forEach { phase ->
             val current = phase.godName == currentPhase.godName
-            val tint = if (current) phaseAccent(phase) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.46f)
+            val tint = if (current) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+            val index = AresProgramV72.blocks.indexOfFirst { it.startWeek == phase.startWeek } + 1
             Column(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .semantics { contentDescription = phaseFieldLabel(phase) },
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(3.dp),
             ) {
@@ -159,13 +148,12 @@ internal fun PhaseProgressStrip(currentPhase: ProgramBlock) {
                     painter = painterResource(phaseEmblemRes(phase)),
                     contentDescription = null,
                     tint = tint,
-                    modifier = Modifier.size(if (current) 36.dp else 28.dp),
+                    modifier = Modifier.size(if (current) 28.dp else 22.dp),
                 )
                 Text(
-                    phase.godName,
-                    style = MaterialTheme.typography.labelSmall,
+                    index.toString(),
+                    style = technicalStyle(MaterialTheme.typography.labelMedium),
                     color = tint,
-                    fontWeight = if (current) FontWeight.Bold else FontWeight.Medium,
                 )
             }
         }
@@ -174,28 +162,28 @@ internal fun PhaseProgressStrip(currentPhase: ProgramBlock) {
 
 @Composable
 internal fun PhaseSummaryCard(phase: ProgramBlock, isCurrent: Boolean) {
-    val accent = phaseAccent(phase)
     Card(Modifier.fillMaxWidth().padding(top = 6.dp)) {
         Box(Modifier.fillMaxWidth()) {
             Icon(
                 painter = painterResource(phaseEmblemRes(phase)),
                 contentDescription = null,
-                tint = accent,
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
                     .padding(end = 12.dp)
-                    .size(96.dp)
-                    .alpha(if (isCurrent) 0.13f else 0.065f),
+                    .size(72.dp)
+                    .alpha(if (isCurrent) 0.16f else 0.08f),
             )
             Column(
-                modifier = Modifier.padding(16.dp).padding(end = 76.dp),
+                modifier = Modifier.padding(16.dp).padding(end = 64.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Text("${phase.godName} — ${phase.name}", fontWeight = FontWeight.Bold, color = accent)
+                Text(phaseFieldLabel(phase), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                Text(phase.godName, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(
-                    "Weeks ${phase.startWeek}–${phase.endWeek} • POPULATED / APPROVED",
-                    color = if (isCurrent) accent else MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.labelMedium,
+                    "Weeks ${phase.startWeek}–${phase.endWeek}",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = technicalStyle(MaterialTheme.typography.labelMedium),
                 )
                 Text(phase.purpose, style = MaterialTheme.typography.bodySmall)
             }
@@ -219,21 +207,25 @@ internal fun SessionDayCardContent(
         Icon(
             painter = painterResource(dayGlyphRes(session.day)),
             contentDescription = null,
-            tint = phaseAccent(session.phase),
-            modifier = Modifier.size(40.dp),
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(32.dp),
         )
         Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(
                 "DAY ${session.day}${if (isCurrentDay) " • TODAY" else ""}",
-                color = phaseAccent(session.phase),
-                fontWeight = FontWeight.Bold,
+                style = technicalStyle(MaterialTheme.typography.labelLarge),
+                color = MaterialTheme.colorScheme.primary,
             )
-            Text(session.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(session.title, style = MaterialTheme.typography.titleMedium)
             referenceLabel?.let {
-                Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
             }
             if (showRowCount) {
-                Text("${session.rows.size} prescribed rows", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    "${session.rows.size} prescribed rows",
+                    style = technicalStyle(MaterialTheme.typography.labelMedium),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
@@ -255,31 +247,9 @@ internal fun VisualRowTitle(
                 painter = painterResource(iconRes),
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(34.dp),
+                modifier = Modifier.size(28.dp),
             )
         }
-        Text(title, style = style, fontWeight = FontWeight.Bold, modifier = modifier)
-    }
-}
-
-@Composable
-private fun GreekKeyDivider() {
-    val color = MaterialTheme.colorScheme.primary.copy(alpha = 0.34f)
-    Canvas(Modifier.fillMaxWidth().height(12.dp)) {
-        val h = size.height
-        val segment = h * 1.25f
-        val yTop = h * 0.24f
-        val yBottom = h * 0.76f
-        val path = Path()
-        var x = 0f
-        path.moveTo(0f, yBottom)
-        while (x < size.width) {
-            path.lineTo((x + segment).coerceAtMost(size.width), yBottom)
-            path.lineTo((x + segment).coerceAtMost(size.width), yTop)
-            path.lineTo((x + segment * 2f).coerceAtMost(size.width), yTop)
-            path.lineTo((x + segment * 2f).coerceAtMost(size.width), yBottom)
-            x += segment * 2f
-        }
-        drawPath(path = path, color = color, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx()))
+        Text(title, style = style, modifier = modifier)
     }
 }

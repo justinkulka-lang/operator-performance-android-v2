@@ -30,7 +30,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
@@ -64,7 +63,7 @@ private fun RestTimerCard(
 
     Card(modifier = Modifier.fillMaxWidth().testTag("rest_timer_tool")) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("REST TIMER", fontWeight = FontWeight.Bold)
+            Text("REST TIMER", style = MaterialTheme.typography.titleSmall)
             Text("Optional independent utility timer. Workout rest uses the exact program prescription instead.")
             OutlinedTextField(
                 value = draft,
@@ -80,6 +79,7 @@ private fun RestTimerCard(
                 Button(
                     onClick = { onConfiguredSecondsChanged(requireNotNull(parsed)) },
                     enabled = parsed != null,
+                    colors = aresButtonColors(),
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp).testTag("rest_timer_save"),
                 ) { Text("SAVE") }
                 if (configuredSeconds != null) {
@@ -123,7 +123,7 @@ internal fun WorkoutRestPanel(
 ) {
     Card(modifier = Modifier.fillMaxWidth().testTag("workout_rest")) {
         Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("REST", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("REST", style = MaterialTheme.typography.titleLarge)
             RestCountdown(endEpochMillis = endEpochMillis, testTag = "workout_rest_countdown", onFinished = onFinished)
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(
@@ -159,8 +159,7 @@ private fun RestCountdown(endEpochMillis: Long, testTag: String, onFinished: () 
 
     Text(
         text = formatSeconds(remaining),
-        style = MaterialTheme.typography.headlineSmall,
-        fontWeight = FontWeight.Bold,
+        style = technicalStyle(MaterialTheme.typography.headlineSmall),
         modifier = Modifier
             .testTag(testTag)
             .semantics {

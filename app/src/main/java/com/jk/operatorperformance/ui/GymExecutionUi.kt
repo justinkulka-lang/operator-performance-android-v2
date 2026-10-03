@@ -38,7 +38,7 @@ internal fun foundationReferenceLabel(session: SessionReference, state: ProgramU
     return when {
         consolidation -> "PLANNED CONSOLIDATION • FIXED PRESCRIPTION"
         session.week in setOf(30, 31) -> "PLANNED REALIZATION • FIXED PRESCRIPTION"
-        session.week == 32 -> "FINAL-TEST OVERLAY • FIXED PRESCRIPTION"
+        session.week == 32 -> "WEEK 32 OVERLAY • FIXED PRESCRIPTION"
         else -> null
     }
 }

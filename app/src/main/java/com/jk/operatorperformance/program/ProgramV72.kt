@@ -27,8 +27,8 @@ object AresProgramV72 {
     val blocks = listOf(
         ProgramBlock("FOUNDATION", "HEPHAESTUS", 1, 8, BlockStatus.POPULATED, "Hypertrophy base, running tolerance, acceleration, aerobic foundation."),
         ProgramBlock("DEVELOPMENT", "HERMES", 9, 16, BlockStatus.POPULATED, "Strength, maximum velocity, threshold and interval development."),
-        ProgramBlock("SPECIFIC DEVELOPMENT", "ARES", 17, 24, BlockStatus.POPULATED, "Special endurance and 1.5-mile goal-pace development while retaining hypertrophy volume."),
-        ProgramBlock("INTEGRATION / PEAK", "ZEUS", 25, 32, BlockStatus.POPULATED, "Event specificity, controlled fatigue reduction, and final tests."),
+        ProgramBlock("SPECIFIC DEVELOPMENT", "ARES", 17, 24, BlockStatus.POPULATED, "Special endurance, 1.5-mile pace development, and aerobic capacity while retaining hypertrophy volume."),
+        ProgramBlock("INTEGRATION / PEAK", "ZEUS", 25, 32, BlockStatus.POPULATED, "Late-phase consolidation, fatigue management, and performance expression."),
     )
     val weeks = (1..TOTAL_WEEKS).map(::WeekDefinition)
     val dayTitles = mapOf(
