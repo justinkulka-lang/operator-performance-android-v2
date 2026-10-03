@@ -28,7 +28,7 @@ class ProgramV72ParityTest {
         )
         assertEquals("Engine baseline", SessionResolver.resolve(1, 1, ProgramAuthority.V72).title)
         assertEquals("1.5-mile checkpoint", SessionResolver.resolve(24, 1, ProgramAuthority.V72).title)
-        assertEquals("Final 1.5-mile", SessionResolver.resolve(32, 1, ProgramAuthority.V72).title)
+        assertEquals("1.5-mile benchmark", SessionResolver.resolve(32, 1, ProgramAuthority.V72).title)
         assertEquals("Very easy bike and mobility", SessionResolver.resolve(32, 2, ProgramAuthority.V72).title)
         assertEquals("Upper B", SessionResolver.resolve(32, 5, ProgramAuthority.V72).title)
         assertEquals("Final 300 m", SessionResolver.resolve(32, 4, ProgramAuthority.V72).rows.first { it.id == "w32_d4" }.title)
