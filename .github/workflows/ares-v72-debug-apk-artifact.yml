@@ -1,0 +1,66 @@
+name: Temporary v7.2 debug APK artifact
+
+# Temporary download path for the exact debug APK. This does not merge, tag, or release.
+on:
+  workflow_dispatch:
+  push:
+    branches: [cursor/ares-v72-debug-apk-dc41]
+
+permissions:
+  contents: read
+
+jobs:
+  debug-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: 694f11092e6d59d401e1ec67676e9e8fc0d45f5d
+
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+        with:
+          gradle-version: '9.6.0'
+
+      - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
+        with:
+          cmdline-tools-version: 15859902
+          packages: platform-tools
+
+      - name: Install Android API
+        run: sdkmanager --install "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Build debug APK from 694f110
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "694f11092e6d59d401e1ec67676e9e8fc0d45f5d"
+          GITHUB_SHA=694f11092e6d59d401e1ec67676e9e8fc0d45f5d gradle :app:assembleDebug --stacktrace
+
+      - name: Verify APK SHA-256
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk=app/build/outputs/apk/debug/app-debug.apk
+          test -f "$apk"
+          expected=8f0d2490aa10e89657e4c4e7f6df36ea20b44280d0bffebd915df8210cbc6b1d
+          actual="$(sha256sum "$apk" | awk '{print $1}')"
+          echo "expected=$expected"
+          echo "actual=$actual"
+          if [[ "$actual" != "$expected" ]]; then
+            echo "APK SHA-256 does not match the expected debug artifact from 694f110." >&2
+            exit 1
+          fi
+
+      - name: Upload exact debug APK
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: ares-v72-694f110-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
