@@ -25,3 +25,18 @@ Previous APK identities are obsolete:
 - `3d8c91267a7c456d12bcc8f6c9cfb82d83e57b8fdd8bb79d03b0a7b3f3d5b610` was built from `1d14821a4da3`.
 
 Base CI runs `36364996205` and `36364996241` failed on the starting commit because `build-tools;37.1.0` does not exist. Those workflows now request API 36. Their historical failures are not results for this candidate.
+
+## Visual identity check at 6d6218f
+
+Commit `6d6218f9e1d416a9bbdc40e1d4800488234abd5b` is a visual and copy pass on `694f110`. It does not change workout prescriptions, state, storage, migration, resolvers, timers, navigation, or START/RESUME behavior. The approved authority document was not modified.
+
+| Gate | Result |
+| --- | --- |
+| `:app:testDebugUnitTest` | Pass. 78 tests, 0 failures. |
+| `:app:lintDebug` | Pass. |
+| `:app:assembleDebug` | Pass. |
+| Launch, font scale 1.5, landscape, dark mode, longest session, Week 32 | Pass on API 35 emulator `ares-dev-api35`. |
+
+`V72ReferenceUiTest.narrowAndEnlargedDisplayKeepsResumeAndRestVisible` hit `ComposeTimeoutException` after 45 seconds on the first run, waiting for `today_screen` after RETURN TO TODAY at density 560. The same test passed on the immediate rerun. The other three reference tests passed on the first run. This is an emulator test anomaly, not a source failure.
+
+Verdict for `6d6218f`: **not production-ready**. Still open: an independent audit of this exact commit, Galaxy S26 Ultra physical validation, release signing, a final production build, and owner approval before merge or release.

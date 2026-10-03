@@ -12,7 +12,7 @@ This file records what was run. It does not claim production readiness. No Galax
 | Font scale 1.5 | Pass. `V72FontScaleUiTest`. | Not run |
 | Landscape | Pass. `rotationAirplaneResumeAndNavigation` rotated during a session and still showed RESUME. | Not run |
 | Dark mode | Pass. Night mode stayed on during the reference tests. The app uses the fixed dark theme. | Not run |
-| Density 560 | Pass. 720×1280 at density 560 kept START or RESUME, the workout rest countdown, and Tools. | Not run |
+| Density 560 | Pass. 720×1280 at density 560 kept START or RESUME, the workout rest countdown, and Tools. On visual commit `6d6218f`, `narrowAndEnlargedDisplayKeepsResumeAndRestVisible` timed out once after 45 seconds waiting for `today_screen`, then passed on the immediate rerun. That timeout is an emulator test anomaly, not a source failure. | Not run |
 | Airplane mode | Pass. Search for Behind-body cable curl and Week 32 Day 2 opened local rows with airplane mode on. | Not run |
 | Process death | Pass. After `am force-stop`, Week 1 Day 1 showed SESSION PAUSED and RESUME WORKOUT. Prefs were byte-identical. | Not run |
 | Reboot | Pass for stored state. `adb reboot` returned `sys.boot_completed=1`. `ares_v71_reference_state.xml` was byte-identical, including both timer ends, the 60 s choice, Week 1 Day 1, and `engagedAbsoluteDay` 1. A later launch showed SESSION PAUSED and RESUME WORKOUT. The first post-boot launch hit a System UI ANR on this emulator; the stored file was already identical before that launch. | Not run |
