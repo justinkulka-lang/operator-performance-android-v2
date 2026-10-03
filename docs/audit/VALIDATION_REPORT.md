@@ -1,6 +1,6 @@
 # Validation
 
-Local checks on this correction. This build is **not production-ready**. Galaxy S26 Ultra was not attached, so the physical checklist is not run. This is not an independent audit.
+Local checks on this correction. This build is **not production-ready**. On the check at commit `694f11092e6d59d401e1ec67676e9e8fc0d45f5d`, no Galaxy S26 Ultra was attached. Every physical check is **NOT RUN**. Emulator results are not a substitute. This is not an independent audit, release-signing verification, or owner approval.
 
 | Gate | Result |
 | --- | --- |
@@ -8,7 +8,7 @@ Local checks on this correction. This build is **not production-ready**. Galaxy 
 | `:app:lintDebug` | Pass. 0 errors. 23 warnings: VectorPath 9, GradleDependency 5, UseKtx 4, MonochromeLauncherIcon 2, ApplySharedPref 1, ObsoleteSdkInt 1, OldTargetApi 1. None were suppressed. |
 | `:app:assembleDebug` | Rebuilt after the final commit with `GITHUB_SHA` set to that commit. The APK SHA-256 is the post-commit build identity and is not stored in this file, because writing it back would change the commit. |
 | Instrumented UI | API 35 emulator `ares-dev-api35`. Launch gate passed. Font scale 1.5 passed. Reference tests passed for the longest session, Week 32, density 560, landscape, night mode, and airplane-mode search. `V72TimerPersistenceUiTest` recreated the activity with both timers still running. |
-| Galaxy S26 Ultra | Not run. |
+| Galaxy S26 Ultra | NOT RUN. `adb devices` showed only `emulator-5554`. Fresh install, v7.2 Week 1 Day 1 start gate, v7.1 migration, active Day 1, completed Day 1, reset Day 1, Day 2 or later, seven day types, longest session, Week 32, START/RESUME while scrolling, large font, landscape, dark mode, airplane mode, offline search, recreation, process death, reboot, manual timer, utility timer, Tools save-to-file, back navigation, touch targets, and prohibited-state checks were not run on a physical device. |
 | Process death | Pass. Seeded Week 1 Day 1, a 180 s workout rest, and a 60 s utility timer. `am force-stop` left the preference file byte-identical. The verify test and the relaunch showed SESSION PAUSED and RESUME WORKOUT. |
 | Reboot | Pass for stored state on the emulator. `adb reboot` reached `sys.boot_completed=1`. The preference file was byte-identical after boot, before the app was relaunched. A later launch showed SESSION PAUSED and RESUME WORKOUT at Week 1 Day 1. The first post-boot UI attempt was blocked by a System UI ANR. |
 

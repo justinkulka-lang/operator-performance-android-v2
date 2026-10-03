@@ -83,3 +83,7 @@ Tools export does not read `ares_v71_reference_state`.
 
 `operator_v54_reference_state` remains because older builds stored pointer migration there and the plate calculator still uses that file. `operator_performance_state`, `operator_performance_references`, and `operator_performance_benchmarks` remain so the user can keep a local copy of retained v5.7 tracking before deleting it. The exporter copies only those four namespaces. It does not create load, rep, RIR, pace, bodyweight, or calorie fields.
 
+## 13. Physical validation is not owner approval
+
+No Galaxy S26 Ultra was attached for commit `694f11092e6d59d401e1ec67676e9e8fc0d45f5d`. Every physical check is NOT RUN. Emulator results are not that device. This record does not approve release signing, installation, a candidate freeze, or a public release.
+
