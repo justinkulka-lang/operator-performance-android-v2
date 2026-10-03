@@ -8,10 +8,10 @@ class ProgramV71Test {
     private fun split(week: Int) = SessionResolver.splitForWeek(week, ProgramAuthority.V71)
 
     @Test fun authorityAndTopologyAreExact() {
-        assertEquals("7.1",AresProgramV71.AUTHORITY_VERSION)
-        assertEquals("1d33dbca214b34dd456a971d32bc1c19d59e3a13069393429fc9e2115e3a036c",AresProgramV71.AUTHORITY_SHA256)
-        assertEquals((1..32).toList(),AresProgramV71.weeks.map { it.week })
-        assertEquals(listOf(1 to 8,9 to 16,17 to 24,25 to 32),AresProgramV71.blocks.map { it.startWeek to it.endWeek })
+        assertEquals("7.1",ProgramV71.AUTHORITY_VERSION)
+        assertEquals("1d33dbca214b34dd456a971d32bc1c19d59e3a13069393429fc9e2115e3a036c",ProgramV71.AUTHORITY_SHA256)
+        assertEquals((1..32).toList(),ProgramV71.weeks.map { it.week })
+        assertEquals(listOf(1 to 8,9 to 16,17 to 24,25 to 32),ProgramV71.blocks.map { it.startWeek to it.endWeek })
         assertTrue(ProgramAudit.validate().isEmpty())
     }
 
