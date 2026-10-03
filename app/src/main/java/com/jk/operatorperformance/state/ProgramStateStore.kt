@@ -170,7 +170,7 @@ class ProgramStateStore(context:Context) {
             week=prefs.getInt(KEY_WORKOUT_WEEK,1).coerceIn(1,32),day=prefs.getInt(KEY_WORKOUT_DAY,1).coerceIn(1,7),
             movementIndex=prefs.getInt(KEY_MOVEMENT,0).coerceAtLeast(0),effortIndex=prefs.getInt(KEY_EFFORT,1).coerceAtLeast(1),
             complete=prefs.getBoolean(KEY_COMPLETE,false),selectedSubstitutions=decodeSubstitutions(prefs.getStringSet(KEY_SUBSTITUTIONS,emptySet()).orEmpty()),
-            completedEffortIds=prefs.getStringSet(KEY_COMPLETED,emptySet()).orEmpty().toSet(),restTimerEndEpochMillis=prefs.getLong(KEY_WORKOUT_TIMER,0L).takeIf { it>0L },
+            completedEffortIds=emptySet(),restTimerEndEpochMillis=prefs.getLong(KEY_WORKOUT_TIMER,0L).takeIf { it>0L },
             undoMovementIndex=if(hasUndo)prefs.getInt(KEY_UNDO_MOVEMENT,0) else null,undoEffortIndex=if(hasUndo)prefs.getInt(KEY_UNDO_EFFORT,1) else null,
             undoComplete=if(hasUndo)prefs.getBoolean(KEY_UNDO_COMPLETE,false) else null,undoRestTimerEndEpochMillis=if(hasUndo)prefs.getLong(KEY_UNDO_TIMER,0L).takeIf { it>0L } else null,
             undoCompletedEffortIds=if(hasUndo)prefs.getStringSet(KEY_UNDO_COMPLETED,emptySet()).orEmpty().toSet() else null)
@@ -191,16 +191,20 @@ class ProgramStateStore(context:Context) {
 
     fun saveWorkout(s:ActiveWorkoutState) {
         markSessionEngaged(s.week, s.day)
-        val e=prefs.edit().putBoolean(KEY_WORKOUT_ACTIVE,true).putInt(KEY_WORKOUT_SCHEMA,WORKOUT_SCHEMA).putInt(KEY_WORKOUT_WEEK,s.week).putInt(KEY_WORKOUT_DAY,s.day)
-            .putInt(KEY_MOVEMENT,s.movementIndex).putInt(KEY_EFFORT,s.effortIndex).putBoolean(KEY_COMPLETE,s.complete)
-            .putStringSet(KEY_SUBSTITUTIONS,encodeSubstitutions(s.selectedSubstitutions)).putStringSet(KEY_COMPLETED,s.completedEffortIds).putBoolean(KEY_HAS_UNDO,s.canUndo)
-        s.restTimerEndEpochMillis?.let { e.putLong(KEY_WORKOUT_TIMER,it) } ?: e.remove(KEY_WORKOUT_TIMER)
-        if(s.canUndo) {
-            e.putInt(KEY_UNDO_MOVEMENT,requireNotNull(s.undoMovementIndex)).putInt(KEY_UNDO_EFFORT,requireNotNull(s.undoEffortIndex))
-                .putBoolean(KEY_UNDO_COMPLETE,requireNotNull(s.undoComplete)).putStringSet(KEY_UNDO_COMPLETED,requireNotNull(s.undoCompletedEffortIds))
-            s.undoRestTimerEndEpochMillis?.let { e.putLong(KEY_UNDO_TIMER,it) } ?: e.remove(KEY_UNDO_TIMER)
-        } else listOf(KEY_UNDO_MOVEMENT,KEY_UNDO_EFFORT,KEY_UNDO_COMPLETE,KEY_UNDO_COMPLETED,KEY_UNDO_TIMER).forEach(e::remove)
-        e.apply()
+        prefs.edit {
+            putBoolean(KEY_WORKOUT_ACTIVE, true)
+            putInt(KEY_WORKOUT_SCHEMA, WORKOUT_SCHEMA)
+            putInt(KEY_WORKOUT_WEEK, s.week)
+            putInt(KEY_WORKOUT_DAY, s.day)
+            putInt(KEY_MOVEMENT, 0)
+            putInt(KEY_EFFORT, 1)
+            putBoolean(KEY_COMPLETE, s.complete)
+            putStringSet(KEY_SUBSTITUTIONS, encodeSubstitutions(s.selectedSubstitutions))
+            remove(KEY_COMPLETED)
+            putBoolean(KEY_HAS_UNDO, false)
+            if (s.restTimerEndEpochMillis != null) putLong(KEY_WORKOUT_TIMER, s.restTimerEndEpochMillis) else remove(KEY_WORKOUT_TIMER)
+            listOf(KEY_UNDO_MOVEMENT, KEY_UNDO_EFFORT, KEY_UNDO_COMPLETE, KEY_UNDO_COMPLETED, KEY_UNDO_TIMER).forEach(::remove)
+        }
     }
     fun clearWorkout() {
         val editor=prefs.edit()

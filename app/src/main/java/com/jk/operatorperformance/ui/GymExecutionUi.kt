@@ -18,16 +18,7 @@ import com.jk.operatorperformance.program.AresProgramV71
 import com.jk.operatorperformance.program.AresProgramV72
 import com.jk.operatorperformance.program.ProgramAuthority
 import com.jk.operatorperformance.program.SessionReference
-import com.jk.operatorperformance.program.SessionRow
-import com.jk.operatorperformance.state.ActiveWorkoutState
 import com.jk.operatorperformance.state.ProgramUiState
-import com.jk.operatorperformance.state.WorkoutProgress
-
-internal enum class WorkoutMapVisualState {
-    COMPLETE,
-    CURRENT,
-    UPCOMING,
-}
 
 internal fun sessionExecutionGuidance(session: SessionReference): List<String> = buildList {
     val speedDay = if (session.authority == ProgramAuthority.V72) 4 else 3
@@ -50,31 +41,6 @@ internal fun foundationReferenceLabel(session: SessionReference, state: ProgramU
         session.week == 32 -> "FINAL-TEST OVERLAY • FIXED PRESCRIPTION"
         else -> null
     }
-}
-
-internal fun rowIsComplete(progress: ActiveWorkoutState, row: SessionRow): Boolean =
-    (1..row.effortCount).all { WorkoutProgress.isEffortComplete(progress, row.id, it) }
-
-internal fun workoutMapState(
-    progress: ActiveWorkoutState,
-    session: SessionReference,
-    rowIndex: Int,
-): WorkoutMapVisualState {
-    val row = session.rows[rowIndex]
-    return when {
-        rowIsComplete(progress, row) -> WorkoutMapVisualState.COMPLETE
-        !progress.complete && rowIndex == progress.movementIndex -> WorkoutMapVisualState.CURRENT
-        else -> WorkoutMapVisualState.UPCOMING
-    }
-}
-
-internal fun nextIncompleteMovementTitle(progress: ActiveWorkoutState, session: SessionReference): String? {
-    if (progress.complete) return null
-    val orderedIndices = ((progress.movementIndex + 1)..session.rows.lastIndex).toList() +
-        (0 until progress.movementIndex).toList()
-    val nextIndex = orderedIndices.firstOrNull { !rowIsComplete(progress, session.rows[it]) } ?: return null
-    val row = session.rows[nextIndex]
-    return progress.selectedSubstitutions[row.id] ?: row.title
 }
 
 @Composable

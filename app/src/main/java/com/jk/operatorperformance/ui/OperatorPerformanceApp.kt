@@ -66,6 +66,7 @@ import com.jk.operatorperformance.program.SessionRowKind
 import com.jk.operatorperformance.state.ActiveWorkoutState
 import com.jk.operatorperformance.state.ProgramStateStore
 import com.jk.operatorperformance.state.ProgramUiState
+import com.jk.operatorperformance.state.SessionStatus
 import com.jk.operatorperformance.state.WorkoutProgress
 import kotlinx.coroutines.delay
 
@@ -144,6 +145,10 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
                     authority = state.authorityForWeek(progress.week),
                     onProgress = ::persistWorkout,
                     onReturnToToday = { workoutMode = false },
+                    onMarkComplete = {
+                        persistWorkout(WorkoutProgress.markSessionComplete(progress))
+                        workoutMode = false
+                    },
                 )
             }
             return@MaterialTheme
@@ -186,9 +191,8 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
                         state = state,
                         activeWorkout = activeWorkout?.takeIf { it.matchesPointer(state) },
                         onStartWorkout = {
-                            val existing = activeWorkout?.takeIf { it.matchesPointer(state) }
-                            val next = existing ?: newWorkout(state).also(::persistWorkout)
-                            activeWorkout = next
+                            val existing = activeWorkout?.takeIf { it.matchesPointer(state) && !it.complete }
+                            persistWorkout(existing ?: WorkoutProgress.start(state))
                             workoutMode = true
                         },
                         onProgress = ::persistWorkout,
@@ -269,8 +273,7 @@ private fun TodayScreen(
 ) {
     val session = resolveSession(state.currentWeek, state.currentDay, state)
     val progress = activeWorkout?.let { WorkoutProgress.normalize(it, session) }
-    val completed = progress?.let { WorkoutProgress.completedEfforts(it, session) } ?: 0
-    val total = WorkoutProgress.totalEfforts(session)
+    val sessionStatus = WorkoutProgress.status(progress, showingWorkout = false)
     val atEnd = state.currentWeek == 32 && state.currentDay == 7
     val isRest = session.rows.all { it.kind == SessionRowKind.REST }
     val executionGuidance = sessionExecutionGuidance(session)
@@ -299,23 +302,28 @@ private fun TodayScreen(
                 Text("FINISHING THIS WEEK UNDER v7.1", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
             }
             if (!isRest) Text(
-                if (progress == null) "$total SETS / EFFORTS PLANNED" else "$completed / $total COMPLETE",
+                when (sessionStatus) {
+                    SessionStatus.NOT_STARTED -> "SESSION NOT STARTED"
+                    SessionStatus.RESUMABLE -> "SESSION PAUSED • RESUME WHEN READY"
+                    SessionStatus.ACTIVE -> "SESSION ACTIVE"
+                    SessionStatus.COMPLETED -> "SESSION COMPLETE"
+                },
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.testTag("today_progress"),
             )
         }
-        if (progress != null && !progress.complete) {
+        if (sessionStatus == SessionStatus.RESUMABLE) {
             item {
                 Card(
                     Modifier
                         .fillMaxWidth()
                         .testTag("saved_workout_status")
-                        .semantics { contentDescription = "Saved workout; $completed of $total sets or efforts complete" },
+                        .semantics { contentDescription = "Session paused. Resume shows the same reference. Set completion is not stored." },
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
                 ) {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("SAVED WORKOUT", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                        Text("$completed / $total complete • progress and active rest state persist across app restarts.", style = MaterialTheme.typography.bodySmall)
+                        Text("SESSION PAUSED", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        Text("The prescription stays on screen. Resume does not ask you to mark sets, intervals, or repetitions.", style = MaterialTheme.typography.bodySmall)
                     }
                 }
             }
@@ -330,10 +338,6 @@ private fun TodayScreen(
             WorkoutRowCard(
                 row = row,
                 progress = progress,
-                onToggleEffort = { effort ->
-                    val base = progress ?: newWorkout(state)
-                    onProgress(WorkoutProgress.toggleEffort(base, session, row.id, effort))
-                },
                 onSelectAlternative = { alternative ->
                     val base = progress ?: newWorkout(state)
                     val choice = if (base.selectedSubstitutions[row.id] == alternative) null else alternative
@@ -354,28 +358,27 @@ private fun TodayScreen(
                 }
             } else {
                 Button(
-                    onClick = { if (isRest || progress?.complete == true) onAdvance() else confirmAdvance = true },
+                    onClick = { if (isRest || progress == null) onAdvance() else confirmAdvance = true },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("complete_day"),
                 ) { Text("COMPLETE DAY / NEXT DAY") }
             }
         }
     }
-    if (!isRest) {
+    if (!isRest && sessionStatus != SessionStatus.COMPLETED) {
         Surface(color = MaterialTheme.colorScheme.surface) {
             Button(
                 onClick = onStartWorkout,
                 modifier = Modifier.fillMaxWidth().padding(12.dp).heightIn(min = 56.dp).testTag("start_resume_workout"),
-            ) { Text(if (progress == null) "START WORKOUT" else "RESUME WORKOUT", fontWeight = FontWeight.Bold) }
+            ) { Text(if (sessionStatus == SessionStatus.NOT_STARTED) "START WORKOUT" else "RESUME WORKOUT", fontWeight = FontWeight.Bold) }
         }
     }
     }
 
     if (confirmAdvance) {
-        val remaining = (total - completed).coerceAtLeast(0)
         AlertDialog(
             onDismissRequest = { confirmAdvance = false },
-            title = { Text("Advance with unfinished work?") },
-            text = { Text("$remaining prescribed sets/efforts remain incomplete. Advance anyway?") },
+            title = { Text("Advance to the next day?") },
+            text = { Text("Move the program pointer to the next day? This clears the active session. It does not store loads, reps, or results.") },
             confirmButton = {
                 TextButton(
                     onClick = { confirmAdvance = false; onAdvance() },
@@ -390,7 +393,7 @@ private fun TodayScreen(
         AlertDialog(
             onDismissRequest = { confirmReset = false },
             title = { Text("Reset today's workout?") },
-            text = { Text("Clear today's completion marks, substitutions, undo state, and active workout rest timer? The approved training prescription is unchanged.") },
+            text = { Text("Clear today's active session, chosen alternatives, and rest timer? The week stays marked as engaged, and no loads, reps, or results are stored.") },
             confirmButton = {
                 TextButton(
                     onClick = { confirmReset = false; onResetWorkout() },
@@ -406,37 +409,22 @@ private fun TodayScreen(
 private fun WorkoutRowCard(
     row: SessionRow,
     progress: ActiveWorkoutState?,
-    onToggleEffort: (Int) -> Unit,
     onSelectAlternative: (String) -> Unit,
 ) {
     var showDetails by rememberSaveable(row.id) { mutableStateOf(false) }
     val selected = progress?.selectedSubstitutions?.get(row.id)
     val title = selected ?: row.title
-    val allDone = progress != null && rowIsComplete(progress, row)
     val hasDetails = row.note != null || row.alternatives.isNotEmpty()
 
     Card(
         modifier = Modifier.fillMaxWidth().testTag("row_${row.id}"),
-        colors = CardDefaults.cardColors(containerColor = if (allDone) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             VisualRowTitle(row = row, title = title, style = MaterialTheme.typography.titleMedium)
             if (selected != null) Text("ALTERNATIVE FOR ${row.title}", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
             Text(row.prescription, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.testTag("prescription_${row.id}"))
             if (row.optional) Text("OPTIONAL", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
-            if (row.kind != SessionRowKind.REST) {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items((1..row.effortCount).toList()) { effort ->
-                        val done = progress?.let { WorkoutProgress.isEffortComplete(it, row.id, effort) } == true
-                        FilterChip(
-                            selected = done,
-                            onClick = { onToggleEffort(effort) },
-                            label = { Text(if (done) "✓ ${row.effortLabel} $effort" else "${row.effortLabel} $effort") },
-                            modifier = Modifier.heightIn(min = 48.dp).testTag("effort_${row.id}_$effort"),
-                        )
-                    }
-                }
-            }
             if (hasDetails) {
                 val detailLabel = when {
                     row.note != null && row.alternatives.isNotEmpty() -> "COACHING / ALTERNATIVES"
@@ -471,14 +459,13 @@ private fun WorkoutModeScreen(
     authority: ProgramAuthority,
     onProgress: (ActiveWorkoutState) -> Unit,
     onReturnToToday: () -> Unit,
+    onMarkComplete: () -> Unit,
 ) {
     val session = SessionResolver.resolve(progress.week, progress.day, authority)
     val normalized = WorkoutProgress.normalize(progress, session)
-    val row = session.rows[normalized.movementIndex]
-    val selected = normalized.selectedSubstitutions[row.id]
-    val nextMovement = nextIncompleteMovementTitle(normalized, session)
     val haptic = LocalHapticFeedback.current
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    val restSeconds = WorkoutProgress.remainingRestSeconds(normalized, now)
 
     KeepScreenOnEffect()
 
@@ -498,29 +485,39 @@ private fun WorkoutModeScreen(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
             Surface(color = MaterialTheme.colorScheme.surface) {
-                Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    if (normalized.complete) {
-                        Button(
-                            onClick = onReturnToToday,
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("return_today"),
-                        ) { Text("WORKOUT COMPLETE • RETURN TO TODAY", fontWeight = FontWeight.Bold) }
-                    } else {
-                        Button(
-                            onClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                onProgress(WorkoutProgress.advance(normalized, session))
-                            },
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 60.dp).testTag("set_done"),
-                        ) {
-                            Text(if (row.kind == SessionRowKind.RESISTANCE) "SET DONE" else "NEXT EFFORT / DONE", fontWeight = FontWeight.Black)
-                        }
-                        if (row.optional) {
+                Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (normalized.restTimerEndEpochMillis != null) {
+                        Text(
+                            "REST • ${formatRest(restSeconds)}",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier
+                                .testTag("workout_rest_countdown")
+                                .semantics {
+                                    contentDescription = "Workout rest timer"
+                                    stateDescription = "Rest timer remaining ${formatRest(restSeconds)}"
+                                    liveRegion = LiveRegionMode.Polite
+                                },
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             TextButton(
-                                onClick = { onProgress(WorkoutProgress.skipOptional(normalized, session)) },
-                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("skip_optional"),
-                            ) { Text("SKIP OPTIONAL") }
+                                onClick = { onProgress(WorkoutProgress.skipRest(normalized)) },
+                                modifier = Modifier.heightIn(min = 48.dp).testTag("workout_rest_skip"),
+                            ) { Text("SKIP REST") }
+                            TextButton(
+                                onClick = { onProgress(WorkoutProgress.addRestSeconds(normalized, 30)) },
+                                modifier = Modifier.heightIn(min = 48.dp).testTag("workout_rest_add_30"),
+                            ) { Text("+30 SEC") }
                         }
                     }
+                    Button(
+                        onClick = onMarkComplete,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("mark_session_complete"),
+                    ) { Text("MARK SESSION COMPLETE", fontWeight = FontWeight.Bold) }
+                    TextButton(
+                        onClick = onReturnToToday,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("return_today"),
+                    ) { Text("RETURN TO TODAY") }
                 }
             }
         },
@@ -538,32 +535,51 @@ private fun WorkoutModeScreen(
                     style = MaterialTheme.typography.labelLarge,
                     modifier = Modifier.testTag("workout_context"),
                 )
-                Text("MOVEMENT ${normalized.movementIndex + 1} / ${session.rows.size}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    "SESSION ACTIVE • FULL REFERENCE",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.testTag("workout_status"),
+                )
+                Text(
+                    "Read the whole session while training. Nothing here asks for loads, reps, or a tap on every set.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             if (sessionExecutionGuidance(session).isNotEmpty()) {
                 item { SessionExecutionBanner(session) }
             }
             item {
+                Text("REST TIMER", fontWeight = FontWeight.Bold)
+                Text(
+                    "Compounds rest 2–4 min. Isolation rests 1–2 min. Sprint and interval recoveries in the prescription take precedence.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(listOf(60, 90, 120, 180)) { seconds ->
+                        FilterChip(
+                            selected = false,
+                            onClick = { onProgress(WorkoutProgress.startManualRest(normalized, seconds, System.currentTimeMillis())) },
+                            label = { Text(formatRest(seconds)) },
+                            modifier = Modifier.heightIn(min = 48.dp).testTag("start_rest_$seconds"),
+                        )
+                    }
+                }
+            }
+            items(session.rows, key = { it.id }) { row ->
+                val selected = normalized.selectedSubstitutions[row.id]
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                    modifier = Modifier.fillMaxWidth().testTag("workout_row_${row.id}"),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 ) {
-                    Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        VisualRowTitle(
-                            row = row,
-                            title = selected ?: row.title,
-                            style = MaterialTheme.typography.headlineMedium,
-                            modifier = Modifier.testTag("workout_movement"),
-                        )
-                        Text(
-                            "${row.effortLabel} ${normalized.effortIndex} / ${row.effortCount}",
-                            style = MaterialTheme.typography.headlineMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Black,
-                            modifier = Modifier.testTag("workout_effort"),
-                        )
-                        Text(row.prescription, style = MaterialTheme.typography.titleMedium, modifier = Modifier.testTag("workout_prescription"))
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        VisualRowTitle(row = row, title = selected ?: row.title, style = MaterialTheme.typography.titleMedium)
+                        if (selected != null) Text("ALTERNATIVE FOR ${row.title}", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
+                        Text(row.prescription, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.testTag("workout_prescription_${row.id}"))
                         row.note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                        if (row.optional) Text("OPTIONAL", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                         row.alternatives.forEachIndexed { index, alternative ->
                             FilterChip(
                                 selected = selected == alternative,
@@ -571,93 +587,11 @@ private fun WorkoutModeScreen(
                                     val choice = if (selected == alternative) null else alternative
                                     onProgress(WorkoutProgress.selectSubstitution(normalized, session, row.id, choice))
                                 },
-                                label = { Text("ALT ${index + 1} • $alternative") },
+                                label = { Text("${index + 1}. $alternative") },
                                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                             )
                         }
-                        nextMovement?.let {
-                            HorizontalDivider()
-                            Text("NEXT • $it", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
-                        }
                     }
-                }
-            }
-            if (normalized.restTimerEndEpochMillis != null) {
-                item {
-                    val seconds = WorkoutProgress.remainingRestSeconds(normalized, now)
-                    Card(
-                        Modifier
-                            .fillMaxWidth()
-                            .testTag("workout_rest")
-                            .semantics {
-                                contentDescription = "Workout rest timer"
-                                stateDescription = "Rest timer remaining ${formatRest(seconds)}"
-                                liveRegion = LiveRegionMode.Polite
-                            },
-                    ) {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(
-                                "REST • ${formatRest(seconds)}",
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.testTag("workout_rest_countdown"),
-                            )
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                TextButton(
-                                    onClick = { onProgress(WorkoutProgress.skipRest(normalized)) },
-                                    modifier = Modifier.heightIn(min = 48.dp).testTag("workout_rest_skip"),
-                                ) { Text("SKIP REST") }
-                                TextButton(
-                                    onClick = { onProgress(WorkoutProgress.addRestSeconds(normalized, 30)) },
-                                    modifier = Modifier.heightIn(min = 48.dp).testTag("workout_rest_add_30"),
-                                ) { Text("+30 SEC") }
-                            }
-                        }
-                    }
-                }
-            }
-            item {
-                if (normalized.canUndo) {
-                    TextButton(
-                        onClick = { onProgress(WorkoutProgress.undo(normalized)) },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("undo_workout"),
-                    ) { Text("UNDO LAST ACTION") }
-                }
-                if (!normalized.complete) {
-                    TextButton(
-                        onClick = onReturnToToday,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("return_today"),
-                    ) { Text("RETURN TO TODAY") }
-                }
-            }
-            item {
-                HorizontalDivider()
-                Text("WORKOUT MAP", fontWeight = FontWeight.Bold)
-                session.rows.forEachIndexed { index, mapRow ->
-                    val mapState = workoutMapState(normalized, session, index)
-                    val marker = when (mapState) {
-                        WorkoutMapVisualState.COMPLETE -> "✓"
-                        WorkoutMapVisualState.CURRENT -> "▶"
-                        WorkoutMapVisualState.UPCOMING -> "○"
-                    }
-                    val stateLabel = when (mapState) {
-                        WorkoutMapVisualState.COMPLETE -> "complete"
-                        WorkoutMapVisualState.CURRENT -> "current"
-                        WorkoutMapVisualState.UPCOMING -> "upcoming"
-                    }
-                    val color = when (mapState) {
-                        WorkoutMapVisualState.COMPLETE -> MaterialTheme.colorScheme.tertiary
-                        WorkoutMapVisualState.CURRENT -> MaterialTheme.colorScheme.primary
-                        WorkoutMapVisualState.UPCOMING -> MaterialTheme.colorScheme.onSurfaceVariant
-                    }
-                    val mapTitle = normalized.selectedSubstitutions[mapRow.id] ?: mapRow.title
-                    Text(
-                        "$marker $mapTitle",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = color,
-                        fontWeight = if (mapState == WorkoutMapVisualState.CURRENT) FontWeight.Bold else FontWeight.Normal,
-                        modifier = Modifier.semantics { contentDescription = "$mapTitle; $stateLabel" },
-                    )
                 }
             }
         }
@@ -918,7 +852,10 @@ private fun DayReferenceDialog(
         title = { Text("WEEK ${session.week} • DAY ${session.day}\n${session.title}") },
         text = {
             Column(
-                Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState()),
+                Modifier
+                    .heightIn(max = 520.dp)
+                    .verticalScroll(rememberScrollState())
+                    .testTag("day_reference_scroll"),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 PhaseIdentityLine(session.phase)
@@ -926,8 +863,13 @@ private fun DayReferenceDialog(
                 if (sessionExecutionGuidance(session).isNotEmpty()) SessionExecutionBanner(session)
                 if (foundationReferenceLabel(session, state) != null) FoundationReferenceBanner(session, state)
                 session.rows.forEach { row ->
-                    VisualRowTitle(row = row, title = row.title, style = MaterialTheme.typography.bodyLarge)
-                    Text(row.prescription)
+                    VisualRowTitle(
+                        row = row,
+                        title = row.title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.testTag("day_row_${row.id}"),
+                    )
+                    Text(row.prescription, modifier = Modifier.testTag("day_prescription_${row.id}"))
                     row.note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     row.alternatives.forEachIndexed { index, alt -> Text("ALT ${index + 1} • $alt", style = MaterialTheme.typography.bodySmall) }
                 }

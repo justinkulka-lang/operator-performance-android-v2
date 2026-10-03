@@ -104,4 +104,42 @@ class AuthorityMigrationTest {
         val started = ProgramUiState().startV72()
         assertEquals(ProgramUiState(initialized = true, currentWeek = 1, currentDay = 1, authority = ProgramAuthority.V72), started)
     }
+
+    @Test fun repeatedApplyIsStableForEveryEvidenceCase() {
+        val cases = listOf(
+            Triple(ProgramUiState(), false, WeekStartEvidence.UNKNOWN),
+            Triple(ProgramUiState(initialized = true, currentWeek = 5, currentDay = 1), false, WeekStartEvidence.UNKNOWN),
+            Triple(ProgramUiState(initialized = true, currentWeek = 5, currentDay = 1), false, WeekStartEvidence.NOT_STARTED),
+            Triple(ProgramUiState(initialized = true, currentWeek = 5, currentDay = 1), false, WeekStartEvidence.ENGAGED),
+            Triple(ProgramUiState(initialized = true, currentWeek = 5, currentDay = 1), true, WeekStartEvidence.NOT_STARTED),
+            Triple(ProgramUiState(initialized = true, currentWeek = 6, currentDay = 4), false, WeekStartEvidence.UNKNOWN),
+            Triple(ProgramUiState(initialized = true, currentWeek = 32, currentDay = 7), false, WeekStartEvidence.ENGAGED),
+        )
+        cases.forEach { (state, active, evidence) ->
+            val once = AuthorityMigration.apply(state, active, evidence)
+            val twice = AuthorityMigration.apply(once, active, evidence)
+            assertEquals(once, twice)
+        }
+    }
+
+    @Test fun engagedDay1DoesNotBecomeV72OnTheSameDay() {
+        val retained = AuthorityMigration.apply(
+            ProgramUiState(initialized = true, currentWeek = 8, currentDay = 1),
+            workoutActive = false,
+            evidence = WeekStartEvidence.ENGAGED,
+        )
+        assertEquals(ProgramAuthority.V71, retained.authority)
+        assertEquals(1, retained.currentDay)
+        assertEquals(8, retained.retainedV71Week)
+        val nextWeek = retained.copy(currentDay = 7).advanceDay()
+        assertEquals(9, nextWeek.currentWeek)
+        assertEquals(1, nextWeek.currentDay)
+        assertEquals(ProgramAuthority.V72, nextWeek.authority)
+        assertNull(nextWeek.retainedV71Week)
+    }
+
+    @Test fun v72Week32DoesNotCreateWeek33() {
+        val end = ProgramUiState(initialized = true, currentWeek = 32, currentDay = 7, authority = ProgramAuthority.V72)
+        assertEquals(end, end.advanceDay())
+    }
 }

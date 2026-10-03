@@ -28,7 +28,7 @@ object ProgramNotesV72 {
         "Week 32 is the final-test taper. Day 2 and Day 6 are very easy bike and mobility. Day 5 has no easy aerobic. There is no Week 33.",
     )
     val authorityLimits = listOf(
-        "The app is an offline reference. It does not log loads, reps, RIR, pace, results, bodyweight, calories, sleep, readiness, heart rate, or photos.",
+        "The app is an offline reference. Session status is not a set log. It does not log loads, reps, RIR, pace, results, bodyweight, calories, sleep, readiness, heart rate, or photos.",
         "An active v7.1 week is finished under v7.1. v7.2 becomes active at the next unstarted Day 1.",
         "Threshold and benchmark records stay outside the app.",
     )
