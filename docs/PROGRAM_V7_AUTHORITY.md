@@ -1,4 +1,4 @@
-# ARES Performance authority record
+# Program authority record
 
 v7.2 is the controlling program. v7.1 remains available only so an in-progress v7.1 week can finish.
 

@@ -1,19 +1,19 @@
 package com.jk.operatorperformance.program
 
-/** Immutable, runtime-authoritative ARES Performance v7.1 prescription. */
-object AresProgramV71 {
+/** Immutable v7.1 prescription, retained so an in-progress week can finish. */
+object ProgramV71 {
     const val AUTHORITY_VERSION = "7.1"
     const val AUTHORITY_SHA256 = "1d33dbca214b34dd456a971d32bc1c19d59e3a13069393429fc9e2115e3a036c"
-    const val PROGRAM_NAME = "ARES PERFORMANCE"
-    const val PROGRAM_TAGLINE = "Muscle · Strength · Speed · Engine"
+    const val PROGRAM_NAME = "LEGEND"
+    const val PROGRAM_TAGLINE = "Built to hold."
     const val TOTAL_WEEKS = 32
     const val DAYS_PER_WEEK = 7
 
     val blocks = listOf(
-        ProgramBlock("FOUNDATION", "HEPHAESTUS", 1, 8, BlockStatus.POPULATED, "Build the hypertrophy chassis, aerobic base, sprint exposure, and running tolerance."),
-        ProgramBlock("DEVELOPMENT", "HERMES", 9, 16, BlockStatus.POPULATED, "Build strength, speed, threshold capacity, and event-specific durability."),
-        ProgramBlock("SPECIFIC DEVELOPMENT", "ARES", 17, 24, BlockStatus.POPULATED, "Increase specificity while preserving strength and muscle."),
-        ProgramBlock("INTEGRATION / PEAK", "ZEUS", 25, 32, BlockStatus.POPULATED, "Reduce avoidable fatigue and express peak 300 m and 1.5-mile performance."),
+        ProgramBlock("Draft", "Draft", 1, 8, BlockStatus.POPULATED, "Foundation, movement quality, and early work capacity."),
+        ProgramBlock("Build", "Build", 9, 16, BlockStatus.POPULATED, "Progressive strength, hypertrophy, and conditioning development."),
+        ProgramBlock("Backstop", "Backstop", 17, 24, BlockStatus.POPULATED, "Sustained strength, fatigue control, and repeatable work capacity."),
+        ProgramBlock("Live", "Live", 25, 32, BlockStatus.POPULATED, "Advanced conditioning, maintained hypertrophy, and practical performance expression."),
     )
     val weeks = (1..TOTAL_WEEKS).map(::WeekDefinition)
     val dayTitles = mapOf(

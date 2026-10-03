@@ -1,4 +1,4 @@
-name: Apply ARES v7.1 code
+name: Apply v7.1 code
 
 on:
   push:
@@ -28,5 +28,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add app docs
           git diff --cached --check
-          git commit -m "Migrate ARES to one-rest-day v7.1 program"
+          git commit -m "Migrate to one-rest-day v7.1 program"
           git push origin HEAD:construction/ares-v7-unified-authority

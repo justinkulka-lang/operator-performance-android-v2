@@ -115,7 +115,7 @@ private fun PlateCalculatorCard() {
             Button(
                 onClick = { persist(state.copy(equipmentEffectiveWeight = equipment, collarPairWeight = collars)) },
                 enabled = equipment != null && (collarDraft.isBlank() || collars != null),
-                colors = aresButtonColors(),
+                colors = legendButtonColors(),
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("plate_config_save"),
             ) { Text("SAVE EQUIPMENT") }
 
@@ -161,7 +161,7 @@ private fun PlateCalculatorCard() {
                     pairDraft = ""
                 },
                 enabled = newPlate != null && newPairs != null,
-                colors = aresButtonColors(),
+                colors = legendButtonColors(),
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("plate_inventory_add"),
             ) { Text("ADD / REPLACE PLATE") }
 
@@ -218,7 +218,7 @@ private fun ProgramNotesCard() {
     Card(modifier = Modifier.fillMaxWidth().testTag("program_notes_tool")) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("PROGRAM / COACHING NOTES", style = MaterialTheme.typography.titleSmall)
-            Text("Execution, progression, interference, sprint-volume, run-impact, and planned-overlay guidance from the approved ARES v7.2 authority. No performance logging required.")
+            Text("Execution, progression, interference, sprint-volume, run-impact, and planned-overlay guidance from the approved v7.2 authority. No performance logging required.")
             TextButton(
                 onClick = { expanded = !expanded },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("program_notes_toggle"),
@@ -273,7 +273,7 @@ private fun DataControlsCard() {
             Button(
                 onClick = {
                     pendingExport = legacy.buildLocalExport()
-                    exportLauncher.launch("ares-performance-v7.2-local-export.json")
+                    exportLauncher.launch("legend-v7.2-local-export.json")
                 },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("export_data"),
             ) { Text("EXPORT DATA") }

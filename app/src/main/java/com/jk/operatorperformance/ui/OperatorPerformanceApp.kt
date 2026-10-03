@@ -55,7 +55,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.jk.operatorperformance.program.AresProgramV72
+import com.jk.operatorperformance.program.ProgramV72
 import com.jk.operatorperformance.program.ProgramAuthority
 import com.jk.operatorperformance.program.SessionReference
 import com.jk.operatorperformance.program.SessionResolver
@@ -98,7 +98,7 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
         stateStore.clearWorkout()
     }
 
-    MaterialTheme(colorScheme = AresDarkColors, typography = aresTypography()) {
+    MaterialTheme(colorScheme = LegendColors, typography = legendTypography()) {
         if (!state.initialized) {
             Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                 Column(
@@ -106,7 +106,7 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     BrandHeader()
-                    Text("ARES v7.2", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                    Text("LEGEND", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(12.dp))
                     Text("The approved program uses 32 seven-day weeks with six training days and one rest day each week.")
                     Spacer(Modifier.height(12.dp))
@@ -338,7 +338,7 @@ private fun TodayScreen(
             }
             if (atEnd) {
                 Card(Modifier.fillMaxWidth()) {
-                    Text("ARES PERFORMANCE • 32-WEEK / 224-DAY PROGRAM COMPLETE", Modifier.padding(16.dp), fontWeight = FontWeight.Bold)
+                    Text("LEGEND • 32-WEEK / 224-DAY PROGRAM COMPLETE", Modifier.padding(16.dp), fontWeight = FontWeight.Bold)
                 }
             } else {
                 Button(
@@ -352,7 +352,7 @@ private fun TodayScreen(
         Surface(color = MaterialTheme.colorScheme.surface) {
             Button(
                 onClick = onStartWorkout,
-                colors = aresButtonColors(),
+                colors = legendButtonColors(),
                 modifier = Modifier.fillMaxWidth().padding(12.dp).heightIn(min = 56.dp).testTag("start_resume_workout"),
             ) { Text(if (sessionStatus == SessionStatus.NOT_STARTED) "START WORKOUT" else "RESUME WORKOUT", fontWeight = FontWeight.Bold) }
         }
@@ -642,7 +642,7 @@ private fun ProgramScreen(
     val selectedPhase = blockFor(state, selectedWeek)
     val selectedSplit = splitForWeek(selectedWeek, state)
     val nextWeek = (state.currentWeek + 1).takeIf { it <= 32 }
-    val nextPhase = AresProgramV72.blocks.firstOrNull { it.startWeek > currentPhase.endWeek }
+    val nextPhase = ProgramV72.blocks.firstOrNull { it.startWeek > currentPhase.endWeek }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     val searchHits = remember(searchQuery, state.retainedV71Week, state.authority) { searchProgram(searchQuery, state) }
     val jumpWeeks = remember(state.currentWeek) { listOf(state.currentWeek, 1, 9, 17, 25, 32).distinct() }
@@ -661,7 +661,11 @@ private fun ProgramScreen(
                 color = phaseAccent(currentPhase),
                 modifier = Modifier.testTag("current_phase"),
             )
-            Text(currentPhase.godName, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                "Weeks ${currentPhase.startWeek}–${currentPhase.endWeek}",
+                style = technicalStyle(MaterialTheme.typography.labelSmall),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             Text(
                 nextPhase?.let { "Next • ${phaseFieldLabel(it)}" }
                     ?: "Next • Program complete at week 32. No week 33 is authorized.",
@@ -681,7 +685,7 @@ private fun ProgramScreen(
                     .fillMaxWidth()
                     .heightIn(min = 56.dp)
                     .testTag("program_search")
-                    .semantics { contentDescription = "Search the approved 32-week ARES program" },
+                    .semantics { contentDescription = "Search the approved 32-week program" },
             )
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(jumpWeeks) { week ->
@@ -739,8 +743,8 @@ private fun ProgramScreen(
         }
         item {
             Text("PHASES", fontWeight = FontWeight.Bold)
-            AresProgramV72.blocks.forEach { phase ->
-                PhaseSummaryCard(phase, isCurrent = phase.godName == currentPhase.godName)
+            ProgramV72.blocks.forEach { phase ->
+                PhaseSummaryCard(phase, isCurrent = phase.startWeek == currentPhase.startWeek)
             }
         }
         item {
@@ -843,7 +847,7 @@ private fun ToolsScreen(state: ProgramUiState, onStateChanged: (ProgramUiState) 
             } else {
                 Button(
                     enabled = state.restTimerSeconds != null,
-                    colors = aresButtonColors(),
+                    colors = legendButtonColors(),
                     onClick = {
                         val seconds = state.restTimerSeconds ?: return@Button
                         onStateChanged(state.copy(utilityRestTimerEndEpochMillis = System.currentTimeMillis() + seconds * 1_000L))
@@ -902,7 +906,7 @@ private fun DayReferenceDialog(
 
 @Composable
 private fun BrandHeader() {
-    AresBrandHeader()
+    LegendBrandHeader()
 }
 
 private fun newWorkout(state: ProgramUiState) = ActiveWorkoutState(week = state.currentWeek, day = state.currentDay)
@@ -914,7 +918,7 @@ private fun splitForWeek(week: Int, state: ProgramUiState): List<SessionReferenc
     SessionResolver.splitForWeek(week, state.authorityForWeek(week))
 
 private fun blockFor(state: ProgramUiState, week: Int) =
-    if (state.authorityForWeek(week) == ProgramAuthority.V71) com.jk.operatorperformance.program.AresProgramV71.blockForWeek(week)
-    else AresProgramV72.blockForWeek(week)
+    if (state.authorityForWeek(week) == ProgramAuthority.V71) com.jk.operatorperformance.program.ProgramV71.blockForWeek(week)
+    else ProgramV72.blockForWeek(week)
 
 private fun formatRest(seconds: Int): String = "%d:%02d".format(seconds / 60, seconds % 60)

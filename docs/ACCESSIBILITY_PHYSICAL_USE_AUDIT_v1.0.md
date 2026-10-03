@@ -1,10 +1,10 @@
-# ARES Performance — Accessibility & Physical-Use Audit v1.0
+# LEGEND — Accessibility & Physical-Use Audit v1.0
 
-Scope: Android reference-first app only. This audit does not alter ARES v5.7 training content and does not introduce health, readiness, performance logging, analytics, or network behavior.
+Scope: Android reference-first app only. This audit does not alter v5.7 training content and does not introduce health, readiness, performance logging, analytics, or network behavior.
 
 ## Acceptance standard
 
-ARES is used while training, often one-handed, under fatigue, with sweat, variable lighting, and intermittent attention. The physical-use standard therefore prioritizes fast recognition, large targets, persistent primary controls, recoverable state, and screen-reader-readable execution state.
+The app is used while training, often one-handed, under fatigue, with sweat, variable lighting, and intermittent attention. The physical-use standard therefore prioritizes fast recognition, large targets, persistent primary controls, recoverable state, and screen-reader-readable execution state.
 
 ## Automated acceptance coverage
 
@@ -24,7 +24,7 @@ ARES is used while training, often one-handed, under fatigue, with sweat, variab
 
 ## Program search / jump boundaries
 
-Search is local and offline. It indexes only Weeks 1–32 from the canonical ARES program resolver using the currently selected Foundation Speed / Engine reference where v5.7 permits manual reference selection. Search does not create, infer, or expose Week 33+ content. Manual deload mode is deliberately excluded from the search index so search results remain a reference to the populated program rather than an adaptive output.
+Search is local and offline. It indexes only Weeks 1–32 from the canonical program resolver using the currently selected Foundation Speed / Engine reference where v5.7 permits manual reference selection. Search does not create, infer, or expose Week 33+ content. Manual deload mode is deliberately excluded from the search index so search results remain a reference to the populated program rather than an adaptive output.
 
 Supported search examples include compact week/day syntax (`W17`, `D3`, `W17 D3`) and plain-language prescription terms such as `300 m`, `threshold`, or an exercise name. Quick-jump chips expose the current week plus phase boundaries and Week 32.
 
@@ -34,7 +34,7 @@ TODAY displays a SAVED WORKOUT banner whenever the current session has persisted
 
 ## Build / authority integrity
 
-TOOLS contains a read-only BUILD / AUTHORITY INTEGRITY card showing app version, versionCode, package, embedded source commit, ARES authority version and SHA-256, build type, and offline/local-only status. This is reference information only and does not phone home.
+TOOLS contains a read-only BUILD / AUTHORITY INTEGRITY card showing app version, versionCode, package, embedded source commit, authority version and SHA-256, build type, and offline/local-only status. This is reference information only and does not phone home.
 
 CI and Master Audit additionally require:
 

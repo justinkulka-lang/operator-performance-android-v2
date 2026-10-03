@@ -99,7 +99,7 @@ internal fun renderLocalExport(
     )
     return buildString {
         append("{\n  \"format_version\": 1,\n")
-        append("  \"authority\": \"ARES Performance v7.2\",\n")
+        append("  \"authority\": \"LEGEND v7.2\",\n")
         append("  \"exported_at_millis\": ").append(exportedAtMillis).append(",\n")
         append("  \"namespaces\": {")
         namespaces.entries.forEachIndexed { namespaceIndex, (namespace, values) ->

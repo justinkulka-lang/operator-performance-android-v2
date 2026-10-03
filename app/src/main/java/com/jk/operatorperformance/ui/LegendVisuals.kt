@@ -27,19 +27,19 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.jk.operatorperformance.R
-import com.jk.operatorperformance.program.AresProgramV72
+import com.jk.operatorperformance.program.ProgramV72
 import com.jk.operatorperformance.program.ProgramBlock
 import com.jk.operatorperformance.program.SessionReference
 import com.jk.operatorperformance.program.SessionRow
 import com.jk.operatorperformance.program.SessionRowKind
 
 @DrawableRes
-private fun phaseEmblemRes(phase: ProgramBlock): Int = when (phase.godName) {
-    "HEPHAESTUS" -> R.drawable.ic_phase_hephaestus
-    "HERMES" -> R.drawable.ic_phase_hermes
-    "ARES" -> R.drawable.ic_phase_ares
-    "ZEUS" -> R.drawable.ic_phase_zeus
-    else -> R.drawable.ic_ares_master
+private fun phaseEmblemRes(phase: ProgramBlock): Int = when (phase.name) {
+    "Draft" -> R.drawable.ic_phase_draft
+    "Build" -> R.drawable.ic_phase_build
+    "Backstop" -> R.drawable.ic_phase_backstop
+    "Live" -> R.drawable.ic_phase_live
+    else -> R.drawable.ic_legend_mark
 }
 
 @DrawableRes
@@ -49,10 +49,10 @@ private fun dayGlyphRes(day: Int): Int = when (day) {
     3 -> R.drawable.ic_event_sprint
     4 -> R.drawable.ic_rest_laurel
     5 -> R.drawable.ic_lift_deadlift
-    6 -> R.drawable.ic_ares_master
+    6 -> R.drawable.ic_legend_mark
     7 -> R.drawable.ic_event_engine
     8 -> R.drawable.ic_rest_laurel
-    else -> R.drawable.ic_ares_master
+    else -> R.drawable.ic_legend_mark
 }
 
 @DrawableRes
@@ -72,10 +72,10 @@ private fun rowGlyphRes(row: SessionRow): Int? {
 }
 
 @Composable
-internal fun AresBrandHeader() {
+internal fun LegendBrandHeader() {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(
-            painter = painterResource(R.drawable.ic_ares_master),
+            painter = painterResource(R.drawable.ic_legend_mark),
             contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(36.dp),
@@ -83,12 +83,12 @@ internal fun AresBrandHeader() {
         Spacer(Modifier.width(10.dp))
         Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
             Text(
-                AresProgramV72.PROGRAM_NAME,
+                ProgramV72.PROGRAM_NAME,
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary,
             )
             Text(
-                AresProgramV72.PROGRAM_TAGLINE,
+                ProgramV72.PROGRAM_TAGLINE,
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -101,7 +101,7 @@ internal fun AresBrandHeader() {
 @Composable
 internal fun PhaseIdentityLine(phase: ProgramBlock, modifier: Modifier = Modifier) {
     Row(
-        modifier = modifier.semantics { contentDescription = "${phaseFieldLabel(phase)}. ${phase.godName}" },
+        modifier = modifier.semantics { contentDescription = "${phaseFieldLabel(phase)}. Weeks ${phase.startWeek}–${phase.endWeek}" },
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -118,8 +118,8 @@ internal fun PhaseIdentityLine(phase: ProgramBlock, modifier: Modifier = Modifie
                 color = MaterialTheme.colorScheme.primary,
             )
             Text(
-                phase.godName,
-                style = MaterialTheme.typography.labelSmall,
+                "Weeks ${phase.startWeek}–${phase.endWeek}",
+                style = technicalStyle(MaterialTheme.typography.labelSmall),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -133,10 +133,10 @@ internal fun PhaseProgressStrip(currentPhase: ProgramBlock) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Top,
     ) {
-        AresProgramV72.blocks.forEach { phase ->
-            val current = phase.godName == currentPhase.godName
+        ProgramV72.blocks.forEach { phase ->
+            val current = phase.startWeek == currentPhase.startWeek
             val tint = if (current) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-            val index = AresProgramV72.blocks.indexOfFirst { it.startWeek == phase.startWeek } + 1
+            val index = ProgramV72.blocks.indexOfFirst { it.startWeek == phase.startWeek } + 1
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -179,7 +179,6 @@ internal fun PhaseSummaryCard(phase: ProgramBlock, isCurrent: Boolean) {
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(phaseFieldLabel(phase), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-                Text(phase.godName, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(
                     "Weeks ${phase.startWeek}–${phase.endWeek}",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

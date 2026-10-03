@@ -1,20 +1,20 @@
 requirement,authority,implementation,verification,status
-224 days and days 1-7 only,v7.2 section 2 and 11,AresProgramV72.TOTAL_DAYS and SessionResolver V72,ProgramV72ParityTest.durationIs224DaysWithOneRestAndNoWeek33,pass
+224 days and days 1-7 only,v7.2 section 2 and 11,ProgramV72.TOTAL_DAYS and SessionResolver V72,ProgramV72ParityTest.durationIs224DaysWithOneRestAndNoWeek33,pass
 One rest day and quality-run spacing,v7.2 sections 2.1 and 11,Day titles and day 7 rest row,ProgramV72ParityTest day-order test,pass
-Resistance movement sets reps and RIR,v7.2 section 4 and 6,AresProgramV72.resistanceSlots and plannedDose,V72AuthorityComparisonTest against transcribed DOCX rows for phases 1-4 plus consolidation realization and week 32,pass
+Resistance movement sets reps and RIR,v7.2 section 4 and 6,ProgramV72.resistanceSlots and plannedDose,V72AuthorityComparisonTest against transcribed DOCX rows for phases 1-4 plus consolidation realization and week 32,pass
 Later-phase alternatives,v7.2 section 4 sentence that Phase 1 alternatives remain the later-phase map,later slots inherit the Phase 1 cell for the same day and key; Day 3 pull and Day 5 row use the same-pattern ranks,V72AlternativeMapTest transcribes all 36 Phase 1 cells and all 100 later slots,pass
 Section 4 muscle-set audit,v7.2 section 4 table,phaseVolume chest back quads hamstrings direct arms,ProgramAudit.validateV72,pass
-All 32 conditioning rows,v7.2 sections 5.2-5.5,AresProgramV72.conditioningByWeek,V72AuthorityComparisonTest checks every Engine Speed and easy-aerobic cell,pass
+All 32 conditioning rows,v7.2 sections 5.2-5.5,ProgramV72.conditioningByWeek,V72AuthorityComparisonTest checks every Engine Speed and easy-aerobic cell,pass
 Warm-up plyometrics cooldown,v7.2 sections 3.2 and 3.3,V72SessionBuilder,every Engine and Speed day includes the 8-10 min cooldown including weeks 8 and 16,pass
 600 m warning only at 600,v7.2 section 3.3,qualifyingSprintMeters and speed note,warned weeks 12 18 19 22 23,pass
 Consolidation 8 16 24,v7.2 section 6.1,plannedSets half and 3-4 RIR,week 8 squat dose test,pass
 Weeks 30-31 realization,v7.2 section 6.2,realizationSets and category RIR,week 30 squat dose test,pass
-Week 32 final taper,v7.2 section 6.3,week32Sets without invented rep ranges,week 32 bench dose and omitted days,pass
+Week 32 fixed prescription,v7.2 section 6.3,week32Sets without invented rep ranges,week 32 bench dose and omitted days,pass
 Exact pace table,v7.2 section 5.6,GOAL_PACE_TABLE and targetSeconds,pace math test rejects 1:40 2:30 3:20 4:10,pass
 TODAY WEEK PROGRAM TOOLS,v7.2 section 10,existing Destination navigation,unchanged navigation labels,pass
 START or RESUME without scrolling,v7.2 section 10,Today footer button,emulator Today scroll kept START WORKOUT visible; Galaxy pending,pass on emulator
 Scroll and large type,v7.2 section 10,session and dialog columns scroll; controls use at least 48dp,API 35 emulator font scale 1.5 reached the last line of the longest session; density 560 and 720px width kept START or RESUME and the workout rest line visible; Galaxy pending,pass on emulator
-Dark theme,v7.2 section 10,fixed Ares dark color scheme,API 35 emulator night mode stayed usable in the reference and airplane tests; Galaxy pending,pass on emulator
+Dark theme,v7.2 section 10,fixed dark color scheme,API 35 emulator night mode stayed usable in the reference and airplane tests; Galaxy pending,pass on emulator
 Timer survival,v7.2 section 10,timer end stored with commit; rotation recreate kept RESUME,API 35 force-stop and adb reboot kept the preference file and Week 1 Day 1 RESUME; Galaxy pending,pass on emulator
 v7.1 week retention,v7.2 section 10,AuthorityMigration apply plus one revision-2 repair for an already migrated Day 1,AuthorityMigrationTest and ProgramStateStorePersistenceTest cover fresh install unstarted Day 1 active Day 1 completed Day 1 reset Day 1 later days legacy devices and Week 32,pass
 Search and export use one source,v7.2 section 10,SessionResolver authority dispatch and ProgramExport V72,ProgramSearchOfflineTest reads all 224 local sessions; LegacyExportTest omits the v7.2 session store,pass

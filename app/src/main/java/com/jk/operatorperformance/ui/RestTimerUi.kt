@@ -79,7 +79,7 @@ private fun RestTimerCard(
                 Button(
                     onClick = { onConfiguredSecondsChanged(requireNotNull(parsed)) },
                     enabled = parsed != null,
-                    colors = aresButtonColors(),
+                    colors = legendButtonColors(),
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp).testTag("rest_timer_save"),
                 ) { Text("SAVE") }
                 if (configuredSeconds != null) {

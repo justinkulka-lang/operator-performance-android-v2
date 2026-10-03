@@ -14,8 +14,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.jk.operatorperformance.program.AresProgramV71
-import com.jk.operatorperformance.program.AresProgramV72
+import com.jk.operatorperformance.program.ProgramV71
+import com.jk.operatorperformance.program.ProgramV72
 import com.jk.operatorperformance.program.ProgramAuthority
 import com.jk.operatorperformance.program.SessionReference
 import com.jk.operatorperformance.state.ProgramUiState
@@ -25,8 +25,8 @@ internal fun sessionExecutionGuidance(session: SessionReference): List<String> =
     val engineDay = if (session.authority == ProgramAuthority.V72) 1 else 6
     if (session.day == speedDay) {
         add("Perform speed fresh on a safe surface. Quality and mechanics govern the session.")
-        val timed = if (session.authority == ProgramAuthority.V72) AresProgramV72.isTimed300(session.week) else AresProgramV71.isTimed300(session.week)
-        if (timed) add(if (session.authority == ProgramAuthority.V72) AresProgramV72.testGate else AresProgramV71.testGate)
+        val timed = if (session.authority == ProgramAuthority.V72) ProgramV72.isTimed300(session.week) else ProgramV71.isTimed300(session.week)
+        if (timed) add(if (session.authority == ProgramAuthority.V72) ProgramV72.testGate else ProgramV71.testGate)
     }
     if (session.day == engineDay) {
         add("Complete the prescribed engine work before any short upper. Do not add result entry or extra intervals.")
@@ -34,7 +34,7 @@ internal fun sessionExecutionGuidance(session: SessionReference): List<String> =
 }
 
 internal fun foundationReferenceLabel(session: SessionReference, state: ProgramUiState): String? {
-    val consolidation = if (session.authority == ProgramAuthority.V72) AresProgramV72.isConsolidation(session.week) else AresProgramV71.isConsolidation(session.week)
+    val consolidation = if (session.authority == ProgramAuthority.V72) ProgramV72.isConsolidation(session.week) else ProgramV71.isConsolidation(session.week)
     return when {
         consolidation -> "PLANNED CONSOLIDATION • FIXED PRESCRIPTION"
         session.week in setOf(30, 31) -> "PLANNED REALIZATION • FIXED PRESCRIPTION"

@@ -1,21 +1,14 @@
 package com.jk.operatorperformance.ui
 
-import com.jk.operatorperformance.program.AresProgramV72
+import com.jk.operatorperformance.program.ProgramV72
 import com.jk.operatorperformance.program.ProgramBlock
 
 internal fun phaseFieldLabel(phase: ProgramBlock): String {
-    val index = AresProgramV72.blocks.indexOfFirst { it.startWeek == phase.startWeek }.let { if (it < 0) 1 else it + 1 }
-    val plain = when (phase.godName) {
-        "HEPHAESTUS" -> "Foundation"
-        "HERMES" -> "Development"
-        "ARES" -> "Specific development"
-        "ZEUS" -> "Integration"
-        else -> phase.name
-    }
-    return "Phase $index · $plain"
+    val index = ProgramV72.blocks.indexOfFirst { it.startWeek == phase.startWeek }.let { if (it < 0) 1 else it + 1 }
+    return "Phase $index · ${phase.name}"
 }
 
-internal object AresPalette {
+internal object LegendPalette {
     const val Background = 0xFF12110EL
     const val Surface = 0xFF1C1A17L
     const val SurfaceVariant = 0xFF2A2723L

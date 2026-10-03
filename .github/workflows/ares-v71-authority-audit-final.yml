@@ -1,4 +1,4 @@
-name: ARES Performance v7.1 Authority Audit
+name: LEGEND v7.1 Authority Audit
 
 on:
   workflow_dispatch:
@@ -49,7 +49,7 @@ jobs:
         run: |
           mkdir -p app/build/reports
           {
-            echo 'ARES PERFORMANCE v7.1 AUTHORITY AUDIT'
+            echo 'LEGEND v7.1 AUTHORITY AUDIT'
             echo "commit=$GITHUB_SHA"
             echo 'package=com.jk.operatorperformance'
             echo 'versionName=0.38.0'
@@ -64,7 +64,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: ARES-v7.1-authority-audit-${{ github.sha }}
+          name: legend-v7.1-authority-audit-${{ github.sha }}
           path: |
             app/build/reports/v71-authority-provenance.txt
             app/build/reports/tests/

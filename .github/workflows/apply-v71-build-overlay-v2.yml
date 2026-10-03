@@ -1,4 +1,4 @@
-name: Apply ARES v7.1 SDK 37 overlay
+name: Apply v7.1 SDK 37 overlay
 
 on:
   push:
