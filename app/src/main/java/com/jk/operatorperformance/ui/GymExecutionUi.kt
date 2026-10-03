@@ -15,55 +15,32 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.jk.operatorperformance.program.AresProgramV71
+import com.jk.operatorperformance.program.AresProgramV72
+import com.jk.operatorperformance.program.ProgramAuthority
 import com.jk.operatorperformance.program.SessionReference
-import com.jk.operatorperformance.program.SessionRow
-import com.jk.operatorperformance.state.ActiveWorkoutState
 import com.jk.operatorperformance.state.ProgramUiState
-import com.jk.operatorperformance.state.WorkoutProgress
-
-internal enum class WorkoutMapVisualState {
-    COMPLETE,
-    CURRENT,
-    UPCOMING,
-}
 
 internal fun sessionExecutionGuidance(session: SessionReference): List<String> = buildList {
-    if (session.day == 3) {
-        add("Perform speed fresh on a safe surface; quality and mechanics govern the session.")
-        if (AresProgramV71.isTimed300(session.week)) add(AresProgramV71.testGate)
+    val speedDay = if (session.authority == ProgramAuthority.V72) 4 else 3
+    val engineDay = if (session.authority == ProgramAuthority.V72) 1 else 6
+    if (session.day == speedDay) {
+        add("Perform speed fresh on a safe surface. Quality and mechanics govern the session.")
+        val timed = if (session.authority == ProgramAuthority.V72) AresProgramV72.isTimed300(session.week) else AresProgramV71.isTimed300(session.week)
+        if (timed) add(if (session.authority == ProgramAuthority.V72) AresProgramV72.testGate else AresProgramV71.testGate)
     }
-    if (session.day == 7) {
-        add("Complete the prescribed engine work before short upper. Do not add result entry or extra intervals.")
+    if (session.day == engineDay) {
+        add("Complete the prescribed engine work before any short upper. Do not add result entry or extra intervals.")
     }
 }
 
 internal fun foundationReferenceLabel(session: SessionReference, state: ProgramUiState): String? {
-    return if (AresProgramV71.isConsolidation(session.week)) "PLANNED CONSOLIDATION • FIXED PRESCRIPTION" else null
-}
-
-internal fun rowIsComplete(progress: ActiveWorkoutState, row: SessionRow): Boolean =
-    (1..row.effortCount).all { WorkoutProgress.isEffortComplete(progress, row.id, it) }
-
-internal fun workoutMapState(
-    progress: ActiveWorkoutState,
-    session: SessionReference,
-    rowIndex: Int,
-): WorkoutMapVisualState {
-    val row = session.rows[rowIndex]
+    val consolidation = if (session.authority == ProgramAuthority.V72) AresProgramV72.isConsolidation(session.week) else AresProgramV71.isConsolidation(session.week)
     return when {
-        rowIsComplete(progress, row) -> WorkoutMapVisualState.COMPLETE
-        !progress.complete && rowIndex == progress.movementIndex -> WorkoutMapVisualState.CURRENT
-        else -> WorkoutMapVisualState.UPCOMING
+        consolidation -> "PLANNED CONSOLIDATION • FIXED PRESCRIPTION"
+        session.week in setOf(30, 31) -> "PLANNED REALIZATION • FIXED PRESCRIPTION"
+        session.week == 32 -> "FINAL-TEST OVERLAY • FIXED PRESCRIPTION"
+        else -> null
     }
-}
-
-internal fun nextIncompleteMovementTitle(progress: ActiveWorkoutState, session: SessionReference): String? {
-    if (progress.complete) return null
-    val orderedIndices = ((progress.movementIndex + 1)..session.rows.lastIndex).toList() +
-        (0 until progress.movementIndex).toList()
-    val nextIndex = orderedIndices.firstOrNull { !rowIsComplete(progress, session.rows[it]) } ?: return null
-    val row = session.rows[nextIndex]
-    return progress.selectedSubstitutions[row.id] ?: row.title
 }
 
 @Composable
@@ -103,7 +80,7 @@ internal fun FoundationReferenceBanner(session: SessionReference, state: Program
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(label, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
             Text(
-                "This overlay is part of v7.1 and is not a user-selectable deload.",
+                "This overlay is part of v${session.authority.versionLabel} and is not a user-selectable deload.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

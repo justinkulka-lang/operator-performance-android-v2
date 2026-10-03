@@ -29,7 +29,7 @@ jobs:
           packages: platform-tools
 
       - name: Install Android API
-        run: sdkmanager --install "platforms;android-37.1" "build-tools;37.1.0"
+        run: sdkmanager --install "platforms;android-36" "build-tools;36.0.0"
 
       - name: Verify v7.1 identity, authority, topology, and privacy boundary
         shell: bash
@@ -68,7 +68,7 @@ jobs:
           set -euo pipefail
           apk=app/build/outputs/apk/debug/app-debug.apk
           test -f "$apk"
-          badging="$("$ANDROID_HOME/build-tools/37.1.0/aapt2" dump badging "$apk" | head -n1)"
+          badging="$("$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "$apk" | head -n1)"
           grep -q "package: name='com.jk.operatorperformance'" <<< "$badging"
           grep -q "versionCode='47'" <<< "$badging"
           grep -q "versionName='0.38.0'" <<< "$badging"

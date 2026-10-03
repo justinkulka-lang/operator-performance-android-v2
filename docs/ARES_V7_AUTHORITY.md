@@ -1,18 +1,21 @@
-# ARES Performance v7.1 Authority Record
+# ARES Performance authority record
 
-- Approved source: `ARES_Performance_Unified_Master_Authority_v7.1_APPROVED.docx`
-- SHA-256: `1d33dbca214b34dd456a971d32bc1c19d59e3a13069393429fc9e2115e3a036c`
-- Runtime source: `app/src/main/java/com/jk/operatorperformance/program/ProgramV71.kt`
-- Program topology: 32 weeks × 7 days = 224 days
+v7.2 is the controlling program. v7.1 remains available only so an in-progress v7.1 week can finish.
+
+- v7.2 runtime source: `app/src/main/java/com/jk/operatorperformance/program/ProgramV72.kt`
+- Approved file: `docs/ARES_Performance_Unified_Master_Authority_v7.2_APPROVED.docx`
+- v7.2 DOCX SHA-256: `25a7ce497569913c4a56c057bcaa139290adddf20876a2d736790d5fefd436f3`
+- That digest was recomputed from the file above. `DOCX_SHA256_VERIFIED` is true.
+- v7.1 historical file: `docs/ARES_Performance_Unified_Master_Authority_v7.1_APPROVED.docx`
+- v7.1 SHA-256: `1d33dbca214b34dd456a971d32bc1c19d59e3a13069393429fc9e2115e3a036c`
+- Topology: 32 weeks × 7 days = 224 days. There is no Week 33.
 
 ## Governance constraints
 
 The app displays the fixed approved prescription. It does not select speed or engine variants, trigger deloads, infer missing prescriptions, inherit browsing choices, or automatically recompose the program.
 
-Planned consolidations occur in Weeks 8, 16, and 24. Weeks 30 and 31 are realization weeks, and Week 32 contains final testing. Day 7 is the only rest day in every week. Week 32 Day 5 is a very easy bike-and-mobility recovery primer, not a second rest day. Week 32 ends at Day 7; no Week 33 is authorized.
+A new install starts at Week 1 Day 1 under v7.2. An initialized v7.1 week finishes under v7.1, including a Day 1 pointer with no active workout, unless session status positively shows that Day 1 has not started. The following Day 1 is v7.2.
 
-v7.1 migrates an initialized v7.0 pointer into the seven-day structure. Legacy Days 1–7 retain the same week/day; legacy Day 8 maps to the following Week Day 1. If no initialized v7.0 pointer exists, this owner build starts at the confirmed current position, Week 2 Day 3.
+The app may persist the current week/day pointer, the active authority, completion marks, substitutions, timers, and local utility settings. It must not collect or persist bodyweight, calories, readiness, sleep, heart rate or HRV, pace or test results, load, reps, RIR, photos, Health Connect data, analytics, cloud-sync data, or automatic program adjustments.
 
-The app may persist the current week/day pointer, completion marks, substitutions, timers, and local utility settings. It must not collect or persist bodyweight, calories, readiness, sleep, heart rate or HRV, pace or test results, load, reps, RIR, photos, Health Connect data, analytics, cloud-sync data, or automatic program adjustments.
-
-Test and checkpoint results remain external. Goal pace is displayed as fixed reference text only; no result entry is required.
+Audit notes for this candidate are in `docs/audit/`.

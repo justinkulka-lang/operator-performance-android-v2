@@ -40,7 +40,7 @@ internal fun searchProgram(
     return buildList {
         for (week in 1..32) {
             if (requestedWeek != null && week != requestedWeek) continue
-            val sessions = SessionResolver.splitForWeek(week)
+            val sessions = SessionResolver.splitForWeek(week, state.authorityForWeek(week))
             for (session in sessions) {
                 if (requestedDay != null && session.day != requestedDay) continue
 

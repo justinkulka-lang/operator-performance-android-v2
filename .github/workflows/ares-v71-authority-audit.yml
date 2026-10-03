@@ -27,7 +27,7 @@ jobs:
         with:
           cmdline-tools-version: 15859902
           packages: platform-tools
-      - run: sdkmanager --install "platforms;android-37.1" "build-tools;37.1.0"
+      - run: sdkmanager --install "platforms;android-36" "build-tools;36.0.0"
 
       - name: Source governance audit
         shell: bash

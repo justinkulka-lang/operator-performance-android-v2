@@ -13,7 +13,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.jk.operatorperformance.BuildConfig
-import com.jk.operatorperformance.program.AresProgramV71
+import com.jk.operatorperformance.program.AresProgramV72
 
 @Composable
 internal fun BuildIntegrityCard() {
@@ -34,14 +34,20 @@ internal fun BuildIntegrityCard() {
                 style = MaterialTheme.typography.bodyMedium,
             )
             Text(
-                "AUTHORITY • v${AresProgramV71.AUTHORITY_VERSION}",
+                "AUTHORITY • v${AresProgramV72.AUTHORITY_VERSION}",
                 style = MaterialTheme.typography.bodyMedium,
             )
             Text(
-                "AUTHORITY SHA-256 • ${AresProgramV71.AUTHORITY_SHA256}",
+                "EXPECTED DOCX SHA-256 • ${AresProgramV72.EXPECTED_DOCX_SHA256}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.testTag("authority_sha"),
+            )
+            Text(
+                if (AresProgramV72.DOCX_SHA256_VERIFIED) "DOCX digest recomputed from the approved file."
+                else "DOCX file was not in this workspace, so this digest was not recomputed.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
                 "${BuildConfig.BUILD_TYPE.uppercase()} BUILD • OFFLINE / LOCAL-ONLY",
