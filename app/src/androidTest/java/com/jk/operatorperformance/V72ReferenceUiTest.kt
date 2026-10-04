@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.view.inputmethod.InputMethodManager
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertContentDescriptionEquals
@@ -230,23 +232,16 @@ class V72ReferenceUiTest {
     private fun revealInWorkout(tag: String) = revealOnScreen("workout_mode", tag)
 
     private fun assertOverlaps(screenTag: String, targetTag: String) {
-        repeat(2) { pass ->
-            repeat(10) {
-                val screen = rule.onAllNodesWithTag(screenTag).fetchSemanticsNodes().firstOrNull()
-                val nodes = rule.onAllNodesWithTag(targetTag).fetchSemanticsNodes()
-                if (screen != null && nodes.any { it.boundsInRoot.height > 8f && it.boundsInRoot.overlaps(screen.boundsInRoot) }) {
-                    return
-                }
-                if (screen != null) {
-                    rule.onNodeWithTag(screenTag).performTouchInput {
-                        if (pass == 0) swipeUp(startY = bottom * 0.8f, endY = bottom * 0.2f)
-                        else swipeDown(startY = bottom * 0.2f, endY = bottom * 0.8f)
-                    }
-                }
-                rule.waitForIdle()
-            }
-        }
-        throw AssertionError("$targetTag is not visible inside $screenTag")
+        // These screens are lazy lists. Resolve the tagged child directly rather
+        // than guessing how many physical-pixel swipes fit a landscape viewport.
+        rule.onNodeWithTag(screenTag).performScrollToNode(hasTestTag(targetTag))
+        rule.onNodeWithTag(targetTag).assertIsDisplayed()
+        val screen = rule.onNodeWithTag(screenTag).fetchSemanticsNode()
+        val target = rule.onNodeWithTag(targetTag).fetchSemanticsNode()
+        assertTrue(
+            "$targetTag is not visible inside $screenTag",
+            target.boundsInRoot.height > 8f && target.boundsInRoot.overlaps(screen.boundsInRoot),
+        )
     }
 
     private fun revealOnScreen(screenTag: String, targetTag: String) {
