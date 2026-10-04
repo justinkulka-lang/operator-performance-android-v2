@@ -58,9 +58,9 @@ internal object ProgramSnapshot {
     private fun encode(value: Any?): String = value?.toString()
         ?.replace("\\", "\\\\")?.replace("\t", "\\t")?.replace("\n", "\\n") ?: "<null>"
 
-    fun dump(): String = buildString {
+    fun dump(authorities: List<ProgramAuthority> = listOf(ProgramAuthority.V71, ProgramAuthority.V72)): String = buildString {
         fun line(vararg fields: Any?) { append(fields.joinToString("\t", transform = ::encode)).append('\n') }
-        for (authority in ProgramAuthority.entries) for (week in 1..32) for (day in 1..7) {
+        for (authority in authorities) for (week in 1..32) for (day in 1..7) {
             val session = SessionResolver.resolve(week, day, authority)
             val phase = session.phase
             line("SESSION", session.authority, session.week, session.day, session.title,

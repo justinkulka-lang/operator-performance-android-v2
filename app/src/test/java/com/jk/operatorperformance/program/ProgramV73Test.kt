@@ -5,6 +5,12 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class ProgramV73Test {
+    @Test fun newAuthoritySnapshotIsEmittedSeparatelyFromFrozenLegacyFixture() {
+        val actual=ProgramSnapshot.dump(listOf(ProgramAuthority.V73))
+        assertEquals(224,actual.lineSequence().count { it.startsWith("SESSION\t") })
+        val dir=File("build/reports/legend-v73");dir.mkdirs()
+        File(dir,"resolved-sessions.tsv").writeText(actual)
+    }
     @Test fun everyWeekHasApprovedTotalsAndCapsWithExplicitRecoveryExceptions() {
         assertEquals(emptyList<String>(),ProgramAudit.validateV73())
         for (week in 1..32) {
