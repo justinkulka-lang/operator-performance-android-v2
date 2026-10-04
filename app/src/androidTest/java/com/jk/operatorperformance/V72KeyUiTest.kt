@@ -5,6 +5,7 @@ import android.content.pm.ActivityInfo
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -48,17 +49,20 @@ class V72KeyUiTest {
 
     @Test fun keyOpensScrollsAndReturns() {
         openKey()
+        revealText("key_screen", "Names the Upper A day, which mixes pressing and pulling.")
         rule.onNodeWithText("Names the Upper A day, which mixes pressing and pulling.", substring = true).assertIsDisplayed()
         reveal("key_screen", "key_state_red")
         rule.onNodeWithTag("key_state_red").assertIsDisplayed()
-        rule.onNodeWithText("Easy aerobic follows when that week prescribes it.", substring = true).performScrollTo().assertIsDisplayed()
+        revealText("key_screen", "Easy aerobic follows when that week prescribes it.")
+        rule.onNodeWithText("Easy aerobic follows when that week prescribes it.", substring = true).assertIsDisplayed()
         reveal("key_screen", "key_back")
         rule.onNodeWithTag("key_back").assertIsDisplayed().performClick()
         rule.onNodeWithTag("tools_screen").assertIsDisplayed()
-        rule.onNodeWithTag("open_key").performScrollTo().assertIsDisplayed()
+        reveal("tools_screen", "open_key")
+        rule.onNodeWithTag("open_key").assertIsDisplayed()
     }
 
-    @Test fun keyRemainsReachableAtLargeFontAndLandscape() {
+    @Test(timeout = 180_000) fun keyRemainsReachableAtLargeFontAndLandscape() {
         shell("settings put system font_scale 2.0")
         rule.activityRule.scenario.recreate()
         rule.activityRule.scenario.onActivity { activity ->
@@ -72,11 +76,17 @@ class V72KeyUiTest {
         openKey()
         reveal("key_screen", "key_back")
         rule.onNodeWithTag("key_back").assertIsDisplayed()
-        rule.onNodeWithText("Names the Upper B day, which mixes pressing and pulling.", substring = true)
-            .performScrollTo()
-            .assertIsDisplayed()
-        rule.onNodeWithTag("key_back").performScrollTo().performClick()
+        revealText("key_screen", "Names the Upper B day, which mixes pressing and pulling.")
+        rule.onNodeWithText("Names the Upper B day, which mixes pressing and pulling.", substring = true).assertIsDisplayed()
+        reveal("key_screen", "key_back")
+        rule.onNodeWithTag("key_back").performClick()
+        rule.waitUntil(10_000) {
+            val screen = rule.onAllNodesWithTag("tools_screen").fetchSemanticsNodes().firstOrNull() ?: return@waitUntil false
+            screen.boundsInRoot.width > 8f && screen.boundsInRoot.height > 8f
+        }
         rule.onNodeWithTag("tools_screen").assertIsDisplayed()
+        reveal("tools_screen", "open_key")
+        rule.onNodeWithTag("open_key").assertIsDisplayed()
     }
 
     private fun openKey() {
@@ -85,6 +95,32 @@ class V72KeyUiTest {
         reveal("tools_screen", "open_key")
         rule.onNodeWithTag("open_key").performClick()
         rule.onNodeWithTag("key_screen").assertIsDisplayed()
+    }
+
+    private fun revealText(screenTag: String, substring: String) {
+        repeat(3) { pass ->
+            repeat(8) {
+                val nodes = rule.onAllNodesWithText(substring, substring = true).fetchSemanticsNodes()
+                if (nodes.isNotEmpty()) {
+                    try {
+                        rule.onNodeWithText(substring, substring = true).performScrollTo()
+                    } catch (_: AssertionError) {
+                        // A lazy row can leave the tree while the scroll settles.
+                    }
+                }
+                val screen = rule.onAllNodesWithTag(screenTag).fetchSemanticsNodes().firstOrNull()
+                val shown = screen != null && rule.onAllNodesWithText(substring, substring = true).fetchSemanticsNodes().any {
+                    it.boundsInRoot.height > 8f && it.boundsInRoot.overlaps(screen.boundsInRoot)
+                }
+                if (shown) return
+                rule.onNodeWithTag(screenTag).performTouchInput {
+                    if (pass % 2 == 0) swipeUp(startY = bottom * 0.8f, endY = top + 80f)
+                    else swipeDown(startY = top + 80f, endY = bottom * 0.8f)
+                }
+                rule.waitForIdle()
+            }
+        }
+        rule.onNodeWithText(substring, substring = true).performScrollTo().assertIsDisplayed()
     }
 
     private fun reveal(screenTag: String, targetTag: String) {
