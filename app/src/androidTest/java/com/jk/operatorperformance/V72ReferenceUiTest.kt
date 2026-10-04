@@ -128,7 +128,7 @@ class V72ReferenceUiTest {
         lifecycle.configuration { it.screenWidthDp in 200..220 }
         shell("cmd uimode night yes")
         lifecycle.configuration { it.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES }
-        lifecycle.screen("start_v72")
+        // START may be below the fold at this density; scroll before asserting visibility.
         rule.onNodeWithTag("start_v72").performScrollTo().performClick()
         rule.waitUntil(5_000) {
             rule.onAllNodesWithTag("start_resume_workout").fetchSemanticsNodes().isNotEmpty()

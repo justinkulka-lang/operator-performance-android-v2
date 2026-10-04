@@ -65,6 +65,7 @@ android {
         versionCode = 47
         versionName = "0.38.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunnerArguments["additionalTestOutputDir"] = "/sdcard/Android/media/com.jk.operatorperformance/legend-evidence"
         buildConfigField("String", "BUILD_COMMIT", "\"$buildCommit\"")
     }
 
