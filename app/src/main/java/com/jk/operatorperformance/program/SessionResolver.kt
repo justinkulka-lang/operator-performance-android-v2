@@ -35,6 +35,7 @@ object SessionResolver {
     fun resolve(week: Int, day: Int, authority: ProgramAuthority = ProgramAuthority.V72): SessionReference = when (authority) {
         ProgramAuthority.V71 -> resolveV71(week, day)
         ProgramAuthority.V72 -> V72SessionBuilder.resolve(week, day)
+        ProgramAuthority.V73 -> V73SessionBuilder.resolve(week, day)
     }
 
     fun splitForWeek(week: Int, authority: ProgramAuthority = ProgramAuthority.V72): List<SessionReference> =

@@ -3,6 +3,7 @@ package com.jk.operatorperformance.ui
 import com.jk.operatorperformance.program.Muscle
 import com.jk.operatorperformance.program.ProgramAuthority
 import com.jk.operatorperformance.program.ProgramV71
+import com.jk.operatorperformance.program.ProgramV73
 import com.jk.operatorperformance.program.ProgramV72
 import com.jk.operatorperformance.program.SessionReference
 import com.jk.operatorperformance.program.SessionRow
@@ -97,7 +98,7 @@ private fun isEngineWork(row: SessionRow): Boolean =
     row.kind == SessionRowKind.CONDITIONING && !isSupportRow(row) && !isSpeedWork(row) && !isRecoveryWork(row)
 
 private fun ownerMuscle(session: SessionReference, row: SessionRow): Muscle? {
-    val slots = if (session.authority == ProgramAuthority.V72) ProgramV72.resistanceSlots else ProgramV71.resistanceSlots
-    val phase = if (session.authority == ProgramAuthority.V72) ProgramV72.phaseForWeek(session.week) else ProgramV71.phaseForWeek(session.week)
+    val slots = if (session.authority == ProgramAuthority.V73 && session.week != 32) ProgramV73.resistanceSlots else if (session.authority != ProgramAuthority.V71) ProgramV72.resistanceSlots else ProgramV71.resistanceSlots
+    val phase = if (session.authority != ProgramAuthority.V71) ProgramV72.phaseForWeek(session.week) else ProgramV71.phaseForWeek(session.week)
     return slots.firstOrNull { it.phase == phase && it.id == row.id }?.ownerMuscle
 }

@@ -37,9 +37,12 @@ if (( available_bytes < 8589934592 )); then
   exit 1
 fi
 
+# Install the image explicitly: managed-device caches do not guarantee avdmanager metadata.
+sdkmanager --install 'system-images;android-35;google_apis;x86_64'
+
 # This device belongs only to this job. Never address a physical device or clear user data.
 avd_name="legend_upgrade_${GITHUB_RUN_ID:-local}"
-printf 'no\n' | avdmanager create avd -n "$avd_name" -k 'system-images;android-35;default;x86_64' -d pixel_2
+printf 'no\n' | avdmanager create avd -n "$avd_name" -k 'system-images;android-35;google_apis;x86_64' -d pixel_2
 # The stock Pixel profile requests a 12 GiB data partition, exceeding runner disk
 # after the managed-device suite. Bound only this newly created test AVD to 2 GiB.
 "$sdk_root/emulator/emulator" -avd "$avd_name" -port 5580 -no-window -no-audio -no-snapshot -no-boot-anim -gpu swiftshader -memory 2048 -cores 2 -partition-size 2048 > "$out/emulator.log" 2>&1 &
