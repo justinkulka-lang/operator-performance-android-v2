@@ -19,6 +19,24 @@ before="$baseline_dir/app/build/outputs/apk/debug/app-debug.apk"
 cmp "$out/before-certificate.txt" "$out/after-certificate.txt"
 sha256sum "$before" "$candidate" > "$out/apk-hashes.txt"
 
+# The system image's base userdata needs about 7.4 GB even with -partition-size.
+# Free only unused preinstalled tooling on a disposable GitHub-hosted runner.
+# Never apply this cleanup to a local machine, self-hosted runner, SDK, or user data.
+if [[ "${GITHUB_ACTIONS:-}" == true && "${RUNNER_ENVIRONMENT:-}" == github-hosted ]]; then
+  for unused_tooling in /usr/share/dotnet /opt/hostedtoolcache/CodeQL; do
+    available_bytes="$(df --output=avail -B1 "$out" | tail -1 | tr -d ' ')"
+    if (( available_bytes >= 10737418240 )); then break; fi
+    if [[ -d "$unused_tooling" ]]; then sudo rm -rf -- "$unused_tooling"; fi
+  done
+fi
+df -h "$out" > "$out/disk-before-emulator.txt"
+available_bytes="$(df --output=avail -B1 "$out" | tail -1 | tr -d ' ')"
+if (( available_bytes < 8589934592 )); then
+  cat "$out/disk-before-emulator.txt" >&2
+  echo 'Upgrade emulator requires at least 8 GiB free for the base userdata image.' >&2
+  exit 1
+fi
+
 # This device belongs only to this job. Never address a physical device or clear user data.
 avd_name="legend_upgrade_${GITHUB_RUN_ID:-local}"
 printf 'no\n' | avdmanager create avd -n "$avd_name" -k 'system-images;android-35;default;x86_64' -d pixel_2
