@@ -1,5 +1,7 @@
 package com.jk.operatorperformance.ui
 
+import androidx.activity.compose.BackHandler
+
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -139,6 +141,10 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
         }
 
         val destination = Destination.valueOf(destinationName)
+        // Key is a Tools subpage, not a separate activity or persisted destination.
+        BackHandler(enabled = destination == Destination.TOOLS && showKey) {
+            showKey = false
+        }
         Scaffold(
             containerColor = MaterialTheme.colorScheme.background,
             bottomBar = {

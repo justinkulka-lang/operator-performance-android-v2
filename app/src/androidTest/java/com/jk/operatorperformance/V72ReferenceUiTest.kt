@@ -2,6 +2,7 @@ package com.jk.operatorperformance
 
 import android.content.Context
 import android.content.pm.ActivityInfo
+import android.content.res.Configuration
 import android.view.inputmethod.InputMethodManager
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
@@ -35,21 +36,24 @@ import java.io.FileInputStream
  */
 class V72ReferenceUiTest {
     @get:Rule val rule = createAndroidComposeRule<MainActivity>()
+    private val lifecycle get() = LifecycleTestSupport(rule)
 
     @Before fun reset() {
         clearPrefs()
-        rule.activityRule.scenario.recreate()
+        lifecycle.recreate("start_v72")
     }
 
     @After fun restoreDeviceSettings() {
-        shell("settings put system font_scale 1.0")
+        lifecycle.fontScale(1f)
         shell("wm density reset")
+        val physicalDensity = Regex("Physical density: (\\d+)").find(shell("wm density"))?.groupValues?.get(1)?.toInt()
+        if (physicalDensity != null) lifecycle.configuration { it.densityDpi == physicalDensity }
         shell("wm size reset")
+        lifecycle.configuration { true }
         shell("cmd uimode night yes")
+        lifecycle.configuration { it.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES }
         shell("cmd connectivity airplane-mode disable")
-        rule.activityRule.scenario.onActivity { activity ->
-            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-        }
+        lifecycle.orientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT, Configuration.ORIENTATION_PORTRAIT)
     }
 
     @Test fun destinationsLongestSessionRestAndWeek32() {
@@ -117,15 +121,14 @@ class V72ReferenceUiTest {
     }
 
     @Test fun narrowAndEnlargedDisplayKeepsResumeAndRestVisible() {
+        lifecycle.orientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT, Configuration.ORIENTATION_PORTRAIT)
         shell("wm density 560")
+        lifecycle.configuration { it.densityDpi == 560 }
         shell("wm size 720x1280")
+        lifecycle.configuration { it.screenWidthDp in 200..220 }
         shell("cmd uimode night yes")
-        rule.activityRule.scenario.onActivity { activity ->
-            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-        }
-        Thread.sleep(1_000)
-        rule.activityRule.scenario.recreate()
-        rule.waitForIdle()
+        lifecycle.configuration { it.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES }
+        lifecycle.screen("start_v72")
         rule.onNodeWithTag("start_v72").performScrollTo().performClick()
         rule.waitUntil(5_000) {
             rule.onAllNodesWithTag("start_resume_workout").fetchSemanticsNodes().isNotEmpty()
@@ -155,9 +158,7 @@ class V72ReferenceUiTest {
     @Test fun rotationAirplaneResumeAndNavigation() {
         shell("cmd uimode night yes")
         shell("cmd connectivity airplane-mode enable")
-        Thread.sleep(1_000)
-        rule.activityRule.scenario.recreate()
-        rule.waitForIdle()
+        lifecycle.configuration { it.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES }
         rule.onNodeWithTag("start_v72").performScrollTo().performClick()
         rule.onNodeWithTag("start_resume_workout").performClick()
         rule.onNodeWithTag("workout_status").assertTextContains("SESSION ACTIVE", substring = true)
@@ -167,10 +168,7 @@ class V72ReferenceUiTest {
         revealInWorkout("return_today")
         rule.onNodeWithTag("return_today").performClick()
         rule.onNodeWithTag("start_resume_workout").assertTextContains("RESUME", substring = true)
-        rule.activityRule.scenario.onActivity { activity ->
-            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-        }
-        rule.waitForIdle()
+        lifecycle.orientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE, Configuration.ORIENTATION_LANDSCAPE)
         rule.onNodeWithTag("start_resume_workout").assertIsDisplayed()
         rule.onNodeWithTag("nav_WEEK").performClick()
         rule.onNodeWithTag("week_screen").assertIsDisplayed()
@@ -182,18 +180,16 @@ class V72ReferenceUiTest {
         revealOnScreen("tools_screen", "rest_timer_start")
         rule.onNodeWithTag("rest_timer_start").performClick()
         assertOverlaps("tools_screen", "utility_rest_countdown")
-        rule.activityRule.scenario.recreate()
+        lifecycle.recreate("tools_screen")
         rule.onNodeWithTag("nav_TODAY").performClick()
         rule.onNodeWithTag("start_resume_workout").assertTextContains("RESUME", substring = true)
     }
 
     @Test fun airplaneModeSearchReadsLocalSessions() {
         shell("cmd connectivity airplane-mode enable")
-        Thread.sleep(500)
         val airplane = shell("settings get global airplane_mode_on").trim()
         assertTrue("airplane_mode_on=$airplane", airplane == "1")
-        rule.activityRule.scenario.recreate()
-        rule.waitForIdle()
+        lifecycle.configuration { true }
         rule.onNodeWithTag("start_v72").performScrollTo().performClick()
         rule.onNodeWithTag("nav_PROGRAM").performClick()
         rule.onNodeWithTag("program_search").performTextInput("Behind-body cable curl")

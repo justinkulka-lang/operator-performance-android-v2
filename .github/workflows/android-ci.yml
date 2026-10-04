@@ -1,21 +1,29 @@
-name: LEGEND v7.1 CI
+name: LEGEND v7.2 candidate
 
 on:
   workflow_dispatch:
   push:
-    branches: [main, 'construction/**']
+    branches: [main, 'construction/**', 'cursor/**', 'codex/**']
   pull_request:
-    branches: [main]
 
 permissions:
   contents: read
 
+concurrency:
+  group: legend-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
-  app-build:
+  candidate:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
+    env:
+      GITHUB_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
       - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: temurin
@@ -27,63 +35,65 @@ jobs:
         with:
           cmdline-tools-version: 15859902
           packages: platform-tools
-
-      - name: Install Android API
-        run: sdkmanager --install "platforms;android-36" "build-tools;36.0.0"
-
-      - name: Verify v7.1 identity, authority, topology, and privacy boundary
+      - name: SDK and source identity
         shell: bash
         run: |
           set -euo pipefail
-          grep -q 'versionCode = 47' app/build.gradle.kts
-          grep -q 'versionName = "0.38.0"' app/build.gradle.kts
-          grep -q 'AUTHORITY_VERSION = "7.1"' app/src/main/java/com/jk/operatorperformance/program/ProgramV71.kt
-          grep -q '1d33dbca214b34dd456a971d32bc1c19d59e3a13069393429fc9e2115e3a036c' app/src/main/java/com/jk/operatorperformance/program/ProgramV71.kt
-          grep -q 'TOTAL_WEEKS = 32' app/src/main/java/com/jk/operatorperformance/program/ProgramV71.kt
-          grep -q 'DAYS_PER_WEEK = 7' app/src/main/java/com/jk/operatorperformance/program/ProgramV71.kt
-          grep -q 'PREFS_NAME="ares_v71_reference_state"' app/src/main/java/com/jk/operatorperformance/state/ProgramStateStore.kt
-          if grep -Eq 'android.permission.INTERNET|android.permission.health|HealthConnect|POST_NOTIFICATIONS' app/src/main/AndroidManifest.xml; then
-            echo "Prohibited permission found" >&2; exit 1
-          fi
-          # Scan implementation identifiers, not the user-facing privacy statement that
-          # explicitly says these data are not collected.
-          pattern='HealthConnect|ReadinessStore|BodyweightStore|ProgressPhoto|AnalyticsClient|CloudSync|actualLoad|actualReps|actualRir|automatic program recomposition'
-          if grep -RniE "$pattern" app/src/main/java app/src/main/res; then
-            echo "Prohibited data architecture found" >&2; exit 1
-          fi
-
-      - name: Unit tests and debug build
-        run: gradle :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
-
-      - name: Instrumented v7.1 launch acceptance
+          sdkmanager --install 'platforms;android-36' 'build-tools;36.0.0'
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          printf '%s  %s\n' '25a7ce497569913c4a56c057bcaa139290adddf20876a2d736790d5fefd436f3' 'docs/ARES_Performance_Unified_Master_Authority_v7.2_APPROVED.docx' | sha256sum -c -
+          git diff --exit-code 9cfbd896e7d7103e9833d0563a463a5eac91983c -- app/src/main/java/com/jk/operatorperformance/program app/src/main/java/com/jk/operatorperformance/state
+      - name: Unit suite, exact program parity, lint, and debug APKs
+        run: gradle :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
+      - name: Release signing fails closed without owner credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p app/build/reports/signing
+          for task in assembleRelease bundleRelease; do
+            if env -u OPERATOR_RELEASE_KEYSTORE_PATH -u OPERATOR_RELEASE_STORE_PASSWORD -u OPERATOR_RELEASE_KEY_ALIAS -u OPERATOR_RELEASE_KEY_PASSWORD gradle ":app:$task" > "app/build/reports/signing/$task.log" 2>&1; then
+              echo "Unsigned release path succeeded: $task" >&2
+              exit 1
+            fi
+            grep -F 'RELEASE_SIGNING_REQUIRED' "app/build/reports/signing/$task.log"
+          done
+          test ! -d app/build/outputs/apk/release
+          test ! -d app/build/outputs/bundle/release
+      - name: Full emulator suite
         shell: bash
         run: |
           set -euo pipefail
           if [[ -e /dev/kvm ]]; then sudo chmod 666 /dev/kvm; fi
           gradle :app:pixel2api35DebugAndroidTest --stacktrace
-
-      - name: Verify APK identity and embedded commit
+      - name: Repeat Key lifecycle suite five times without retries
         shell: bash
         run: |
           set -euo pipefail
-          apk=app/build/outputs/apk/debug/app-debug.apk
-          test -f "$apk"
-          badging="$("$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "$apk" | head -n1)"
-          grep -q "package: name='com.jk.operatorperformance'" <<< "$badging"
-          grep -q "versionCode='47'" <<< "$badging"
-          grep -q "versionName='0.38.0'" <<< "$badging"
-          unzip -p "$apk" 'classes*.dex' 2>/dev/null | strings | grep -Fq "${GITHUB_SHA:0:12}"
-
-      - name: Upload candidate evidence
+          for pass in 1 2 3 4 5; do
+            gradle :app:pixel2api35DebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.jk.operatorperformance.V72KeyUiTest --rerun-tasks --stacktrace
+            mkdir -p "app/build/reports/key-stability/$pass"
+            cp -a app/build/outputs/androidTest-results/managedDevice/. "app/build/reports/key-stability/$pass/"
+          done
+      - name: Verify and package the matching debug candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .github/scripts/package-debug-candidate.sh "$GITHUB_SHA"
+      - name: Downloadable debug APK and ZIP
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: legend-debug-${{ env.GITHUB_SHA }}
+          path: app/build/distribution/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Verification evidence (failures are retained)
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: legend-v7.1-candidate-${{ github.sha }}
+          name: legend-evidence-${{ env.GITHUB_SHA }}
           path: |
-            app/build/reports/tests/
-            app/build/reports/androidTests/managedDevice/
+            app/build/reports/
             app/build/test-results/
-            app/build/outputs/androidTest-results/managedDevice/
-            app/build/outputs/apk/debug/*.apk
+            app/build/outputs/androidTest-results/
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 90

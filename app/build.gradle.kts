@@ -1,3 +1,7 @@
+import java.security.KeyStore
+import java.security.PrivateKey
+import java.security.cert.X509Certificate
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
@@ -5,6 +9,50 @@ plugins {
 
 val sourceCommit = providers.environmentVariable("GITHUB_SHA").orElse("LOCAL").get()
 val buildCommit = if (sourceCommit == "LOCAL") sourceCommit else sourceCommit.take(12)
+
+val ownerSigningNames = listOf(
+    "OPERATOR_RELEASE_KEYSTORE_PATH", "OPERATOR_RELEASE_STORE_PASSWORD",
+    "OPERATOR_RELEASE_KEY_ALIAS", "OPERATOR_RELEASE_KEY_PASSWORD",
+)
+val validateReleaseSigning = tasks.register("validateReleaseSigning") {
+    group = "verification"
+    description = "Refuse release output without the complete owner-managed signing configuration."
+    doLast {
+        val values = ownerSigningNames.associateWith { providers.environmentVariable(it).orNull }
+        check(values.values.all { !it.isNullOrBlank() }) {
+            "RELEASE_SIGNING_REQUIRED: all four owner-managed signing values must be configured."
+        }
+        val keystore = file(requireNotNull(values["OPERATOR_RELEASE_KEYSTORE_PATH"]))
+        check(keystore.isFile && keystore.canRead()) {
+            "RELEASE_SIGNING_REQUIRED: the owner keystore must be a readable file."
+        }
+        // Never fall back to the generated Android debug key.
+        check(values["OPERATOR_RELEASE_KEY_ALIAS"] != "androiddebugkey") {
+            "RELEASE_SIGNING_REQUIRED: the Android debug alias is not a production identity."
+        }
+        val store = KeyStore.getInstance(KeyStore.getDefaultType())
+        keystore.inputStream().use {
+            store.load(it, requireNotNull(values["OPERATOR_RELEASE_STORE_PASSWORD"]).toCharArray())
+        }
+        val alias = requireNotNull(values["OPERATOR_RELEASE_KEY_ALIAS"])
+        check(store.getKey(alias, requireNotNull(values["OPERATOR_RELEASE_KEY_PASSWORD"]).toCharArray()) is PrivateKey) {
+            "RELEASE_SIGNING_REQUIRED: the configured alias must contain the owner's private signing key."
+        }
+        val certificate = store.getCertificate(alias) as? X509Certificate
+        check(certificate != null && !certificate.subjectX500Principal.name.contains("Android Debug", ignoreCase = true)) {
+            "RELEASE_SIGNING_REQUIRED: a production certificate is required."
+        }
+        certificate.checkValidity()
+    }
+}
+
+// Wire every release artifact path, including direct package/sign task invocations.
+tasks.configureEach {
+    if (name.contains("Release") && (
+        name.startsWith("pre") || name.startsWith("assemble") || name.startsWith("bundle") ||
+        name.startsWith("package") || name.startsWith("sign")
+    )) dependsOn(validateReleaseSigning)
+}
 
 android {
     namespace = "com.jk.operatorperformance"
