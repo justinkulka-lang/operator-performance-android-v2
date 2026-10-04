@@ -56,7 +56,7 @@ class V72ReferenceUiTest {
         rule.onNodeWithTag("start_v72").performScrollTo().performClick()
         rule.onNodeWithTag("today_header").assertTextContains("v7.2", substring = true)
         rule.onNodeWithTag("start_resume_workout").assertIsDisplayed()
-        assertTouchTarget("start_resume_workout")
+        assertPrimaryAction("start_resume_workout")
         rule.onNodeWithTag("today_screen").performTouchInput {
             swipeUp(startY = bottom * 0.8f, endY = top + 80f)
         }
@@ -131,7 +131,7 @@ class V72ReferenceUiTest {
             rule.onAllNodesWithTag("start_resume_workout").fetchSemanticsNodes().isNotEmpty()
         }
         rule.onNodeWithTag("start_resume_workout").assertIsDisplayed()
-        assertTouchTarget("start_resume_workout")
+        assertPrimaryAction("start_resume_workout")
         rule.onNodeWithTag("start_resume_workout").performClick()
         rule.onNodeWithTag("workout_mode").assertIsDisplayed()
         rule.onAllNodesWithTag("set_done").assertCountEquals(0)
@@ -277,6 +277,15 @@ class V72ReferenceUiTest {
         session.rows.sumOf { row ->
             row.title.length + row.prescription.length + (row.note?.length ?: 0) + row.alternatives.sumOf { it.length }
         }
+    }
+
+    private fun assertPrimaryAction(tag: String) {
+        val node = rule.onNodeWithTag(tag).fetchSemanticsNode()
+        val density = rule.activity.resources.displayMetrics.density
+        val heightDp = node.boundsInRoot.height / density
+        val widthDp = node.boundsInRoot.width / density
+        assertTrue("$tag height ${heightDp}dp", heightDp >= 56f)
+        assertTrue("$tag width ${widthDp}dp", widthDp >= 56f)
     }
 
     private fun assertTouchTarget(tag: String) {

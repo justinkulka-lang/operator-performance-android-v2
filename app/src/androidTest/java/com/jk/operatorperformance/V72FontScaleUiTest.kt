@@ -47,8 +47,11 @@ class V72FontScaleUiTest {
         composeRule.onNodeWithTag("start_v72").performScrollTo().assertIsDisplayed()
         val heightDp = composeRule.onNodeWithTag("start_v72").fetchSemanticsNode().boundsInRoot.height /
             composeRule.activity.resources.displayMetrics.density
-        assertTrue("start height ${heightDp}dp", heightDp >= 48f)
+        assertTrue("start height ${heightDp}dp", heightDp >= 56f)
         composeRule.onNodeWithTag("start_v72").performClick()
+        val resumeDp = composeRule.onNodeWithTag("start_resume_workout").fetchSemanticsNode().boundsInRoot.height /
+            composeRule.activity.resources.displayMetrics.density
+        assertTrue("resume height ${resumeDp}dp", resumeDp >= 56f)
         composeRule.onNodeWithTag("start_resume_workout").assertIsDisplayed()
         val longest = (1..32).flatMap { week ->
             (1..7).map { day -> SessionResolver.resolve(week, day, ProgramAuthority.V72) }
