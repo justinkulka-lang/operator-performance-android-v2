@@ -154,46 +154,21 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
         Scaffold(
             containerColor = MaterialTheme.colorScheme.background,
             bottomBar = {
-                NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
-                    Destination.entries.forEach { item ->
-                        NavigationBarItem(
-                            selected = destination == item,
-                            onClick = {
+                if (navigationConfiguration.screenWidthDp < 240) {
+                    // Four 48 dp targets cannot share this width after bar insets.
+                    // Two rows preserve every destination without horizontal clipping.
+                    Column {
+                        Destination.entries.chunked(2).forEach { row ->
+                            LegendNavigationRow(row, destination, iconsOnly = false, shortProgramLabel = shortProgramLabel) { item ->
                                 destinationName = item.name
                                 showKey = false
-                            },
-                            icon = {
-                                Icon(
-                                    painter = painterResource(
-                                        when (item) {
-                                            Destination.TODAY -> R.drawable.ic_nav_today
-                                            Destination.WEEK -> R.drawable.ic_nav_week
-                                            Destination.PROGRAM -> R.drawable.ic_nav_program
-                                            Destination.TOOLS -> R.drawable.ic_nav_tools
-                                        },
-                                    ),
-                                    contentDescription = null,
-                                )
-                            },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = MaterialTheme.colorScheme.primary,
-                                selectedTextColor = MaterialTheme.colorScheme.primary,
-                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                indicatorColor = MaterialTheme.colorScheme.surfaceVariant,
-                            ),
-                            label = if (compactNavigation) null else {
-                                { Text(if (item == Destination.PROGRAM && shortProgramLabel) "PLAN" else item.label, maxLines = 1) }
-                            },
-                            alwaysShowLabel = !compactNavigation,
-                            modifier = Modifier
-                                .heightIn(min = 48.dp)
-                                .testTag("nav_${item.name}")
-                                .semantics {
-                                    contentDescription = item.label
-                                    stateDescription = if (destination == item) "Selected" else "Not selected"
-                                },
-                        )
+                            }
+                        }
+                    }
+                } else {
+                    LegendNavigationRow(Destination.entries, destination, compactNavigation, shortProgramLabel) { item ->
+                        destinationName = item.name
+                        showKey = false
                     }
                 }
             },
@@ -278,6 +253,57 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
             )
         }
     }
+}
+
+@Composable
+private fun LegendNavigationRow(
+    destinations: List<Destination>,
+    destination: Destination,
+    iconsOnly: Boolean,
+    shortProgramLabel: Boolean,
+    onNavigate: (Destination) -> Unit,
+) {
+    NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
+                    destinations.forEach { item ->
+                        NavigationBarItem(
+                            selected = destination == item,
+                            onClick = {
+                                onNavigate(item)
+                            },
+                            icon = {
+                                Icon(
+                                    painter = painterResource(
+                                        when (item) {
+                                            Destination.TODAY -> R.drawable.ic_nav_today
+                                            Destination.WEEK -> R.drawable.ic_nav_week
+                                            Destination.PROGRAM -> R.drawable.ic_nav_program
+                                            Destination.TOOLS -> R.drawable.ic_nav_tools
+                                        },
+                                    ),
+                                    contentDescription = null,
+                                )
+                            },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                indicatorColor = MaterialTheme.colorScheme.surfaceVariant,
+                            ),
+                            label = if (iconsOnly) null else {
+                                { Text(if (item == Destination.PROGRAM && shortProgramLabel) "PLAN" else item.label, maxLines = 1) }
+                            },
+                            alwaysShowLabel = !iconsOnly,
+                            modifier = Modifier
+                                .heightIn(min = 48.dp)
+                                .testTag("nav_${item.name}")
+                                .semantics {
+                                    contentDescription = item.label
+                                    stateDescription = if (destination == item) "Selected" else "Not selected"
+                                },
+                        )
+                    }
+                }
 }
 
 @Composable
