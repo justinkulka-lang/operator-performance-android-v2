@@ -20,6 +20,53 @@ class V72AuthorityComparisonTest {
         assertTrue(ProgramV72.DOCX_SHA256_VERIFIED)
     }
 
+    @Test fun decisionGuidanceMatchesApprovedDocumentAndActiveReference() {
+        val document = java.util.zip.ZipFile(authorityDocx()).use { zip ->
+            val factory = javax.xml.parsers.DocumentBuilderFactory.newInstance()
+            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
+            factory.newDocumentBuilder().parse(zip.getInputStream(zip.getEntry("word/document.xml")))
+        }
+        val nodes = document.getElementsByTagName("w:t")
+        val authorityText = (0 until nodes.length).joinToString("") { nodes.item(it).textContent }
+        // Independent sentences transcribed from approved §§1, 3, 5, 7, and 8.
+        val expected = listOf(
+            "Use a full controlled range of motion that remains pain-free and technically stable.",
+            "RIR means the number of additional technically acceptable repetitions that could have been completed with the same range and execution.",
+            "If the calibration result exceeds the prediction by more than two repetitions, increase the next working load or correct the RIR estimate.",
+            "Unintentional body-mass loss across two weeks together with regression in multiple lifts requires correction of energy intake and recovery before further lifting volume is removed.",
+            "Acceleration and flying repetitions use technical intent, not split times derived from a 300 m result. Accelerate smoothly, remain relaxed, and stop before straining.",
+            "RPE 2–3 of 10. Full-sentence conversation remains comfortable. Run on a flat predictable route or use the prescribed bike option.",
+            "Technique-led. No mandatory split. Full recovery means begin only when breathing is controlled and the athlete can reproduce relaxed mechanics.",
+            "Easy means walking or very slow jogging. Do not turn recoveries into additional tempo work.",
+            "When a movement causes pain or cannot be performed safely, use the first available ranked alternative for the same movement pattern with the same sets, repetitions, and RIR.",
+            "An exercise alternative replaces the listed movement; it is never added to it.",
+            "Pain that changes running gait or lifting mechanics ends that exercise. Persistent symptoms require qualified evaluation before progression.",
+            "Medical restrictions and injury management override participation. This authority does not provide diagnosis, clearance, or rehabilitation.",
+            "Chest pain, fainting, unexplained severe breathlessness, acute neurologic symptoms, severe heat illness, or suspected serious injury stops training and requires appropriate evaluation.",
+            "These 300 m entries are average-velocity references. They are not standing-start segment predictions and do not define maximum sprint velocity.",
+            "Two consecutive unattained quality sessions require review before the next quality exposure.",
+        )
+        val active = (ProgramNotesV72.resistanceExecution + ProgramNotesV72.resistanceProgression +
+            ProgramNotesV72.safety + ProgramNotesV72.recovery + ProgramNotesV72.runningExecution +
+            listOf(ProgramNotesV72.sprintReferenceLimit)).joinToString("\n")
+        expected.forEach { sentence ->
+            assertTrue("Missing from approved DOCX: $sentence", authorityText.contains(sentence))
+            assertTrue("Missing from active coaching reference: $sentence", active.contains(sentence))
+        }
+    }
+
+    @Test fun section56SprintReferencesPreserveAverageVelocityLimits() {
+        assertEquals(listOf("150 m" to "23.0 s", "200 m" to "30.7 s", "250 m" to "38.3 s", "300 m" to "46.0 s"), ProgramNotesV72.sprintReference)
+        assertTrue(ProgramNotesV72.sprintReferenceLimit.contains("not standing-start segment predictions"))
+        val speed = com.jk.operatorperformance.ui.sessionExecutionGuidance(SessionResolver.resolve(1, 4, ProgramAuthority.V72))
+        assertTrue(speed.contains(ProgramNotesV72.accelerationIntent))
+        assertTrue(speed.contains(ProgramNotesV72.fullRecovery))
+        val lifting = com.jk.operatorperformance.ui.sessionExecutionGuidance(SessionResolver.resolve(1, 2, ProgramAuthority.V72))
+        assertTrue(lifting.contains(ProgramNotesV72.rirDefinition))
+        assertTrue(lifting.contains(ProgramNotesV72.rankedAlternative))
+        assertFalse(com.jk.operatorperformance.ui.sessionExecutionGuidance(SessionResolver.resolve(1, 7, ProgramAuthority.V72)).contains(ProgramNotesV72.seriousSymptoms))
+    }
+
     @Test fun everyConditioningCellIsPresent() {
         weeks.forEach { (week, engine, speed, easy) ->
             val plan = ProgramV72.conditioningForWeek(week)

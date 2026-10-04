@@ -43,7 +43,7 @@ jobs:
           sdkmanager --install 'platforms;android-36' 'build-tools;36.0.0'
           test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
           printf '%s  %s\n' '25a7ce497569913c4a56c057bcaa139290adddf20876a2d736790d5fefd436f3' 'docs/ARES_Performance_Unified_Master_Authority_v7.2_APPROVED.docx' | sha256sum -c -
-          git diff --exit-code 9cfbd896e7d7103e9833d0563a463a5eac91983c -- app/src/main/java/com/jk/operatorperformance/program app/src/main/java/com/jk/operatorperformance/state
+          git diff --exit-code 9cfbd896e7d7103e9833d0563a463a5eac91983c -- app/src/main/java/com/jk/operatorperformance/program app/src/main/java/com/jk/operatorperformance/state ':(exclude)app/src/main/java/com/jk/operatorperformance/program/ProgramNotesV72.kt'
       - name: Unit suite, exact program parity, lint, and debug APKs
         run: GITHUB_SHA="$SOURCE_COMMIT" gradle :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
       - name: Release signing fails closed without owner credentials

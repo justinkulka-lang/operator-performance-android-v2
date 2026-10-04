@@ -1,6 +1,28 @@
 package com.jk.operatorperformance.program
 
 object ProgramNotesV72 {
+    const val rangeOfMotion = "Use a full controlled range of motion that remains pain-free and technically stable."
+    const val rirDefinition = "RIR means the number of additional technically acceptable repetitions that could have been completed with the same range and execution."
+    const val calibrationCorrection = "If the calibration result exceeds the prediction by more than two repetitions, increase the next working load or correct the RIR estimate."
+    const val energyRecovery = "Unintentional body-mass loss across two weeks together with regression in multiple lifts requires correction of energy intake and recovery before further lifting volume is removed."
+    const val accelerationIntent = "Acceleration and flying repetitions use technical intent, not split times derived from a 300 m result. Accelerate smoothly, remain relaxed, and stop before straining."
+    const val easyAerobic = "RPE 2–3 of 10. Full-sentence conversation remains comfortable. Run on a flat predictable route or use the prescribed bike option."
+    const val fullRecovery = "Technique-led. No mandatory split. Full recovery means begin only when breathing is controlled and the athlete can reproduce relaxed mechanics."
+    const val easyRecovery = "Easy means walking or very slow jogging. Do not turn recoveries into additional tempo work."
+    const val rankedAlternative = "When a movement causes pain or cannot be performed safely, use the first available ranked alternative for the same movement pattern with the same sets, repetitions, and RIR."
+    const val alternativeReplacement = "An exercise alternative replaces the listed movement; it is never added to it."
+    const val painStop = "Pain that changes running gait or lifting mechanics ends that exercise. Persistent symptoms require qualified evaluation before progression."
+    const val medicalRestrictions = "Medical restrictions and injury management override participation. This authority does not provide diagnosis, clearance, or rehabilitation."
+    const val seriousSymptoms = "Chest pain, fainting, unexplained severe breathlessness, acute neurologic symptoms, severe heat illness, or suspected serious injury stops training and requires appropriate evaluation."
+    const val sprintReferenceLimit = "These 300 m entries are average-velocity references. They are not standing-start segment predictions and do not define maximum sprint velocity."
+    const val qualityReview = "Two consecutive unattained quality sessions require review before the next quality exposure."
+
+    val resistanceExecution = listOf(rangeOfMotion, rirDefinition, rankedAlternative, alternativeReplacement)
+    val safety = listOf(medicalRestrictions, painStop, seriousSymptoms)
+    val recovery = listOf(energyRecovery, qualityReview)
+    val runningExecution = listOf(easyAerobic, accelerationIntent, fullRecovery, easyRecovery)
+    val sprintReference = listOf("150 m" to "23.0 s", "200 m" to "30.7 s", "250 m" to "38.3 s", "300 m" to "46.0 s")
+
     val execution = listOf(
         "Day 1 is Engine, then short upper when the week includes it. Day 4 is Speed. Day 5 is Upper B, then easy aerobic except the Week 32 fixed prescription.",
         "Day 7 is the only rest day. Quality runs are about 72 hours apart. No extra conditioning is added between Engine and Lower A.",
@@ -11,6 +33,7 @@ object ProgramNotesV72 {
         "Default increases are about 5 lb for upper-body lifts and 5–10 lb for lower-body lifts. Smaller increases are allowed.",
         "Primary compounds stop at the prescribed RIR. Lower-body isolation keeps at least 1 RIR. Upper-body isolation may reach 0–1 RIR only where prescribed.",
         ProgramV72.calibrationNote,
+        calibrationCorrection,
         "One weak session does not change the plan. A greater than 5% decline in the same movement for two consecutive exposures permits removal of one set from that movement for the next exposure. Restore it when performance returns. The app does not remove the set automatically.",
     )
     val interference = listOf(

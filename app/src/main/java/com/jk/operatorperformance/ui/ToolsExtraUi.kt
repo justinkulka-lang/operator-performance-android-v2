@@ -224,11 +224,24 @@ private fun ProgramNotesCard() {
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("program_notes_toggle"),
             ) { Text(if (expanded) "HIDE NOTES" else "SHOW NOTES") }
             if (expanded) {
+                NotesSection("SAFETY / PARTICIPATION", ProgramNotesV72.safety)
+                NotesSection("RESISTANCE EXECUTION", ProgramNotesV72.resistanceExecution)
+                NotesSection("RECOVERY / REVIEW", ProgramNotesV72.recovery)
+                NotesSection("RUNNING EXECUTION", ProgramNotesV72.runningExecution)
                 NotesSection("EXECUTION", ProgramNotesV72.execution)
                 NotesSection("RESISTANCE PROGRESSION", ProgramNotesV72.resistanceProgression)
                 NotesSection("INTERFERENCE", ProgramNotesV72.interference)
                 NotesSection("SPRINT VOLUME", ProgramNotesV72.sprintVolume)
                 NotesSection("RUN / IMPACT", ProgramNotesV72.runImpact)
+                Text("300 m • 46 s TARGET • AVERAGE-VELOCITY REFERENCES", style = MaterialTheme.typography.titleSmall)
+                ProgramNotesV72.sprintReference.forEach { (distance, time) ->
+                    Row(Modifier.fillMaxWidth().testTag("sprint_reference_${distance.substringBefore(' ')}"), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(distance)
+                        Text(time, style = technicalStyle(MaterialTheme.typography.bodyMedium))
+                    }
+                }
+                Text(ProgramNotesV72.sprintReferenceLimit)
+                Text("Percentage repetitions use the current pain-free 300 m result, not the 46 s target. Acceleration and flying repetitions have no mandatory split.")
                 NotesSection("PLANNED OVERLAYS", ProgramNotesV72.plannedOverlays)
                 NotesSection("AUTHORITY LIMITS", ProgramNotesV72.authorityLimits)
             }
@@ -269,14 +282,14 @@ private fun DataControlsCard() {
     Card(modifier = Modifier.fillMaxWidth().testTag("data_controls_tool")) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("DATA / RESET", style = MaterialTheme.typography.titleSmall)
-            Text("Export is local-only. Reset and legacy deletion require confirmation.")
+            Text("Legacy export is local-only. Includes retained legacy reference and tracking data plus plate-calculator settings. Excludes current program authority, pointer, session status, substitutions, and timers. Reset and legacy deletion require confirmation.", modifier = Modifier.testTag("legacy_export_scope"))
             Button(
                 onClick = {
                     pendingExport = legacy.buildLocalExport()
-                    exportLauncher.launch("legend-v7.2-local-export.json")
+                    exportLauncher.launch("legend-v7.2-legacy-export.json")
                 },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("export_data"),
-            ) { Text("EXPORT DATA") }
+            ) { Text("EXPORT LEGACY DATA") }
             exportStatus?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             TextButton(
                 onClick = { confirmReset = true },

@@ -14,6 +14,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.jk.operatorperformance.program.ProgramNotesV72
+import com.jk.operatorperformance.program.SessionRowKind
 import com.jk.operatorperformance.program.ProgramV71
 import com.jk.operatorperformance.program.ProgramV72
 import com.jk.operatorperformance.program.ProgramAuthority
@@ -21,6 +23,22 @@ import com.jk.operatorperformance.program.SessionReference
 import com.jk.operatorperformance.state.ProgramUiState
 
 internal fun sessionExecutionGuidance(session: SessionReference): List<String> = buildList {
+    if (session.authority == ProgramAuthority.V72 && session.day != 7) {
+        addAll(ProgramNotesV72.safety)
+        if (session.rows.any { it.kind == SessionRowKind.RESISTANCE }) {
+            addAll(ProgramNotesV72.resistanceExecution)
+            add(ProgramNotesV72.calibrationCorrection)
+        }
+        if (session.day == 4) {
+            add(ProgramNotesV72.accelerationIntent)
+            add(ProgramNotesV72.fullRecovery)
+        }
+        if (session.day in listOf(1, 4)) {
+            add(ProgramNotesV72.easyRecovery)
+            add(ProgramNotesV72.qualityReview)
+        }
+        if (session.day == 5 && session.week != 32) add(ProgramNotesV72.easyAerobic)
+    }
     val speedDay = if (session.authority == ProgramAuthority.V72) 4 else 3
     val engineDay = if (session.authority == ProgramAuthority.V72) 1 else 6
     if (session.day == speedDay) {

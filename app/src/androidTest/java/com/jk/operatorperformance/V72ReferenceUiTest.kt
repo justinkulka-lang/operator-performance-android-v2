@@ -235,6 +235,24 @@ class V72ReferenceUiTest {
         rule.onNodeWithText("CLOSE").performClick()
     }
 
+    @Test fun coachingNotesAndLegacyExportAreReachable() {
+        rule.onNodeWithTag("start_v72").performScrollTo().performClick()
+        rule.onNodeWithTag("nav_TOOLS").performClick()
+        revealOnScreen("tools_screen", "program_notes_toggle")
+        rule.onNodeWithTag("program_notes_toggle").performClick()
+        rule.onNodeWithText("RIR means", substring = true).performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Two consecutive unattained", substring = true).performScrollTo().assertIsDisplayed()
+        revealOnScreen("tools_screen", "sprint_reference_150")
+        rule.onNodeWithText("23.0 s").assertIsDisplayed()
+        revealOnScreen("tools_screen", "sprint_reference_300")
+        rule.onNodeWithText("46.0 s").assertIsDisplayed()
+        rule.onNodeWithText("These 300 m entries", substring = true).performScrollTo().assertIsDisplayed()
+        revealOnScreen("tools_screen", "legacy_export_scope")
+        rule.onNodeWithTag("legacy_export_scope").assertTextContains("Excludes current program authority, pointer, session status, substitutions, and timers.", substring = true)
+        revealOnScreen("tools_screen", "export_data")
+        rule.onNodeWithTag("export_data").assertTextContains("EXPORT LEGACY DATA")
+    }
+
     private fun revealInWorkout(tag: String) = revealOnScreen("workout_mode", tag)
 
     private fun assertOverlaps(screenTag: String, targetTag: String) {
