@@ -12,7 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.jk.operatorperformance.BuildConfig
-import com.jk.operatorperformance.program.AresProgramV72
+import com.jk.operatorperformance.program.ProgramV72
 
 @Composable
 internal fun BuildIntegrityCard() {
@@ -33,17 +33,17 @@ internal fun BuildIntegrityCard() {
                 style = technicalStyle(MaterialTheme.typography.bodyMedium),
             )
             Text(
-                "AUTHORITY • v${AresProgramV72.AUTHORITY_VERSION}",
+                "AUTHORITY • v${ProgramV72.AUTHORITY_VERSION}",
                 style = technicalStyle(MaterialTheme.typography.bodyMedium),
             )
             Text(
-                "EXPECTED DOCX SHA-256 • ${AresProgramV72.EXPECTED_DOCX_SHA256}",
+                "EXPECTED DOCX SHA-256 • ${ProgramV72.EXPECTED_DOCX_SHA256}",
                 style = technicalStyle(MaterialTheme.typography.bodySmall),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.testTag("authority_sha"),
             )
             Text(
-                if (AresProgramV72.DOCX_SHA256_VERIFIED) "DOCX digest recomputed from the approved file."
+                if (ProgramV72.DOCX_SHA256_VERIFIED) "DOCX digest recomputed from the approved file."
                 else "DOCX file was not in this workspace, so this digest was not recomputed.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -51,7 +51,7 @@ internal fun BuildIntegrityCard() {
             Text(
                 "${BuildConfig.BUILD_TYPE.uppercase()} BUILD • OFFLINE / LOCAL-ONLY",
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
                 "Signing-certificate identity is enforced by release CI once the owner signing lineage is configured.",

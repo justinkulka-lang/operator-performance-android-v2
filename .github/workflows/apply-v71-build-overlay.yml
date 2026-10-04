@@ -1,4 +1,4 @@
-name: Apply ARES v7.1 build overlay
+name: Apply v7.1 build overlay
 
 on:
   push:

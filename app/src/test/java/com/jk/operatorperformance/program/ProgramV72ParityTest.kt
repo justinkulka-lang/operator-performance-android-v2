@@ -7,7 +7,7 @@ import org.junit.Test
 
 class ProgramV72ParityTest {
     @Test fun durationIs224DaysWithOneRestAndNoWeek33() {
-        assertEquals(224, AresProgramV72.TOTAL_DAYS)
+        assertEquals(224, ProgramV72.TOTAL_DAYS)
         val days = (1..32).flatMap { week ->
             val split = SessionResolver.splitForWeek(week, ProgramAuthority.V72)
             assertEquals(7, split.size)
@@ -16,7 +16,7 @@ class ProgramV72ParityTest {
             split
         }
         assertEquals(224, days.size)
-        assertEquals(224, days.maxOf { AresProgramV72.absoluteDay(it.week, it.day) })
+        assertEquals(224, days.maxOf { ProgramV72.absoluteDay(it.week, it.day) })
         assertTrue(ProgramAudit.validateV72().isEmpty())
     }
 
@@ -28,19 +28,19 @@ class ProgramV72ParityTest {
         )
         assertEquals("Engine baseline", SessionResolver.resolve(1, 1, ProgramAuthority.V72).title)
         assertEquals("1.5-mile checkpoint", SessionResolver.resolve(24, 1, ProgramAuthority.V72).title)
-        assertEquals("Final 1.5-mile", SessionResolver.resolve(32, 1, ProgramAuthority.V72).title)
+        assertEquals("1.5-mile benchmark", SessionResolver.resolve(32, 1, ProgramAuthority.V72).title)
         assertEquals("Very easy bike and mobility", SessionResolver.resolve(32, 2, ProgramAuthority.V72).title)
         assertEquals("Upper B", SessionResolver.resolve(32, 5, ProgramAuthority.V72).title)
         assertEquals("Final 300 m", SessionResolver.resolve(32, 4, ProgramAuthority.V72).rows.first { it.id == "w32_d4" }.title)
     }
 
     @Test fun phaseMuscleVolumeMatchesSection4() {
-        assertEquals(mapOf("total" to 104, "chest" to 11, "back" to 13, "quads" to 13, "hamstrings" to 12, "biceps" to 8, "triceps" to 6), AresProgramV72.phaseVolume(1))
-        assertEquals(mapOf("total" to 100, "chest" to 11, "back" to 14, "quads" to 14, "hamstrings" to 12, "biceps" to 8, "triceps" to 6), AresProgramV72.phaseVolume(2))
-        assertEquals(mapOf("total" to 88, "chest" to 10, "back" to 12, "quads" to 11, "hamstrings" to 10, "biceps" to 8, "triceps" to 6), AresProgramV72.phaseVolume(3))
-        assertEquals(mapOf("total" to 71, "chest" to 8, "back" to 10, "quads" to 8, "hamstrings" to 8, "biceps" to 6, "triceps" to 6), AresProgramV72.phaseVolume(4))
-        assertTrue(AresProgramV72.phaseVolume(1).getValue("biceps") >= 6)
-        assertTrue(AresProgramV72.phaseVolume(4).getValue("triceps") >= 6)
+        assertEquals(mapOf("total" to 104, "chest" to 11, "back" to 13, "quads" to 13, "hamstrings" to 12, "biceps" to 8, "triceps" to 6), ProgramV72.phaseVolume(1))
+        assertEquals(mapOf("total" to 100, "chest" to 11, "back" to 14, "quads" to 14, "hamstrings" to 12, "biceps" to 8, "triceps" to 6), ProgramV72.phaseVolume(2))
+        assertEquals(mapOf("total" to 88, "chest" to 10, "back" to 12, "quads" to 11, "hamstrings" to 10, "biceps" to 8, "triceps" to 6), ProgramV72.phaseVolume(3))
+        assertEquals(mapOf("total" to 71, "chest" to 8, "back" to 10, "quads" to 8, "hamstrings" to 8, "biceps" to 6, "triceps" to 6), ProgramV72.phaseVolume(4))
+        assertTrue(ProgramV72.phaseVolume(1).getValue("biceps") >= 6)
+        assertTrue(ProgramV72.phaseVolume(4).getValue("triceps") >= 6)
     }
 
     @Test fun representativePrescriptionsAreExact() {
@@ -73,12 +73,12 @@ class ProgramV72ParityTest {
             32 to "Final timed 1.5-mile; no short upper",
         )
         expectedEngine.forEach { (week, text) ->
-            assertEquals(text, AresProgramV72.conditioningForWeek(week).engine.single().prescription)
+            assertEquals(text, ProgramV72.conditioningForWeek(week).engine.single().prescription)
         }
-        assertEquals(600, AresProgramV72.conditioningForWeek(12).speed.single().qualifyingSprintMeters)
-        assertEquals(600, AresProgramV72.conditioningForWeek(19).speed.single().qualifyingSprintMeters)
-        assertEquals(500, AresProgramV72.conditioningForWeek(14).speed.single().qualifyingSprintMeters)
-        assertEquals(80, AresProgramV72.conditioningForWeek(4).speed.single().qualifyingSprintMeters)
+        assertEquals(600, ProgramV72.conditioningForWeek(12).speed.single().qualifyingSprintMeters)
+        assertEquals(600, ProgramV72.conditioningForWeek(19).speed.single().qualifyingSprintMeters)
+        assertEquals(500, ProgramV72.conditioningForWeek(14).speed.single().qualifyingSprintMeters)
+        assertEquals(80, ProgramV72.conditioningForWeek(4).speed.single().qualifyingSprintMeters)
         val warned = (1..32).filter { week ->
             SessionResolver.resolve(week, 4, ProgramAuthority.V72).rows.any { it.note.orEmpty().contains("WORKLOAD WARNING") }
         }
@@ -91,16 +91,16 @@ class ProgramV72ParityTest {
         assertTrue(SessionResolver.resolve(16, 1, ProgramAuthority.V72).rows.any { it.title == "Cooldown" && it.prescription.contains("8–10 min") })
         assertTrue(SessionResolver.resolve(8, 1, ProgramAuthority.V72).rows.none { it.prescription.contains("extra cooldown") || it.note.orEmpty().contains("no added cooldown") })
         assertTrue(SessionResolver.resolve(2, 1, ProgramAuthority.V72).rows.any { it.title == "Cooldown" })
-        val incline = AresProgramV72.resistanceSlots.filter { it.phase > 1 && it.day == 3 && it.id.endsWith("_curl") }
+        val incline = ProgramV72.resistanceSlots.filter { it.phase > 1 && it.day == 3 && it.id.endsWith("_curl") }
         assertEquals(3, incline.size)
         assertTrue(incline.all { it.alternatives.map { alt -> alt.name } == listOf("Behind-body cable curl") })
         assertTrue(SessionResolver.resolve(2, 4, ProgramAuthority.V72).rows.first().prescription.contains("ankle rocks 10/side"))
     }
 
     @Test fun paceMathUses2414MetresAndNotTheRoundedTable() {
-        val fourHundred = 600.0 / AresProgramV72.STATUTE_MILE_AND_HALF_METRES * 400.0
+        val fourHundred = 600.0 / ProgramV72.STATUTE_MILE_AND_HALF_METRES * 400.0
         assertEquals(99.4, fourHundred, 0.05)
-        assertEquals(46.0 * 200.0 / 300.0 / 0.90, AresProgramV72.targetSeconds(46.0, 200.0, 0.90), 0.0001)
+        assertEquals(46.0 * 200.0 / 300.0 / 0.90, ProgramV72.targetSeconds(46.0, 200.0, 0.90), 0.0001)
         val note = SessionResolver.resolve(18, 1, ProgramAuthority.V72).rows.first { it.title == "Goal pace" }.note.orEmpty()
         assertTrue(note.contains("1:39.4"))
         assertTrue(note.contains("2:29.1"))
@@ -112,7 +112,7 @@ class ProgramV72ParityTest {
     }
 
     @Test fun romanianDeadliftAlternativesDoNotUseTrapBar() {
-        val rdl = AresProgramV72.resistanceSlots.filter { it.movement.contains("Romanian", true) }
+        val rdl = ProgramV72.resistanceSlots.filter { it.movement.contains("Romanian", true) }
         assertTrue(rdl.isNotEmpty())
         assertTrue(rdl.all { slot -> slot.alternatives.none { it.name.contains("trap", true) } })
     }

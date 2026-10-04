@@ -4,7 +4,7 @@ The previous runtime was v7.1: Lower A on Day 1, Speed on Day 3, Engine on Day 6
 
 ## What changed
 
-- `AresProgramV72` is the immutable v7.2 prescription. `AresProgramV71` is unchanged so an in-progress week and the existing v7.1 CI greps still resolve.
+- `ProgramV72` is the immutable v7.2 prescription. `ProgramV71` is unchanged so an in-progress week and the existing v7.1 CI greps still resolve.
 - `SessionResolver.resolve(week, day, authority)` defaults to v7.2. Search, week browse, program browse, workout mode, and CSV export use that dispatch. A retained v7.1 week is not mixed into other weeks.
 - Today keeps START / RESUME in a footer above the navigation bar. Session reference dialogs scroll inside a bounded column.
 - Tools notes, the integrity card, and the local export label identify v7.2. The integrity card reports the recomputed DOCX digest.

@@ -1,15 +1,15 @@
 package com.jk.operatorperformance.program
 
 /**
- * Immutable ARES Performance v7.2 prescription.
- * [EXPECTED_DOCX_SHA256] matches docs/ARES_Performance_Unified_Master_Authority_v7.2_APPROVED.docx.
+ * Immutable v7.2 prescription.
+ * [EXPECTED_DOCX_SHA256] matches the approved authority file in docs/.
  */
-object AresProgramV72 {
+object ProgramV72 {
     const val AUTHORITY_VERSION = "7.2"
     const val EXPECTED_DOCX_SHA256 = "25a7ce497569913c4a56c057bcaa139290adddf20876a2d736790d5fefd436f3"
     const val DOCX_SHA256_VERIFIED = true
-    const val PROGRAM_NAME = "ARES PERFORMANCE"
-    const val PROGRAM_TAGLINE = "Muscle · Strength · Speed · Engine"
+    const val PROGRAM_NAME = "LEGEND"
+    const val PROGRAM_TAGLINE = "Built to hold."
     const val TOTAL_WEEKS = 32
     const val DAYS_PER_WEEK = 7
     const val TOTAL_DAYS = 224
@@ -25,10 +25,10 @@ object AresProgramV72 {
     val PERCENTAGE_SPEED_WEEKS = setOf(7, 9, 12, 14, 18, 19, 21, 22, 23, 26, 27, 29)
 
     val blocks = listOf(
-        ProgramBlock("FOUNDATION", "HEPHAESTUS", 1, 8, BlockStatus.POPULATED, "Hypertrophy base, running tolerance, acceleration, aerobic foundation."),
-        ProgramBlock("DEVELOPMENT", "HERMES", 9, 16, BlockStatus.POPULATED, "Strength, maximum velocity, threshold and interval development."),
-        ProgramBlock("SPECIFIC DEVELOPMENT", "ARES", 17, 24, BlockStatus.POPULATED, "Special endurance, 1.5-mile pace development, and aerobic capacity while retaining hypertrophy volume."),
-        ProgramBlock("INTEGRATION / PEAK", "ZEUS", 25, 32, BlockStatus.POPULATED, "Late-phase consolidation, fatigue management, and performance expression."),
+        ProgramBlock("Draft", "Draft", 1, 8, BlockStatus.POPULATED, "Foundation, movement quality, and early work capacity."),
+        ProgramBlock("Build", "Build", 9, 16, BlockStatus.POPULATED, "Progressive strength, hypertrophy, and conditioning development."),
+        ProgramBlock("Backstop", "Backstop", 17, 24, BlockStatus.POPULATED, "Sustained strength, fatigue control, and repeatable work capacity."),
+        ProgramBlock("Live", "Live", 25, 32, BlockStatus.POPULATED, "Advanced conditioning, maintained hypertrophy, and practical performance expression."),
     )
     val weeks = (1..TOTAL_WEEKS).map(::WeekDefinition)
     val dayTitles = mapOf(

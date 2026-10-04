@@ -9,20 +9,20 @@ import java.security.MessageDigest
 
 /**
  * Expected prescriptions are transcribed from the approved v7.2 DOCX.
- * They are not read back out of [AresProgramV72] and then compared with themselves.
+ * They are not read back out of [ProgramV72] and then compared with themselves.
  */
 class V72AuthorityComparisonTest {
     @Test fun approvedDocxHashMatches() {
         val file = authorityDocx()
         val digest = MessageDigest.getInstance("SHA-256").digest(file.readBytes())
         val hex = digest.joinToString("") { "%02x".format(it) }
-        assertEquals(AresProgramV72.EXPECTED_DOCX_SHA256, hex)
-        assertTrue(AresProgramV72.DOCX_SHA256_VERIFIED)
+        assertEquals(ProgramV72.EXPECTED_DOCX_SHA256, hex)
+        assertTrue(ProgramV72.DOCX_SHA256_VERIFIED)
     }
 
     @Test fun everyConditioningCellIsPresent() {
         weeks.forEach { (week, engine, speed, easy) ->
-            val plan = AresProgramV72.conditioningForWeek(week)
+            val plan = ProgramV72.conditioningForWeek(week)
             assertContains("W$week engine", engine, plan.engine.single().prescription)
             assertContains("W$week speed", speed, plan.speed.single().prescription)
             assertContains("W$week easy", easy, plan.d1.single().prescription)
@@ -48,16 +48,16 @@ class V72AuthorityComparisonTest {
         phases.forEach { (phase, rows) ->
             val week = sampleWeek.getValue(phase)
             rows.groupBy { it.day }.forEach { (day, expected) ->
-                val actual = AresProgramV72.resistanceForDay(week, day).map { it.movement to it.dose }
+                val actual = ProgramV72.resistanceForDay(week, day).map { it.movement to it.dose }
                 assertEquals("Phase $phase day $day", expected.map { it.movement to it.dose }, actual)
             }
         }
     }
 
     @Test fun phase1InclineCurlAlternativeIsPreservedLater() {
-        val phase1 = AresProgramV72.resistanceSlots.single { it.phase == 1 && it.movement == "Incline DB curl" }
+        val phase1 = ProgramV72.resistanceSlots.single { it.phase == 1 && it.movement == "Incline DB curl" }
         assertEquals(listOf("Behind-body cable curl"), phase1.alternatives.map { it.name })
-        val later = AresProgramV72.resistanceSlots.filter { it.phase > 1 && it.day == 3 && it.id.endsWith("_curl") }
+        val later = ProgramV72.resistanceSlots.filter { it.phase > 1 && it.day == 3 && it.id.endsWith("_curl") }
         assertEquals(listOf(2, 3, 4), later.map { it.phase })
         assertTrue(later.all { it.alternatives.map { alt -> alt.name } == listOf("Behind-body cable curl") })
         assertTrue(later.all { slot -> slot.alternatives.none { it.name == "Band curl" || it.name == "Cable curl" } })

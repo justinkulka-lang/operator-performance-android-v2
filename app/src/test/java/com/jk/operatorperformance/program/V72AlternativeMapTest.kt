@@ -19,7 +19,7 @@ class V72AlternativeMapTest {
         assertEquals(100, later.size)
         assertEquals(later, names(2) + names(3) + names(4))
         later.forEach { expected ->
-            val actual = AresProgramV72.resistanceSlots.single {
+            val actual = ProgramV72.resistanceSlots.single {
                 it.phase == expected.phase && it.day == expected.day && it.movement == expected.movement
             }
             assertEquals("${expected.phase} D${expected.day} ${expected.movement}", expected.alternatives, actual.alternatives.map { it.name })
@@ -27,7 +27,7 @@ class V72AlternativeMapTest {
     }
 
     @Test fun movementPatternsStayDistinct() {
-        val all = AresProgramV72.resistanceSlots
+        val all = ProgramV72.resistanceSlots
         assertTrue(all.none { slot -> slot.alternatives.any { it.name.contains("trap", ignoreCase = true) } })
         listOf(2, 3, 4).forEach { phase ->
             assertEquals(listOf("Safety-bar squat", "Smith squat"), alts(phase, 2, "squat"))
@@ -50,12 +50,12 @@ class V72AlternativeMapTest {
         }
     }
 
-    private fun names(phase: Int) = AresProgramV72.resistanceSlots
+    private fun names(phase: Int) = ProgramV72.resistanceSlots
         .filter { it.phase == phase }
         .map { Slot(it.phase, it.day, it.movement, it.alternatives.map { alt -> alt.name }) }
 
     private fun alts(phase: Int, day: Int, key: String) =
-        AresProgramV72.resistanceSlots.single { it.phase == phase && it.id == "d${day}_$key" }.alternatives.map { it.name }
+        ProgramV72.resistanceSlots.single { it.phase == phase && it.id == "d${day}_$key" }.alternatives.map { it.name }
 
     private data class Slot(val phase: Int, val day: Int, val movement: String, val alternatives: List<String>)
 

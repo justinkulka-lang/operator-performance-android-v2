@@ -1,19 +1,19 @@
 package com.jk.operatorperformance.program
 
-/** Immutable, runtime-authoritative ARES Performance v7.1 prescription. */
-object AresProgramV71 {
+/** Immutable v7.1 prescription, retained so an in-progress week can finish. */
+object ProgramV71 {
     const val AUTHORITY_VERSION = "7.1"
     const val AUTHORITY_SHA256 = "1d33dbca214b34dd456a971d32bc1c19d59e3a13069393429fc9e2115e3a036c"
-    const val PROGRAM_NAME = "ARES PERFORMANCE"
-    const val PROGRAM_TAGLINE = "Muscle · Strength · Speed · Engine"
+    const val PROGRAM_NAME = "LEGEND"
+    const val PROGRAM_TAGLINE = "Built to hold."
     const val TOTAL_WEEKS = 32
     const val DAYS_PER_WEEK = 7
 
     val blocks = listOf(
-        ProgramBlock("FOUNDATION", "HEPHAESTUS", 1, 8, BlockStatus.POPULATED, "Build the hypertrophy chassis, aerobic base, sprint exposure, and running tolerance."),
-        ProgramBlock("DEVELOPMENT", "HERMES", 9, 16, BlockStatus.POPULATED, "Build strength, speed, threshold capacity, and event-specific durability."),
-        ProgramBlock("SPECIFIC DEVELOPMENT", "ARES", 17, 24, BlockStatus.POPULATED, "Increase specificity while preserving strength and muscle."),
-        ProgramBlock("INTEGRATION / PEAK", "ZEUS", 25, 32, BlockStatus.POPULATED, "Reduce avoidable fatigue and express peak 300 m and 1.5-mile performance."),
+        ProgramBlock("Draft", "Draft", 1, 8, BlockStatus.POPULATED, "Foundation, movement quality, and early work capacity."),
+        ProgramBlock("Build", "Build", 9, 16, BlockStatus.POPULATED, "Progressive strength, hypertrophy, and conditioning development."),
+        ProgramBlock("Backstop", "Backstop", 17, 24, BlockStatus.POPULATED, "Sustained strength, fatigue control, and repeatable work capacity."),
+        ProgramBlock("Live", "Live", 25, 32, BlockStatus.POPULATED, "Advanced conditioning, maintained hypertrophy, and practical performance expression."),
     )
     val weeks = (1..TOTAL_WEEKS).map(::WeekDefinition)
     val dayTitles = mapOf(
@@ -35,7 +35,7 @@ object AresProgramV71 {
 
     fun speedExecutionGuidance(week: Int, title: String): String {
         val technique = when {
-            title.contains("Timed", true) || title.contains("Final", true) -> "Use an external timer. Run one committed, evenly controlled 300 m after the eligibility gate and complete test warm-up; do not add another attempt."
+            title.contains("Timed", true) || title.contains("Final", true) -> "Use an external timer. Run one committed, evenly controlled 300 m after the eligibility gate and complete the speed warm-up; do not add another attempt."
             title.contains("Build + fly", true) || title.contains("Acceleration + fly", true) -> "For each build/fly repetition, accelerate progressively through the build zone, enter the fly zone upright and relaxed, then decelerate gradually beyond the line. Do not attack the build zone like an all-out start."
             title.contains("Acceleration", true) -> "Use a comfortable two-point or falling start. Push smoothly through the full distance, keep the face and shoulders relaxed, and decelerate gradually beyond the line. Fast and technically clean does not mean straining."
             title.contains("Special endurance", true) -> "Use the prescribed percentage of current pain-free 300 m average velocity. Keep posture, rhythm, and relaxation intact; stop the quality portion if pace or mechanics cannot be repeated cleanly."
@@ -48,11 +48,11 @@ object AresProgramV71 {
     fun engineExecutionGuidance(title: String, prescription: String): String = when {
         title.contains("Threshold", true) -> {
             val recovery = if (prescription.contains("easy", true)) "During each listed recovery, jog very easily; walk if necessary to regain control before the next work interval." else "This is continuous work with no planned break."
-            "Run at RPE 7–8: controlled discomfort, breathing hard, and speech limited to short phrases. Hold an even pace from start to finish; this is not a time trial and there is no finishing kick. $recovery"
+            "Run at RPE 7–8: controlled discomfort, breathing hard, and speech limited to short phrases. Hold an even pace from start to finish. This is threshold conditioning, and there is no finishing kick. $recovery"
         }
         title.contains("Controlled interval", true) -> "Run every work repetition at RPE 8 with even pacing. The final repetition must remain mechanically as clean as the first and no more than about 3% slower. Use the listed recovery as very easy jogging; walk only if needed to begin the next repetition under control. Stop rather than adding slow replacement repetitions."
         title.contains("Goal pace", true) -> "Use the fixed 10:00 1.5-mile goal pace: 400 m 1:40; 600 m 2:30; 800 m 3:20; 1000 m 4:10; 1 mile 6:40. Run the listed distance evenly, then take the complete easy recovery. Do not race the first repetition or add repetitions."
-        title.contains("1.5-mile", true) || title.contains("Final", true) -> "Use an external timer and a measured 1.5-mile course. Begin under control, distribute the effort across the full distance, and record results only outside the app. Perform one authorized effort; do not add a replacement test."
+        title.contains("1.5-mile", true) || title.contains("Final", true) -> "Use an external timer and a measured 1.5-mile course. Begin under control, distribute the effort across the full distance, and record results only outside the app. Perform one authorized effort; do not add a second effort."
         title.contains("Easy run", true) -> "Keep the entire run at RPE 2–3 with nasal breathing or comfortable full-sentence conversation. The opening 5 min is the warm-up and is included in the listed duration. Do not turn this into tempo work."
         else -> "Follow the listed work and recovery exactly with even pacing and controlled mechanics."
     }

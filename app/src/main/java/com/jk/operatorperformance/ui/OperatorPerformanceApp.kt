@@ -15,11 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ListAlt
-import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -30,6 +25,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -48,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
@@ -55,7 +52,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.jk.operatorperformance.program.AresProgramV72
+import com.jk.operatorperformance.R
+import com.jk.operatorperformance.program.ProgramV72
 import com.jk.operatorperformance.program.ProgramAuthority
 import com.jk.operatorperformance.program.SessionReference
 import com.jk.operatorperformance.program.SessionResolver
@@ -78,6 +76,7 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
     var activeWorkout by remember { mutableStateOf(stateStore.loadWorkout()) }
     var workoutMode by rememberSaveable { mutableStateOf(false) }
     var destinationName by rememberSaveable { mutableStateOf(Destination.TODAY.name) }
+    var showKey by rememberSaveable { mutableStateOf(false) }
     var selectedProgramWeek by rememberSaveable { mutableIntStateOf(state.currentWeek) }
     var referenceSession by remember { mutableStateOf<SessionReference?>(null) }
     var referenceCanSetCurrent by remember { mutableStateOf(false) }
@@ -98,7 +97,7 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
         stateStore.clearWorkout()
     }
 
-    MaterialTheme(colorScheme = AresDarkColors, typography = aresTypography()) {
+    MaterialTheme(colorScheme = LegendColors, typography = legendTypography()) {
         if (!state.initialized) {
             Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                 Column(
@@ -106,7 +105,7 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     BrandHeader()
-                    Text("ARES v7.2", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                    Text("LEGEND", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(12.dp))
                     Text("The approved program uses 32 seven-day weeks with six training days and one rest day each week.")
                     Spacer(Modifier.height(12.dp))
@@ -147,18 +146,30 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
                     Destination.entries.forEach { item ->
                         NavigationBarItem(
                             selected = destination == item,
-                            onClick = { destinationName = item.name },
+                            onClick = {
+                                destinationName = item.name
+                                showKey = false
+                            },
                             icon = {
                                 Icon(
-                                    imageVector = when (item) {
-                                        Destination.TODAY -> Icons.Default.Home
-                                        Destination.WEEK -> Icons.Default.DateRange
-                                        Destination.PROGRAM -> Icons.AutoMirrored.Filled.ListAlt
-                                        Destination.TOOLS -> Icons.Default.Build
-                                    },
+                                    painter = painterResource(
+                                        when (item) {
+                                            Destination.TODAY -> R.drawable.ic_nav_today
+                                            Destination.WEEK -> R.drawable.ic_nav_week
+                                            Destination.PROGRAM -> R.drawable.ic_nav_program
+                                            Destination.TOOLS -> R.drawable.ic_nav_tools
+                                        },
+                                    ),
                                     contentDescription = null,
                                 )
                             },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                indicatorColor = MaterialTheme.colorScheme.surfaceVariant,
+                            ),
                             label = { Text(item.label) },
                             alwaysShowLabel = true,
                             modifier = Modifier
@@ -206,10 +217,15 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
                             referenceSession = it
                         },
                     )
-                    Destination.TOOLS -> ToolsScreen(
-                        state = state,
-                        onStateChanged = ::persist,
-                    )
+                    Destination.TOOLS -> if (showKey) {
+                        KeyScreen(onBack = { showKey = false })
+                    } else {
+                        ToolsScreen(
+                            state = state,
+                            onStateChanged = ::persist,
+                            onOpenKey = { showKey = true },
+                        )
+                    }
                 }
             }
         }
@@ -283,7 +299,7 @@ private fun TodayScreen(
             )
             Text(session.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             if (state.retainedV71Week == session.week) {
-                Text("FINISHING THIS WEEK UNDER v7.1", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                Text("FINISHING THIS WEEK UNDER v7.1", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
             }
             if (!isRest) Text(
                 when (sessionStatus) {
@@ -303,10 +319,10 @@ private fun TodayScreen(
                         .fillMaxWidth()
                         .testTag("saved_workout_status")
                         .semantics { contentDescription = "Session paused. Resume shows the same reference. Set completion is not stored." },
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 ) {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("SESSION PAUSED", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        Text("SESSION PAUSED", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                         Text("The prescription stays on screen. Resume does not ask you to mark sets, intervals, or repetitions.", style = MaterialTheme.typography.bodySmall)
                     }
                 }
@@ -320,6 +336,7 @@ private fun TodayScreen(
         }
         items(session.rows, key = { it.id }) { row ->
             WorkoutRowCard(
+                session = session,
                 row = row,
                 progress = progress,
                 onSelectAlternative = { alternative ->
@@ -338,7 +355,7 @@ private fun TodayScreen(
             }
             if (atEnd) {
                 Card(Modifier.fillMaxWidth()) {
-                    Text("ARES PERFORMANCE • 32-WEEK / 224-DAY PROGRAM COMPLETE", Modifier.padding(16.dp), fontWeight = FontWeight.Bold)
+                    Text("LEGEND • 32-WEEK / 224-DAY PROGRAM COMPLETE", Modifier.padding(16.dp), fontWeight = FontWeight.Bold)
                 }
             } else {
                 Button(
@@ -352,7 +369,7 @@ private fun TodayScreen(
         Surface(color = MaterialTheme.colorScheme.surface) {
             Button(
                 onClick = onStartWorkout,
-                colors = aresButtonColors(),
+                colors = legendButtonColors(),
                 modifier = Modifier.fillMaxWidth().padding(12.dp).heightIn(min = 56.dp).testTag("start_resume_workout"),
             ) { Text(if (sessionStatus == SessionStatus.NOT_STARTED) "START WORKOUT" else "RESUME WORKOUT", fontWeight = FontWeight.Bold) }
         }
@@ -392,6 +409,7 @@ private fun TodayScreen(
 
 @Composable
 private fun WorkoutRowCard(
+    session: SessionReference,
     row: SessionRow,
     progress: ActiveWorkoutState?,
     onSelectAlternative: (String) -> Unit,
@@ -406,8 +424,8 @@ private fun WorkoutRowCard(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            VisualRowTitle(row = row, title = title, style = MaterialTheme.typography.titleMedium)
-            if (selected != null) Text("ALTERNATIVE FOR ${row.title}", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
+            VisualRowTitle(session = session, row = row, title = title, style = MaterialTheme.typography.titleMedium)
+            if (selected != null) Text("ALTERNATIVE FOR ${row.title}", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
             Text(row.prescription, style = technicalStyle(), modifier = Modifier.testTag("prescription_${row.id}"))
             if (row.optional) Text("OPTIONAL", color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
             if (hasDetails) {
@@ -563,8 +581,8 @@ private fun WorkoutModeScreen(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 ) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        VisualRowTitle(row = row, title = selected ?: row.title, style = MaterialTheme.typography.titleMedium)
-                        if (selected != null) Text("ALTERNATIVE FOR ${row.title}", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
+                        VisualRowTitle(session = session, row = row, title = selected ?: row.title, style = MaterialTheme.typography.titleMedium)
+                        if (selected != null) Text("ALTERNATIVE FOR ${row.title}", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                         Text(row.prescription, style = technicalStyle(), modifier = Modifier.testTag("workout_prescription_${row.id}"))
                         row.note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                         if (row.optional) Text("OPTIONAL", color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
@@ -616,7 +634,9 @@ private fun WeekScreen(state: ProgramUiState, onOpenDay: (SessionReference) -> U
         items(split, key = { it.day }) { session ->
             Card(
                 modifier = Modifier.fillMaxWidth().testTag("week_day_${session.day}"),
-                colors = CardDefaults.cardColors(containerColor = if (session.day == state.currentDay) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (session.day == state.currentDay) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surface,
+                ),
                 onClick = { onOpenDay(session) },
             ) {
                 SessionDayCardContent(
@@ -642,7 +662,7 @@ private fun ProgramScreen(
     val selectedPhase = blockFor(state, selectedWeek)
     val selectedSplit = splitForWeek(selectedWeek, state)
     val nextWeek = (state.currentWeek + 1).takeIf { it <= 32 }
-    val nextPhase = AresProgramV72.blocks.firstOrNull { it.startWeek > currentPhase.endWeek }
+    val nextPhase = ProgramV72.blocks.firstOrNull { it.startWeek > currentPhase.endWeek }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     val searchHits = remember(searchQuery, state.retainedV71Week, state.authority) { searchProgram(searchQuery, state) }
     val jumpWeeks = remember(state.currentWeek) { listOf(state.currentWeek, 1, 9, 17, 25, 32).distinct() }
@@ -661,7 +681,11 @@ private fun ProgramScreen(
                 color = phaseAccent(currentPhase),
                 modifier = Modifier.testTag("current_phase"),
             )
-            Text(currentPhase.godName, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                "Weeks ${currentPhase.startWeek}–${currentPhase.endWeek}",
+                style = technicalStyle(MaterialTheme.typography.labelSmall),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             Text(
                 nextPhase?.let { "Next • ${phaseFieldLabel(it)}" }
                     ?: "Next • Program complete at week 32. No week 33 is authorized.",
@@ -681,7 +705,7 @@ private fun ProgramScreen(
                     .fillMaxWidth()
                     .heightIn(min = 56.dp)
                     .testTag("program_search")
-                    .semantics { contentDescription = "Search the approved 32-week ARES program" },
+                    .semantics { contentDescription = "Search the approved 32-week program" },
             )
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(jumpWeeks) { week ->
@@ -739,8 +763,8 @@ private fun ProgramScreen(
         }
         item {
             Text("PHASES", fontWeight = FontWeight.Bold)
-            AresProgramV72.blocks.forEach { phase ->
-                PhaseSummaryCard(phase, isCurrent = phase.godName == currentPhase.godName)
+            ProgramV72.blocks.forEach { phase ->
+                PhaseSummaryCard(phase, isCurrent = phase.startWeek == currentPhase.startWeek)
             }
         }
         item {
@@ -756,14 +780,17 @@ private fun ProgramScreen(
                     )
                 }
             }
-            PhaseIdentityLine(selectedPhase)
+            PhaseIdentityLine(
+                selectedPhase,
+                active = selectedPhase.startWeek == currentPhase.startWeek,
+            )
         }
         items(selectedSplit, key = { it.day }) { session ->
             Card(onClick = { onOpenDay(session) }, modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).testTag("program_day_${session.week}_${session.day}")) {
                 SessionDayCardContent(
                     session = session,
                     isCurrentDay = session.week == state.currentWeek && session.day == state.currentDay,
-                    showRowCount = false,
+                    showRowCount = true,
                     referenceLabel = foundationReferenceLabel(session, state),
                 )
             }
@@ -773,7 +800,7 @@ private fun ProgramScreen(
                 HorizontalDivider()
                 Text("NEXT WEEK • WEEK $nextWeek", fontWeight = FontWeight.Bold, modifier = Modifier.testTag("next_week"))
                 val phase = blockFor(state, nextWeek)
-                PhaseIdentityLine(phase)
+                PhaseIdentityLine(phase, active = phase.startWeek == currentPhase.startWeek)
                 splitForWeek(nextWeek, state).forEach { session -> Text("DAY ${session.day} • ${session.title}") }
             }
         }
@@ -781,7 +808,7 @@ private fun ProgramScreen(
 }
 
 @Composable
-private fun ToolsScreen(state: ProgramUiState, onStateChanged: (ProgramUiState) -> Unit) {
+private fun ToolsScreen(state: ProgramUiState, onStateChanged: (ProgramUiState) -> Unit, onOpenKey: () -> Unit) {
     val haptic = LocalHapticFeedback.current
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(state.utilityRestTimerEndEpochMillis) {
@@ -843,7 +870,7 @@ private fun ToolsScreen(state: ProgramUiState, onStateChanged: (ProgramUiState) 
             } else {
                 Button(
                     enabled = state.restTimerSeconds != null,
-                    colors = aresButtonColors(),
+                    colors = legendButtonColors(),
                     onClick = {
                         val seconds = state.restTimerSeconds ?: return@Button
                         onStateChanged(state.copy(utilityRestTimerEndEpochMillis = System.currentTimeMillis() + seconds * 1_000L))
@@ -851,6 +878,12 @@ private fun ToolsScreen(state: ProgramUiState, onStateChanged: (ProgramUiState) 
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("rest_timer_start"),
                 ) { Text("START TIMER") }
             }
+        }
+        item {
+            TextButton(
+                onClick = onOpenKey,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("open_key"),
+            ) { Text("OPEN KEY") }
         }
         item { AdditionalToolsCards() }
     }
@@ -875,12 +908,16 @@ private fun DayReferenceDialog(
                     .testTag("day_reference_scroll"),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                PhaseIdentityLine(session.phase)
+                PhaseIdentityLine(
+                    session.phase,
+                    active = session.phase.startWeek == blockFor(state, state.currentWeek).startWeek,
+                )
                 Text("AUTHORITY v${session.authority.versionLabel}", style = MaterialTheme.typography.labelMedium)
                 if (sessionExecutionGuidance(session).isNotEmpty()) SessionExecutionBanner(session)
                 if (foundationReferenceLabel(session, state) != null) FoundationReferenceBanner(session, state)
                 session.rows.forEach { row ->
                     VisualRowTitle(
+                        session = session,
                         row = row,
                         title = row.title,
                         style = MaterialTheme.typography.bodyLarge,
@@ -902,7 +939,7 @@ private fun DayReferenceDialog(
 
 @Composable
 private fun BrandHeader() {
-    AresBrandHeader()
+    LegendBrandHeader()
 }
 
 private fun newWorkout(state: ProgramUiState) = ActiveWorkoutState(week = state.currentWeek, day = state.currentDay)
@@ -914,7 +951,7 @@ private fun splitForWeek(week: Int, state: ProgramUiState): List<SessionReferenc
     SessionResolver.splitForWeek(week, state.authorityForWeek(week))
 
 private fun blockFor(state: ProgramUiState, week: Int) =
-    if (state.authorityForWeek(week) == ProgramAuthority.V71) com.jk.operatorperformance.program.AresProgramV71.blockForWeek(week)
-    else AresProgramV72.blockForWeek(week)
+    if (state.authorityForWeek(week) == ProgramAuthority.V71) com.jk.operatorperformance.program.ProgramV71.blockForWeek(week)
+    else ProgramV72.blockForWeek(week)
 
 private fun formatRest(seconds: Int): String = "%d:%02d".format(seconds / 60, seconds % 60)

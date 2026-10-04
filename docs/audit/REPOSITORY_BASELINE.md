@@ -29,7 +29,7 @@ Recorded before the v7.2 correction, then updated with the candidate branch.
 
 Mixed. Several v7.1 and v5.7 workflows succeeded. Two failed in about 35 seconds on 2026-09-28:
 
-- ARES Performance v7.1 CI, run `36364996205`: `sdkmanager` could not find `build-tools;37.1.0`.
-- ARES Performance v7.1 Authority Audit, run `36364996241`: same missing platform/build-tools package.
+- v7.1 CI, run `36364996205`: `sdkmanager` could not find `build-tools;37.1.0`.
+- v7.1 Authority Audit, run `36364996241`: same missing platform/build-tools package.
 
 The app's compile SDK is 36. Those two workflows now install `platforms;android-36` and `build-tools;36.0.0`, matching the workflows that already passed.

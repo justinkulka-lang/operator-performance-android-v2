@@ -44,7 +44,7 @@ internal fun searchProgram(
             for (session in sessions) {
                 if (requestedDay != null && session.day != requestedDay) continue
 
-                val phaseText = "${session.phase.godName} ${session.phase.name}"
+                val phaseText = session.phase.name
                 val header = "week ${session.week} day ${session.day} ${session.title} $phaseText"
                 val rowText = session.rows.joinToString(" ") { row ->
                     buildString {
@@ -69,7 +69,7 @@ internal fun searchProgram(
                     freeTextTokens.isNotEmpty() && freeTextTokens.any(candidate::contains)
                 }
                 val snippet = matchingRow?.let { "${it.title} • ${it.prescription}" }
-                    ?: "${session.phase.godName} • ${session.phase.name}"
+                    ?: phaseFieldLabel(session.phase)
                 add(
                     ProgramSearchHit(
                         session = session,
