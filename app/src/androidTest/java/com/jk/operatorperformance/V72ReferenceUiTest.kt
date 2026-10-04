@@ -63,7 +63,7 @@ class V72ReferenceUiTest {
         rule.onNodeWithTag("start_resume_workout").assertIsDisplayed()
         assertPrimaryAction("start_resume_workout")
         rule.onNodeWithTag("today_screen").performTouchInput {
-            swipeUp(startY = bottom * 0.8f, endY = top + 80f)
+            swipeUp(startY = bottom * 0.8f, endY = bottom * 0.2f)
         }
         rule.onNodeWithTag("start_resume_workout").assertIsDisplayed()
         rule.onAllNodesWithTag("set_done").assertCountEquals(0)
@@ -239,8 +239,8 @@ class V72ReferenceUiTest {
                 }
                 if (screen != null) {
                     rule.onNodeWithTag(screenTag).performTouchInput {
-                        if (pass == 0) swipeUp(startY = bottom * 0.8f, endY = top + 80f)
-                        else swipeDown(startY = top + 80f, endY = bottom * 0.8f)
+                        if (pass == 0) swipeUp(startY = bottom * 0.8f, endY = bottom * 0.2f)
+                        else swipeDown(startY = bottom * 0.2f, endY = bottom * 0.8f)
                     }
                 }
                 rule.waitForIdle()
@@ -265,8 +265,8 @@ class V72ReferenceUiTest {
                     if (visible) return
                 }
                 rule.onNodeWithTag(screenTag).performTouchInput {
-                    if (pass == 0) swipeUp(startY = bottom * 0.8f, endY = top + 80f)
-                    else swipeDown(startY = top + 80f, endY = bottom * 0.8f)
+                    if (pass == 0) swipeUp(startY = bottom * 0.8f, endY = bottom * 0.2f)
+                    else swipeDown(startY = bottom * 0.2f, endY = bottom * 0.8f)
                 }
                 rule.waitForIdle()
             }

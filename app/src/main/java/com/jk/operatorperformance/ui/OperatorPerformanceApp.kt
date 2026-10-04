@@ -5,6 +5,9 @@ import androidx.compose.ui.platform.LocalConfiguration
 
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -155,13 +158,33 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
             containerColor = MaterialTheme.colorScheme.background,
             bottomBar = {
                 if (navigationConfiguration.screenWidthDp < 240) {
-                    // Four 48 dp targets cannot share this width after bar insets.
-                    // Two rows preserve every destination without horizontal clipping.
-                    Column {
-                        Destination.entries.chunked(2).forEach { row ->
-                            LegendNavigationRow(row, destination, iconsOnly = false, shortProgramLabel = shortProgramLabel) { item ->
-                                destinationName = item.name
-                                showKey = false
+                    Surface(color = MaterialTheme.colorScheme.surface) {
+                        Column(Modifier.windowInsetsPadding(WindowInsets.navigationBars)) {
+                            Destination.entries.chunked(2).forEach { row ->
+                                Row(Modifier.fillMaxWidth()) {
+                                    row.forEach { item ->
+                                        TextButton(
+                                            onClick = {
+                                                destinationName = item.name
+                                                showKey = false
+                                            },
+                                            modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                                                .testTag("nav_${item.name}")
+                                                .semantics {
+                                                    contentDescription = item.label
+                                                    stateDescription = if (destination == item) "Selected" else "Not selected"
+                                                },
+                                        ) {
+                                            Text(
+                                                if (item == Destination.PROGRAM && shortProgramLabel) "PLAN" else item.label,
+                                                maxLines = 1,
+                                                color = if (destination == item) MaterialTheme.colorScheme.primary
+                                                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                fontWeight = if (destination == item) FontWeight.Bold else FontWeight.Normal,
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
