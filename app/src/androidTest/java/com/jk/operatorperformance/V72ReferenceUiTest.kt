@@ -6,6 +6,7 @@ import android.content.res.Configuration
 import android.view.inputmethod.InputMethodManager
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -135,6 +136,11 @@ class V72ReferenceUiTest {
         }
         rule.onNodeWithTag("start_resume_workout").assertIsDisplayed()
         assertPrimaryAction("start_resume_workout")
+        for (destination in listOf("TODAY", "WEEK", "PROGRAM", "TOOLS")) {
+            rule.onNodeWithTag("nav_$destination").assertIsDisplayed()
+                .assertContentDescriptionEquals(destination)
+            assertTouchTarget("nav_$destination")
+        }
         rule.onNodeWithTag("start_resume_workout").performClick()
         rule.onNodeWithTag("workout_mode").assertIsDisplayed()
         rule.onAllNodesWithTag("set_done").assertCountEquals(0)

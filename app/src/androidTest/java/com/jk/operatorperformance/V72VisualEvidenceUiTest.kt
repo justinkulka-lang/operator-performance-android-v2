@@ -5,9 +5,11 @@ import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
@@ -50,6 +52,10 @@ class V72VisualEvidenceUiTest {
             Triple(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE, Configuration.ORIENTATION_LANDSCAPE, "landscape"),
         )) {
             lifecycle.orientation(orientation, expected)
+            rule.onNodeWithTag("nav_PROGRAM").assertContentDescriptionEquals("PROGRAM")
+            if (expected == Configuration.ORIENTATION_PORTRAIT) {
+                rule.onNodeWithText("PLAN").assertIsDisplayed()
+            }
             rule.onNodeWithTag("nav_TODAY").performClick()
             lifecycle.screen("today_screen")
             val primary = rule.onNodeWithTag("start_resume_workout").assertIsDisplayed().fetchSemanticsNode()
