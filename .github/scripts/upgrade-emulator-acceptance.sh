@@ -22,11 +22,19 @@ sha256sum "$before" "$candidate" > "$out/apk-hashes.txt"
 # This device belongs only to this job. Never address a physical device or clear user data.
 avd_name="legend_upgrade_${GITHUB_RUN_ID:-local}"
 printf 'no\n' | avdmanager create avd -n "$avd_name" -k 'system-images;android-35;default;x86_64' -d pixel_2
-"$sdk_root/emulator/emulator" -avd "$avd_name" -port 5580 -no-window -no-audio -no-snapshot -no-boot-anim -gpu swiftshader -memory 2048 -cores 2 > "$out/emulator.log" 2>&1 &
+# The stock Pixel profile requests a 12 GiB data partition, exceeding runner disk
+# after the managed-device suite. Bound only this newly created test AVD to 2 GiB.
+"$sdk_root/emulator/emulator" -avd "$avd_name" -port 5580 -no-window -no-audio -no-snapshot -no-boot-anim -gpu swiftshader -memory 2048 -cores 2 -partition-size 2048 > "$out/emulator.log" 2>&1 &
+emulator_pid=$!
 trap '"$adb" -s "$serial" emu kill >/dev/null 2>&1 || true' EXIT
 
 wait_boot() {
   for attempt in {1..120}; do
+    if ! kill -0 "$emulator_pid" 2>/dev/null; then
+      tail -60 "$out/emulator.log" >&2
+      echo 'Owned emulator exited before boot completed' >&2
+      exit 1
+    fi
     if [[ "$("$adb" -s "$serial" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ]]; then
       "$adb" -s "$serial" shell input keyevent 82
       return

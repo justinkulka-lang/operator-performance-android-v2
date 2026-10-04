@@ -1,6 +1,7 @@
 package com.jk.operatorperformance.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.ui.platform.LocalConfiguration
 
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -141,6 +142,11 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
         }
 
         val destination = Destination.valueOf(destinationName)
+        val navigationConfiguration = LocalConfiguration.current
+        val compactNavigation = navigationConfiguration.screenWidthDp < 280 ||
+            (navigationConfiguration.fontScale >= 1.5f && navigationConfiguration.screenWidthDp < 360)
+        val shortProgramLabel = navigationConfiguration.fontScale >= 1.5f &&
+            navigationConfiguration.screenWidthDp < 480
         // Key is a Tools subpage, not a separate activity or persisted destination.
         BackHandler(enabled = destination == Destination.TOOLS && showKey) {
             showKey = false
@@ -176,12 +182,17 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
                                 unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                 indicatorColor = MaterialTheme.colorScheme.surfaceVariant,
                             ),
-                            label = { Text(item.label) },
-                            alwaysShowLabel = true,
+                            label = if (compactNavigation) null else {
+                                { Text(if (item == Destination.PROGRAM && shortProgramLabel) "PLAN" else item.label, maxLines = 1) }
+                            },
+                            alwaysShowLabel = !compactNavigation,
                             modifier = Modifier
                                 .heightIn(min = 48.dp)
                                 .testTag("nav_${item.name}")
-                                .semantics { stateDescription = if (destination == item) "Selected" else "Not selected" },
+                                .semantics {
+                                    contentDescription = item.label
+                                    stateDescription = if (destination == item) "Selected" else "Not selected"
+                                },
                         )
                     }
                 }
