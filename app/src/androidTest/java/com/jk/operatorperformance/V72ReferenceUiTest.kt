@@ -27,6 +27,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.jk.operatorperformance.program.ProgramAuthority
 import com.jk.operatorperformance.program.SessionResolver
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -185,8 +186,13 @@ class V72ReferenceUiTest {
         rule.onNodeWithTag("nav_TOOLS").performClick()
         revealOnScreen("tools_screen", "rest_choice_60")
         rule.onNodeWithTag("rest_choice_60").performClick()
+        val timerPrefs = ApplicationProvider.getApplicationContext<Context>()
+            .getSharedPreferences("ares_v71_reference_state", Context.MODE_PRIVATE)
+        assertEquals("Selected rest duration was not persisted", 60, timerPrefs.getInt("manualRestTimerSeconds", 0))
         revealOnScreen("tools_screen", "rest_timer_start")
         rule.onNodeWithTag("rest_timer_start").performClick()
+        assertTrue("Timer start was not persisted: ${timerPrefs.all}",
+            timerPrefs.getLong("utilityRestTimerEndEpochMillis", 0L) > System.currentTimeMillis())
         assertOverlaps("tools_screen", "utility_rest_countdown")
         lifecycle.recreate("tools_screen")
         rule.onNodeWithTag("nav_TODAY").performClick()
@@ -245,26 +251,11 @@ class V72ReferenceUiTest {
     }
 
     private fun revealOnScreen(screenTag: String, targetTag: String) {
-        repeat(2) { pass ->
-            repeat(8) {
-                if (rule.onAllNodesWithTag(targetTag).fetchSemanticsNodes().isNotEmpty()) {
-                    try {
-                        rule.onNodeWithTag(targetTag).performScrollTo()
-                    } catch (_: AssertionError) {
-                        // A lazy item can leave the tree while the scroll settles.
-                    }
-                    val screen = rule.onAllNodesWithTag(screenTag).fetchSemanticsNodes().firstOrNull()
-                    val visible = screen != null && rule.onAllNodesWithTag(targetTag).fetchSemanticsNodes().any {
-                        it.boundsInRoot.height > 8f && it.boundsInRoot.overlaps(screen.boundsInRoot)
-                    }
-                    if (visible) return
-                }
-                rule.onNodeWithTag(screenTag).performTouchInput {
-                    if (pass == 0) swipeUp(startY = bottom * 0.8f, endY = bottom * 0.2f)
-                    else swipeDown(startY = bottom * 0.2f, endY = bottom * 0.8f)
-                }
-                rule.waitForIdle()
-            }
+        if (screenTag == "day_reference_scroll") {
+            rule.onNodeWithTag(targetTag).performScrollTo().assertIsDisplayed()
+        } else {
+            rule.onNodeWithTag(screenTag).performScrollToNode(hasTestTag(targetTag))
+            rule.onNodeWithTag(targetTag).assertIsDisplayed()
         }
     }
 
