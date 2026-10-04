@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
-      GITHUB_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      SOURCE_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -40,11 +40,11 @@ jobs:
         run: |
           set -euo pipefail
           sdkmanager --install 'platforms;android-36' 'build-tools;36.0.0'
-          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
           printf '%s  %s\n' '25a7ce497569913c4a56c057bcaa139290adddf20876a2d736790d5fefd436f3' 'docs/ARES_Performance_Unified_Master_Authority_v7.2_APPROVED.docx' | sha256sum -c -
           git diff --exit-code 9cfbd896e7d7103e9833d0563a463a5eac91983c -- app/src/main/java/com/jk/operatorperformance/program app/src/main/java/com/jk/operatorperformance/state
       - name: Unit suite, exact program parity, lint, and debug APKs
-        run: gradle :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
+        run: GITHUB_SHA="$SOURCE_COMMIT" gradle :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
       - name: Release signing fails closed without owner credentials
         shell: bash
         run: |
@@ -64,13 +64,13 @@ jobs:
         run: |
           set -euo pipefail
           if [[ -e /dev/kvm ]]; then sudo chmod 666 /dev/kvm; fi
-          gradle :app:pixel2api35DebugAndroidTest --stacktrace
+          GITHUB_SHA="$SOURCE_COMMIT" gradle :app:pixel2api35DebugAndroidTest --stacktrace
       - name: Repeat Key lifecycle suite five times without retries
         shell: bash
         run: |
           set -euo pipefail
           for pass in 1 2 3 4 5; do
-            gradle :app:pixel2api35DebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.jk.operatorperformance.V72KeyUiTest --rerun-tasks --stacktrace
+            GITHUB_SHA="$SOURCE_COMMIT" gradle :app:pixel2api35DebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.jk.operatorperformance.V72KeyUiTest --rerun-tasks --stacktrace
             mkdir -p "app/build/reports/key-stability/$pass"
             cp -a app/build/outputs/androidTest-results/managedDevice/. "app/build/reports/key-stability/$pass/"
           done
@@ -78,11 +78,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          bash .github/scripts/package-debug-candidate.sh "$GITHUB_SHA"
+          bash .github/scripts/package-debug-candidate.sh "$SOURCE_COMMIT"
       - name: Downloadable debug APK and ZIP
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: legend-debug-${{ env.GITHUB_SHA }}
+          name: legend-debug-${{ env.SOURCE_COMMIT }}
           path: app/build/distribution/
           if-no-files-found: error
           retention-days: 90
@@ -90,7 +90,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: legend-evidence-${{ env.GITHUB_SHA }}
+          name: legend-evidence-${{ env.SOURCE_COMMIT }}
           path: |
             app/build/reports/
             app/build/test-results/
