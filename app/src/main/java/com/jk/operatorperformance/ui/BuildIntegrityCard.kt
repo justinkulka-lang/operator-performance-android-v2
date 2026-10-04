@@ -12,10 +12,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.jk.operatorperformance.BuildConfig
+import com.jk.operatorperformance.program.ProgramAuthority
+import com.jk.operatorperformance.program.ProgramV73
 import com.jk.operatorperformance.program.ProgramV72
 
 @Composable
-internal fun BuildIntegrityCard() {
+internal fun BuildIntegrityCard(authority: ProgramAuthority = ProgramAuthority.V73) {
     Card(Modifier.fillMaxWidth().testTag("build_integrity_card")) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("BUILD / AUTHORITY INTEGRITY", style = MaterialTheme.typography.titleSmall)
@@ -33,15 +35,16 @@ internal fun BuildIntegrityCard() {
                 style = technicalStyle(MaterialTheme.typography.bodyMedium),
             )
             Text(
-                "AUTHORITY • v${ProgramV72.AUTHORITY_VERSION}",
+                "AUTHORITY • v${authority.versionLabel}",
                 style = technicalStyle(MaterialTheme.typography.bodyMedium),
             )
             Text(
-                "EXPECTED DOCX SHA-256 • ${ProgramV72.EXPECTED_DOCX_SHA256}",
+                "BASE v7.2 DOCX SHA-256 • ${ProgramV72.EXPECTED_DOCX_SHA256}",
                 style = technicalStyle(MaterialTheme.typography.bodySmall),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.testTag("authority_sha"),
             )
+            Text("v7.3 AUTHORITY SHA-256 • ${ProgramV73.AUTHORITY_SHA256}", style = MaterialTheme.typography.bodySmall)
             Text(
                 if (ProgramV72.DOCX_SHA256_VERIFIED) "DOCX digest recomputed from the approved file."
                 else "DOCX file was not in this workspace, so this digest was not recomputed.",

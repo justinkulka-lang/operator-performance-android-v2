@@ -17,6 +17,7 @@ object WorkoutProgress {
     fun start(state: ProgramUiState): ActiveWorkoutState = ActiveWorkoutState(
         week = state.currentWeek,
         day = state.currentDay,
+        authority = state.authorityForWeek(state.currentWeek),
     )
 
     fun status(workout: ActiveWorkoutState?, showingWorkout: Boolean): SessionStatus = when {
@@ -27,11 +28,13 @@ object WorkoutProgress {
     }
 
     fun normalize(progress: ActiveWorkoutState, session: SessionReference): ActiveWorkoutState {
+        require(progress.authority == null || progress.authority == session.authority) { "Saved session authority does not match reference." }
         require(session.rows.isNotEmpty()) { "Workout session must contain at least one row." }
         val validSubstitutions = progress.selectedSubstitutions.filter { (rowId, choice) ->
             session.rows.any { row -> row.id == rowId && choice in row.alternatives }
         }
         return progress.copy(
+            authority = progress.authority ?: session.authority,
             movementIndex = 0,
             effortIndex = 1,
             selectedSubstitutions = validSubstitutions,

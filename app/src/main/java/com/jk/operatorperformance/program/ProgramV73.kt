@@ -3,6 +3,7 @@ package com.jk.operatorperformance.program
 /** Approved LEGEND v7.3 allocation. v7.2 remains immutable for historical sessions. */
 object ProgramV73 {
     const val AUTHORITY_VERSION = "7.3"
+    const val AUTHORITY_SHA256 = "0f01fcc8a91109f81c3df7760b705a0d8de1848cdfce758c944d026e6e30894f"
     const val PROGRAM_NAME = "LEGEND"
     const val TOTAL_WEEKS = 32
     const val DAYS_PER_WEEK = 7

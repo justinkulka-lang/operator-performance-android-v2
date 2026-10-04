@@ -4,4 +4,4 @@ On 4 October 2026, after receiving the 136/146 authority and allocation packet, 
 
 LEGEND is the operative product name. Historical ARES source filenames and the approved v7.2 DOCX are preserved for provenance. Approval does not authorize merge, tag, release, signing changes or physical-device acceptance claims.
 
-The first implementation commit adds the versioned prescription and explicit reference resolver. Automatic activation and installed-state migration are not yet enabled. v7.2 remains the runtime default until migration and UI integration pass their required checks.
+Implementation now includes versioned activation, historical week authority retention, saved-session authority binding and active guidance routing. Fresh starts and explicit resets use v7.3. Exact-head verification and artifact/device evidence remain separate acceptance gates.

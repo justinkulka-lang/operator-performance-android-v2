@@ -85,7 +85,7 @@ cmp "$out/before-upgrade.xml" "$out/after-install.xml"
 "$adb" -s "$serial" shell am force-stop com.jk.operatorperformance
 "$adb" -s "$serial" shell am start -W -n com.jk.operatorperformance/.MainActivity > "$out/relaunch.txt"
 snapshot after-launch
-cmp "$out/before-upgrade.xml" "$out/after-launch.xml"
+python3 .github/scripts/verify-v73-upgrade-state.py "$out/before-upgrade.xml" "$out/after-launch.xml"
 instrument verify timerAndPointerSurviveProcessDeath force-stop-verification
 snapshot before-reboot
 "$adb" -s "$serial" reboot

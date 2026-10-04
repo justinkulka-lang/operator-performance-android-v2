@@ -95,7 +95,7 @@ class SessionFocusTest {
 
     /** Expected marks from the published day order, including the Week 32 title exceptions. */
     private fun calendarSymbol(authority: ProgramAuthority, week: Int, day: Int): MapSymbol = when (authority) {
-        ProgramAuthority.V72 -> when (day) {
+        ProgramAuthority.V72, ProgramAuthority.V73 -> when (day) {
             7 -> MapSymbol.REST
             1 -> MapSymbol.ENGINE
             2, 6 -> if (week == 32) MapSymbol.ENGINE else MapSymbol.LOWER

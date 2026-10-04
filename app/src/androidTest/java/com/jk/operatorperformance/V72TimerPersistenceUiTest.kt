@@ -64,7 +64,7 @@ class V72TimerPersistenceUiTest {
         assertTrue(prefs.getLong("utilityRestTimerEndEpochMillis", 0L) > System.currentTimeMillis())
         assertEquals(60, prefs.getInt("manualRestTimerSeconds", 0))
         assertEquals(1, prefs.getInt("engagedAbsoluteDay", 0))
-        assertEquals("V72", prefs.getString("authorityVersion", ""))
+        assertTrue(prefs.getString("authorityVersion", "") in setOf("V72", "V73"))
     }
 
     @Test fun timerAndPointerSurviveProcessDeath() {
@@ -73,7 +73,7 @@ class V72TimerPersistenceUiTest {
         assertTrue(prefs.getBoolean("v71Initialized", false))
         assertEquals(1, prefs.getInt("currentWeek", 0))
         assertEquals(1, prefs.getInt("currentDay", 0))
-        assertEquals("V72", prefs.getString("authorityVersion", ""))
+        assertTrue(prefs.getString("authorityVersion", "") in setOf("V72", "V73"))
         assertEquals(1, prefs.getInt("engagedAbsoluteDay", 0))
         assertTrue(prefs.getLong("workoutTimerEnd", 0L) > 0L)
         assertTrue(prefs.getLong("utilityRestTimerEndEpochMillis", 0L) > 0L)

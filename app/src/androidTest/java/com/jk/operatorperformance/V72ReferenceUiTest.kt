@@ -62,7 +62,7 @@ class V72ReferenceUiTest {
 
     @Test fun destinationsLongestSessionRestAndWeek32() {
         rule.onNodeWithTag("start_v72").performScrollTo().performClick()
-        rule.onNodeWithTag("today_header").assertTextContains("v7.2", substring = true)
+        rule.onNodeWithTag("today_header").assertTextContains("v7.3", substring = true)
         rule.onNodeWithTag("start_resume_workout").assertIsDisplayed()
         assertPrimaryAction("start_resume_workout")
         rule.onNodeWithTag("today_screen").performTouchInput {
@@ -278,7 +278,7 @@ class V72ReferenceUiTest {
     }
 
     private fun longestSession() = (1..32).flatMap { week ->
-        (1..7).map { day -> SessionResolver.resolve(week, day, ProgramAuthority.V72) }
+        (1..7).map { day -> SessionResolver.resolve(week, day, ProgramAuthority.V73) }
     }.maxBy { session ->
         session.rows.sumOf { row ->
             row.title.length + row.prescription.length + (row.note?.length ?: 0) + row.alternatives.sumOf { it.length }

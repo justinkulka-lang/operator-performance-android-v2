@@ -59,6 +59,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.jk.operatorperformance.R
+import com.jk.operatorperformance.program.ProgramV73
 import com.jk.operatorperformance.program.ProgramV72
 import com.jk.operatorperformance.program.ProgramAuthority
 import com.jk.operatorperformance.program.SessionReference
@@ -115,10 +116,10 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
                     Spacer(Modifier.height(12.dp))
                     Text("The approved program uses 32 seven-day weeks with six training days and one rest day each week.")
                     Spacer(Modifier.height(12.dp))
-                    Text("Starting begins at Week 1, Day 1. Existing v7.0 progress is migrated when available. An in-progress v7.1 week finishes under v7.1, and v7.2 starts at the next unstarted Day 1.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Starting begins at Week 1, Day 1. Existing progress is preserved. Engaged historical weeks keep their authority; LEGEND v7.3 starts at the next positively unstarted Day 1.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(24.dp))
                     Button(
-                        onClick = { clearWorkout(); stateStore.clearSessionStatus(); persist(state.startV72()); selectedProgramWeek = 1 },
+                        onClick = { clearWorkout(); stateStore.clearSessionStatus(); persist(state.startV73()); selectedProgramWeek = 1 },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("start_v72"),
                     ) { Text("START WEEK 1 • DAY 1", fontWeight = FontWeight.Bold) }
                 }
@@ -132,7 +133,7 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
             } else {
                 WorkoutModeScreen(
                     progress = progress,
-                    authority = state.authorityForWeek(progress.week),
+                    authority = progress.authority ?: state.authorityForWeek(progress.week),
                     onProgress = ::persistWorkout,
                     onReturnToToday = { workoutMode = false },
                     onMarkComplete = {
@@ -259,7 +260,7 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
             AlertDialog(
                 onDismissRequest = { pendingPointer = null },
                 title = { Text("Change current program day?") },
-                text = { Text("Set the current pointer to Week $week, Day $day? This changes navigation state only.") },
+                text = { Text("Set the current pointer to Week $week, Day $day? This clears the current session status, substitutions and workout timer. It preserves the utility timer, recorded engagement and each week’s authority; it does not mark any new movement complete.") },
                 confirmButton = {
                     TextButton(
                         onClick = {
@@ -364,8 +365,8 @@ private fun TodayScreen(
                 modifier = Modifier.testTag("today_header"),
             )
             Text(session.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            if (state.retainedV71Week == session.week) {
-                Text("FINISHING THIS WEEK UNDER v7.1", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+            if (session.authority != ProgramAuthority.V73 && state.v73MigrationApplied) {
+                Text("RETAINED WEEK • v${session.authority.versionLabel}", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
             }
             if (!isRest) Text(
                 when (sessionStatus) {
@@ -728,9 +729,9 @@ private fun ProgramScreen(
     val selectedPhase = blockFor(state, selectedWeek)
     val selectedSplit = splitForWeek(selectedWeek, state)
     val nextWeek = (state.currentWeek + 1).takeIf { it <= 32 }
-    val nextPhase = ProgramV72.blocks.firstOrNull { it.startWeek > currentPhase.endWeek }
+    val nextPhase = (if (state.authorityForWeek(state.currentWeek) == ProgramAuthority.V73) ProgramV73.blocks else ProgramV72.blocks).firstOrNull { it.startWeek > currentPhase.endWeek }
     var searchQuery by rememberSaveable { mutableStateOf("") }
-    val searchHits = remember(searchQuery, state.retainedV71Week, state.authority) { searchProgram(searchQuery, state) }
+    val searchHits = remember(searchQuery, state.retainedV71Week, state.authority, state.v73ActivationWeek, state.historicalAuthorities) { searchProgram(searchQuery, state) }
     val jumpWeeks = remember(state.currentWeek) { listOf(state.currentWeek, 1, 9, 17, 25, 32).distinct() }
 
     LazyColumn(
@@ -829,7 +830,7 @@ private fun ProgramScreen(
         }
         item {
             Text("PHASES", fontWeight = FontWeight.Bold)
-            ProgramV72.blocks.forEach { phase ->
+            (if (state.authorityForWeek(state.currentWeek) == ProgramAuthority.V73) ProgramV73.blocks else ProgramV72.blocks).forEach { phase ->
                 PhaseSummaryCard(phase, isCurrent = phase.startWeek == currentPhase.startWeek)
             }
         }
@@ -896,7 +897,7 @@ private fun ToolsScreen(state: ProgramUiState, onStateChanged: (ProgramUiState) 
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item { BrandHeader(); Text("TOOLS", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }
-        item { BuildIntegrityCard() }
+        item { BuildIntegrityCard(state.authorityForWeek(state.currentWeek)) }
         item {
             Column(Modifier.fillMaxWidth().testTag("rest_timer_tool"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("INDEPENDENT REST TIMER", fontWeight = FontWeight.Bold)
@@ -951,7 +952,7 @@ private fun ToolsScreen(state: ProgramUiState, onStateChanged: (ProgramUiState) 
                 modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("open_key"),
             ) { Text("OPEN KEY") }
         }
-        item { AdditionalToolsCards() }
+        item { AdditionalToolsCards(state.authorityForWeek(state.currentWeek)) }
     }
 }
 
@@ -1008,7 +1009,7 @@ private fun BrandHeader() {
     LegendBrandHeader()
 }
 
-private fun newWorkout(state: ProgramUiState) = ActiveWorkoutState(week = state.currentWeek, day = state.currentDay)
+private fun newWorkout(state: ProgramUiState) = WorkoutProgress.start(state)
 
 private fun resolveSession(week: Int, day: Int, state: ProgramUiState): SessionReference =
     SessionResolver.resolve(week, day, state.authorityForWeek(week))
@@ -1018,6 +1019,7 @@ private fun splitForWeek(week: Int, state: ProgramUiState): List<SessionReferenc
 
 private fun blockFor(state: ProgramUiState, week: Int) =
     if (state.authorityForWeek(week) == ProgramAuthority.V71) com.jk.operatorperformance.program.ProgramV71.blockForWeek(week)
+    else if (state.authorityForWeek(week) == ProgramAuthority.V73) ProgramV73.blockForWeek(week)
     else ProgramV72.blockForWeek(week)
 
 private fun formatRest(seconds: Int): String = "%d:%02d".format(seconds / 60, seconds % 60)

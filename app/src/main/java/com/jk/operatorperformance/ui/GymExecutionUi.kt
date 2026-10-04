@@ -23,7 +23,7 @@ import com.jk.operatorperformance.program.SessionReference
 import com.jk.operatorperformance.state.ProgramUiState
 
 internal fun sessionExecutionGuidance(session: SessionReference): List<String> = buildList {
-    if (session.authority == ProgramAuthority.V72 && session.day != 7) {
+    if (session.authority != ProgramAuthority.V71 && session.day != 7) {
         addAll(ProgramNotesV72.safety)
         if (session.rows.any { it.kind == SessionRowKind.RESISTANCE }) {
             addAll(ProgramNotesV72.resistanceExecution)
@@ -39,20 +39,20 @@ internal fun sessionExecutionGuidance(session: SessionReference): List<String> =
         }
         if (session.day == 5 && session.week != 32) add(ProgramNotesV72.easyAerobic)
     }
-    val speedDay = if (session.authority == ProgramAuthority.V72) 4 else 3
-    val engineDay = if (session.authority == ProgramAuthority.V72) 1 else 6
+    val speedDay = if (session.authority != ProgramAuthority.V71) 4 else 3
+    val engineDay = if (session.authority != ProgramAuthority.V71) 1 else 6
     if (session.day == speedDay) {
         add("Perform speed fresh on a safe surface. Quality and mechanics govern the session.")
-        val timed = if (session.authority == ProgramAuthority.V72) ProgramV72.isTimed300(session.week) else ProgramV71.isTimed300(session.week)
-        if (timed) add(if (session.authority == ProgramAuthority.V72) ProgramV72.testGate else ProgramV71.testGate)
+        val timed = if (session.authority != ProgramAuthority.V71) ProgramV72.isTimed300(session.week) else ProgramV71.isTimed300(session.week)
+        if (timed) add(if (session.authority != ProgramAuthority.V71) ProgramV72.testGate else ProgramV71.testGate)
     }
     if (session.day == engineDay) {
-        add("Complete the prescribed engine work before any short upper. Do not add result entry or extra intervals.")
+        add(if (session.authority == ProgramAuthority.V73) "Engine is the only Day 1 work. Complete the cooldown; no lifting or extra intervals." else "Complete the prescribed engine work before any short upper. Do not add result entry or extra intervals.")
     }
 }
 
 internal fun foundationReferenceLabel(session: SessionReference, state: ProgramUiState): String? {
-    val consolidation = if (session.authority == ProgramAuthority.V72) ProgramV72.isConsolidation(session.week) else ProgramV71.isConsolidation(session.week)
+    val consolidation = if (session.authority != ProgramAuthority.V71) ProgramV72.isConsolidation(session.week) else ProgramV71.isConsolidation(session.week)
     return when {
         consolidation -> "PLANNED CONSOLIDATION • FIXED PRESCRIPTION"
         session.week in setOf(30, 31) -> "PLANNED REALIZATION • FIXED PRESCRIPTION"

@@ -155,13 +155,13 @@ class ProgramStateStorePersistenceTest {
             utilityRestTimerEndEpochMillis = end,
         )
         store.save(state)
-        val reloaded = ProgramStateStore(prefs, MemoryPrefs()).load()
+        val reloaded = ProgramStateStore(prefs, MemoryPrefs(), ProgramAuthority.V72).load()
         assertEquals(90, reloaded.restTimerSeconds)
         assertEquals(end, reloaded.utilityRestTimerEndEpochMillis)
 
         val session = WorkoutProgress.startManualRest(WorkoutProgress.start(state), 120, end)
         store.saveWorkout(session.copy(selectedSubstitutions = mapOf("d2_squat" to "Smith squat")))
-        val workout = ProgramStateStore(prefs, MemoryPrefs()).loadWorkout()
+        val workout = ProgramStateStore(prefs, MemoryPrefs(), ProgramAuthority.V72).loadWorkout()
         assertEquals(end + 120_000L, workout?.restTimerEndEpochMillis)
         assertEquals("Smith squat", workout?.selectedSubstitutions?.get("d2_squat"))
 
@@ -221,7 +221,7 @@ class ProgramStateStorePersistenceTest {
 
     private fun store(): Pair<MemoryPrefs, ProgramStateStore> {
         val prefs = MemoryPrefs()
-        return prefs to ProgramStateStore(prefs, MemoryPrefs())
+        return prefs to ProgramStateStore(prefs, MemoryPrefs(), ProgramAuthority.V72)
     }
 }
 
