@@ -60,24 +60,44 @@ private fun isSupportRow(row: SessionRow): Boolean =
     row.effortLabel == "WARM-UP" || row.effortLabel == "COOLDOWN" || row.effortLabel == "CHECK"
 
 private fun leadLabel(session: SessionReference, work: List<SessionRow>): String {
+    val firstResistance = work.indexOfFirst { it.kind == SessionRowKind.RESISTANCE }
+    val firstEngine = work.indexOfFirst { isEngineWork(it) }
+    val firstSpeed = work.indexOfFirst { isSpeedWork(it) }
+    val firstRecovery = work.indexOfFirst { isRecoveryWork(it) }
+    if (firstEngine >= 0 && before(firstEngine, firstResistance) && before(firstEngine, firstSpeed)) return "Engine"
+    if (firstSpeed >= 0 && before(firstSpeed, firstResistance)) return "Speed"
+    if (firstRecovery >= 0 && firstResistance < 0 && firstEngine < 0 && firstSpeed < 0) return "Recovery"
+    if (session.title.startsWith("Upper", ignoreCase = true)) return "Upper"
     val owners = work.mapNotNull { ownerMuscle(session, it) }
     if (owners.isNotEmpty()) {
         val counts = owners.groupingBy { it }.eachCount()
         val best = counts.maxOf { it.value }
         return owners.first { counts.getValue(it) == best }.label
     }
-    val title = session.title
-    return when {
-        title.contains("Speed", ignoreCase = true) -> "Speed"
-        title.contains("Upper", ignoreCase = true) -> "Upper"
-        title.contains("Lower", ignoreCase = true) -> "Lower"
-        title.contains("bike", ignoreCase = true) || title.contains("recovery", ignoreCase = true) -> "Recovery"
-        else -> "Engine"
-    }
+    return "Session"
 }
 
+private fun before(index: Int, other: Int): Boolean = other < 0 || index < other
+
+private fun isSpeedWork(row: SessionRow): Boolean {
+    if (row.kind != SessionRowKind.CONDITIONING || isSupportRow(row)) return false
+    val title = row.title
+    return title.contains("300", ignoreCase = true) || title.contains("fly", ignoreCase = true) ||
+        title.contains("Acceleration", ignoreCase = true) || title.contains("endurance", ignoreCase = true) ||
+        title.contains("Speed", ignoreCase = true)
+}
+
+private fun isRecoveryWork(row: SessionRow): Boolean {
+    if (row.kind != SessionRowKind.CONDITIONING || isSupportRow(row)) return false
+    return row.effortLabel == "RECOVERY" || row.title.contains("bike", ignoreCase = true) ||
+        row.title.contains("mobility", ignoreCase = true)
+}
+
+private fun isEngineWork(row: SessionRow): Boolean =
+    row.kind == SessionRowKind.CONDITIONING && !isSupportRow(row) && !isSpeedWork(row) && !isRecoveryWork(row)
+
 private fun ownerMuscle(session: SessionReference, row: SessionRow): Muscle? {
-    val phase = ProgramV72.phaseForWeek(session.week)
     val slots = if (session.authority == ProgramAuthority.V72) ProgramV72.resistanceSlots else ProgramV71.resistanceSlots
+    val phase = if (session.authority == ProgramAuthority.V72) ProgramV72.phaseForWeek(session.week) else ProgramV71.phaseForWeek(session.week)
     return slots.firstOrNull { it.phase == phase && it.id == row.id }?.ownerMuscle
 }

@@ -43,9 +43,9 @@ internal fun KeyScreen(onBack: () -> Unit) {
         item { KeyHeading("DAYS") }
         item { KeyIconRow(R.drawable.ic_day_engine, "Engine", "Contour rings. Aerobic and engine work.") }
         item { KeyIconRow(R.drawable.ic_day_lower, "Lower", "Solid survey point. Lower-body work.") }
-        item { KeyIconRow(R.drawable.ic_day_upper_a, "Upper A", "Open station. Upper-body press work.") }
+        item { KeyIconRow(R.drawable.ic_day_upper_a, "Upper A", "Open station. Names the Upper A day, which mixes pressing and pulling.") }
         item { KeyIconRow(R.drawable.ic_day_speed, "Speed", "Route line with ticks. Speed work.") }
-        item { KeyIconRow(R.drawable.ic_day_upper_b, "Upper B", "Station with a traverse. Upper-body pull work.") }
+        item { KeyIconRow(R.drawable.ic_day_upper_b, "Upper B", "Station with a traverse. Names the Upper B day, which mixes pressing and pulling. Easy aerobic follows when that week prescribes it.") }
         item { KeyIconRow(R.drawable.ic_day_rest, "Rest", "Open circle. Rest.") }
         item { KeyHeading("PHASES") }
         item { KeyIconRow(R.drawable.ic_phase_draft, "Draft", "One stake. Phase 1.") }
@@ -67,8 +67,9 @@ internal fun KeyScreen(onBack: () -> Unit) {
         item {
             Text(
                 "Red marks stop, pain, warning, and error. It is not a decoration.",
-                color = MaterialTheme.colorScheme.error,
+                color = MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.testTag("key_state_red"),
             )
         }
         item {

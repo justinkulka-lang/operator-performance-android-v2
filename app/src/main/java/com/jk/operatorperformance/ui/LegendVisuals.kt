@@ -57,7 +57,7 @@ internal fun LegendBrandHeader() {
         Icon(
             painter = painterResource(R.drawable.ic_legend_mark),
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
+            tint = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.size(36.dp),
         )
         Spacer(Modifier.width(10.dp))
@@ -65,7 +65,7 @@ internal fun LegendBrandHeader() {
             Text(
                 ProgramV72.PROGRAM_NAME,
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary,
+                color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
                 ProgramV72.PROGRAM_TAGLINE,
@@ -74,7 +74,7 @@ internal fun LegendBrandHeader() {
             )
         }
     }
-    HorizontalDivider(Modifier.padding(top = 8.dp), color = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f))
+    HorizontalDivider(Modifier.padding(top = 8.dp), color = MaterialTheme.colorScheme.outline)
     Spacer(Modifier.height(4.dp))
 }
 
