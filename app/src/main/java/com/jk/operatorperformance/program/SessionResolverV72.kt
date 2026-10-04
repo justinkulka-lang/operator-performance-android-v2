@@ -64,7 +64,7 @@ internal object V72SessionBuilder {
         if (ProgramV72.includesPlyometrics(week)) {
             add(SessionRow("w${week}_plyometrics", "Low-dose plyometrics", ProgramV72.plyometrics, SessionRowKind.CONDITIONING, note = "After the running warm-up and before the sprint repetitions.", effortCount = 6, effortLabel = "SET"))
         }
-        add(speedWork(week, plan.speed.single()))
+        addAll(speedReferenceGroups(week, plan.speed.single()).map { speedWork(week, it) })
         add(cooldownRow("w${week}_d4_cooldown"))
     }
 
@@ -116,6 +116,27 @@ internal object V72SessionBuilder {
             note = "$guidance ${ProgramV72.stopRule}",
             effortCount = segment.effortCount,
             effortLabel = segment.effortLabel,
+        )
+    }
+
+    private fun speedReferenceGroups(week: Int, segment: ConditioningSegment): List<ConditioningSegment> {
+        if (week !in setOf(13, 20, 28, 30)) return listOf(segment)
+        val groups = Regex("^(\\d+) × (\\d+) m acceleration \\+ (\\d+) × (\\d+) m fly(;.*)$")
+            .matchEntire(segment.prescription) ?: error("Invalid mixed Speed prescription for week $week")
+        val accelerationCount = groups.groupValues[1].toInt()
+        val accelerationDistance = groups.groupValues[2].toInt()
+        val flyCount = groups.groupValues[3].toInt()
+        val flyDistance = groups.groupValues[4].toInt()
+        val recovery = groups.groupValues[5]
+        require(accelerationCount + flyCount == segment.effortCount)
+        require(accelerationCount * accelerationDistance + flyCount * flyDistance == segment.qualifyingSprintMeters)
+        return listOf(
+            segment.copy(id = "${segment.id}_acceleration", title = "Acceleration",
+                prescription = "$accelerationCount × $accelerationDistance m acceleration$recovery",
+                effortCount = accelerationCount, qualifyingSprintMeters = accelerationCount * accelerationDistance),
+            segment.copy(id = "${segment.id}_fly", title = "Fly",
+                prescription = "$flyCount × $flyDistance m fly$recovery",
+                effortCount = flyCount, qualifyingSprintMeters = flyCount * flyDistance),
         )
     }
 

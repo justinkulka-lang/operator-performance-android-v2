@@ -43,7 +43,9 @@ jobs:
           sdkmanager --install 'platforms;android-36' 'build-tools;36.0.0'
           test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
           printf '%s  %s\n' '25a7ce497569913c4a56c057bcaa139290adddf20876a2d736790d5fefd436f3' 'docs/ARES_Performance_Unified_Master_Authority_v7.2_APPROVED.docx' | sha256sum -c -
-          git diff --exit-code 9cfbd896e7d7103e9833d0563a463a5eac91983c -- app/src/main/java/com/jk/operatorperformance/program app/src/main/java/com/jk/operatorperformance/state ':(exclude)app/src/main/java/com/jk/operatorperformance/program/ProgramNotesV72.kt'
+          git diff --exit-code 9cfbd896e7d7103e9833d0563a463a5eac91983c -- app/src/main/java/com/jk/operatorperformance/program app/src/main/java/com/jk/operatorperformance/state ':(exclude)app/src/main/java/com/jk/operatorperformance/program/ProgramNotesV72.kt' ':(exclude)app/src/main/java/com/jk/operatorperformance/program/ProgramV72.kt' ':(exclude)app/src/main/java/com/jk/operatorperformance/program/SessionResolverV72.kt'
+          printf '%s  %s\n' 'fbf181887806d14f6c02d9fb297e10a100952aee19853f3c2a1b822b0ed55edc' 'app/src/main/java/com/jk/operatorperformance/program/ProgramV72.kt' | sha256sum -c -
+          printf '%s  %s\n' '7e1ec7d27b9e4ec9cde468b0fef93e3f6f636d3e4cf6ec738b466bd2fd2d2a59' 'app/src/main/java/com/jk/operatorperformance/program/SessionResolverV72.kt' | sha256sum -c -
       - name: Unit suite, exact program parity, lint, and debug APKs
         run: GITHUB_SHA="$SOURCE_COMMIT" gradle :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
       - name: Release signing fails closed without owner credentials

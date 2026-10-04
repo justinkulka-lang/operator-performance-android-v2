@@ -403,7 +403,8 @@ object ProgramV72 {
         easyRx: String,
     ): WeekConditioning {
         val engineEfforts = Regex("^(\\d+) ×").find(engineRx)?.groupValues?.get(1)?.toInt() ?: 1
-        val speedEfforts = Regex("^(\\d+) ×").find(speedRx)?.groupValues?.get(1)?.toInt() ?: 1
+        val speedEfforts = Regex("(?:^| \\+ )(\\d+) ×").findAll(speedRx)
+            .sumOf { it.groupValues[1].toInt() }.coerceAtLeast(1)
         return WeekConditioning(
             week,
             d1 = listOf(ConditioningSegment("w${week}_d5_easy", "Easy aerobic", easyRx, note = "RPE 2–3. Full-sentence conversation stays comfortable. Do not turn this into tempo work.")),
