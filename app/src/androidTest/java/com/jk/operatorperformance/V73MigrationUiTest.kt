@@ -10,6 +10,8 @@ import androidx.test.core.app.ApplicationProvider
 import com.jk.operatorperformance.program.ProgramAuthority
 import com.jk.operatorperformance.program.SessionResolver
 import com.jk.operatorperformance.state.ProgramStateStore
+import java.io.File
+import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
@@ -23,6 +25,24 @@ class V73MigrationUiTest {
             .putInt("v72MigrationRevision",2).putBoolean("v72ActivationProven",true)
             .putInt("currentWeek",week).putInt("currentDay",day).putInt("engagedAbsoluteDay",engaged).commit()
         LifecycleTestSupport(rule).recreate("today_header")
+    }
+    @Test fun packagedReferenceHasAll32CorrectWeeksAndRealSourceProvenance() {
+        assertTrue(BuildConfig.SOURCE_COMMIT.matches(Regex("[0-9a-f]{40}")))
+        assertEquals(BuildConfig.SOURCE_COMMIT.take(12),BuildConfig.BUILD_COMMIT)
+        val report=buildString {
+            appendLine("week\tresistance_sets\tengine_resistance_sets")
+            for (week in 1..32) {
+                val split=SessionResolver.splitForWeek(week,ProgramAuthority.V73)
+                val total=split.flatMap { it.rows }.filter { it.kind.name == "RESISTANCE" }.sumOf { it.effortCount }
+                val expected=when(week) { 8,16 -> 59;24 -> 65;30,31 -> 77;32 -> 13;in 17..23 -> 146;else -> 136 }
+                assertEquals("Packaged Week $week",expected,total)
+                val engine=split[0].rows.filter { it.kind.name == "RESISTANCE" }.sumOf { it.effortCount }
+                assertEquals(0,engine)
+                appendLine("$week\t$total\t$engine")
+            }
+        }
+        val path=InstrumentationRegistry.getArguments().getString("additionalTestOutputDir")
+        if(path != null) { val dir=File(path);dir.mkdirs();File(dir,"packaged-v73-reference.tsv").writeText(report) }
     }
     @Test fun engagedHistoricalWeekSurvivesActivityRecreationAndAdvancesAtBoundary() {
         seed(13,7,88)

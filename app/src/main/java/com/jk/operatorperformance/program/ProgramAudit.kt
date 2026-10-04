@@ -39,6 +39,28 @@ object ProgramAudit {
         if(sprintVolumeStatus(500)!=SprintVolumeStatus.ALLOWED||sprintVolumeStatus(501)!=SprintVolumeStatus.WARNING||sprintVolumeStatus(601)!=SprintVolumeStatus.PROHIBITED) add("Sprint cap boundary mismatch.")
     }
 
+    /** Versioned reference audit only; does not change prescriptions or session state. */
+    fun validateV73(): List<String> = buildList {
+        for (week in 1..32) {
+            val split = SessionResolver.splitForWeek(week, ProgramAuthority.V73)
+            val total = split.flatMap { it.rows }.filter { it.kind == SessionRowKind.RESISTANCE }.sumOf { it.effortCount }
+            val expected = when (week) { 8,16 -> 59; 24 -> 65; 30,31 -> 77; 32 -> 13; in 17..23 -> 146; else -> 136 }
+            if (total != expected) add("Week $week resistance total $total != $expected")
+            for (session in split) {
+                val sets = session.rows.filter { it.kind == SessionRowKind.RESISTANCE }.sumOf { it.effortCount }
+                if (sets > ProgramV73.sessionCap(week,session.day)) add("Week $week Day ${session.day} exceeds cap")
+            }
+            if (split[0].rows.any { it.kind == SessionRowKind.RESISTANCE }) add("Week $week Engine must be alone")
+            if (split[3].rows.any { it.id == "v73_w${week}_throws" } != (week in ProgramV73.THROW_WEEKS)) add("Week $week throw scope mismatch")
+            val meters = ProgramV73.conditioningForWeek(week).speed.sumOf { it.qualifyingSprintMeters }
+            if (meters > 600) add("Week $week exceeds sprint cap")
+            if (meters == 600 && split[3].rows.none { it.note.orEmpty().contains("WORKLOAD WARNING") }) add("Week $week missing 600 m warning")
+        }
+        ProgramV73.resistanceSlots.forEach { slot ->
+            if (slot.roleMap.values.count { it == MuscleRole.PRIME } != 1 || slot.roleMap[slot.ownerMuscle] != MuscleRole.PRIME) add("${slot.id}: PRIME ownership mismatch")
+        }
+    }
+
     fun validateV72(): List<String> = buildList {
         if (ProgramV72.AUTHORITY_VERSION != "7.2") add("v7.2 version mismatch.")
         if (ProgramV72.TOTAL_WEEKS * ProgramV72.DAYS_PER_WEEK != ProgramV72.TOTAL_DAYS) add("224-day duration mismatch.")

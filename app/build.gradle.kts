@@ -67,6 +67,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         testInstrumentationRunnerArguments["additionalTestOutputDir"] = "/sdcard/Android/media/com.jk.operatorperformance/legend-evidence"
         buildConfigField("String", "BUILD_COMMIT", "\"$buildCommit\"")
+        buildConfigField("String", "SOURCE_COMMIT", "\"$sourceCommit\"")
     }
 
     val releaseKeystorePath = System.getenv("OPERATOR_RELEASE_KEYSTORE_PATH")

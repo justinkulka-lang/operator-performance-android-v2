@@ -20,6 +20,7 @@ if grep -F 'android.permission.INTERNET' "$out/permissions.txt"; then exit 1; fi
 "$tools/zipalign" -c 4 "$apk" > "$out/zipalign.txt"
 unzip -p "$apk" 'classes*.dex' | strings > "$evidence/dex-strings.txt"
 grep -F "$label" "$evidence/dex-strings.txt"
+grep -F "$source_sha" "$evidence/dex-strings.txt"
 if grep -E '\b(FBI|CIA|SEAL|SWAT|HealthConnect|firebase|google-analytics|rucking)\b' "$evidence/dex-strings.txt" > "$evidence/prohibited-matches.txt"; then
   echo 'Review prohibited built-artifact strings; candidate packaging halted.' >&2
   exit 1

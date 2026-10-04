@@ -37,7 +37,10 @@ internal fun sessionExecutionGuidance(session: SessionReference): List<String> =
             add(ProgramNotesV72.easyRecovery)
             add(ProgramNotesV72.qualityReview)
         }
-        if (session.day == 5 && session.week != 32) add(ProgramNotesV72.easyAerobic)
+        if (session.day == 5 && session.week != 32) {
+            add(ProgramNotesV72.easyAerobic)
+            if (session.authority == ProgramAuthority.V73) add(ProgramV71.easyRunNote)
+        }
     }
     val speedDay = if (session.authority != ProgramAuthority.V71) 4 else 3
     val engineDay = if (session.authority != ProgramAuthority.V71) 1 else 6

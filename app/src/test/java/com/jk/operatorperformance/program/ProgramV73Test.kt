@@ -6,6 +6,7 @@ import org.junit.Test
 
 class ProgramV73Test {
     @Test fun everyWeekHasApprovedTotalsAndCapsWithExplicitRecoveryExceptions() {
+        assertEquals(emptyList<String>(),ProgramAudit.validateV73())
         for (week in 1..32) {
             val split = SessionResolver.splitForWeek(week, ProgramAuthority.V73)
             val total = split.flatMap { it.rows }.filter { it.kind == SessionRowKind.RESISTANCE }.sumOf { it.effortCount }
