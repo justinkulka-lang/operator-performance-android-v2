@@ -82,9 +82,17 @@ class V72TimerPersistenceUiTest {
         assertFalse(prefs.contains("bodyweight"))
         rule.onNodeWithTag("start_resume_workout").assertTextContains("RESUME", substring = true)
         val workoutEnd = prefs.getLong("workoutTimerEnd", 0L)
-        if (workoutEnd > System.currentTimeMillis()) {
-            rule.onNodeWithTag("start_resume_workout").performClick()
+        rule.onNodeWithTag("start_resume_workout").performClick()
+        // Emulator reboot/navigation can consume the final seconds of a real 180s timer.
+        // The host already compares persisted deadlines byte-for-byte across reboot.
+        // Require the running UI when enough time remains, otherwise require normal expiry.
+        if (workoutEnd > System.currentTimeMillis() + 5_000L) {
             rule.onNodeWithTag("workout_rest_countdown").assertIsDisplayed()
+        } else {
+            rule.waitUntil(timeoutMillis = 10_000L) {
+                prefs.getLong("workoutTimerEnd", 0L) == 0L
+            }
+            assertEquals(0L, prefs.getLong("workoutTimerEnd", 0L))
         }
     }
 
