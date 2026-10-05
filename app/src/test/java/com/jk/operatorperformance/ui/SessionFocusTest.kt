@@ -8,6 +8,19 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SessionFocusTest {
+    @Test fun jumpAndThrowPreparationKeepsSpeedLeadAcrossAllAuthorities() {
+        for (authority in ProgramAuthority.entries) for (week in 1..32) {
+            val day = if (authority == ProgramAuthority.V71) 3 else 4
+            val session = SessionResolver.resolve(week, day, authority)
+            assertTrue("$authority W$week", sessionFocusLine(session).startsWith("Speed lead ·"))
+            session.rows.filter { it.id.endsWith("_plyometrics") || it.id.endsWith("_throws") }.forEach {
+                assertEquals(MapSymbol.SPEED, rowSymbol(session,it))
+            }
+        }
+        assertEquals("Speed lead · 12 blocks", sessionFocusLine(SessionResolver.resolve(3,4,ProgramAuthority.V73)))
+        assertTrue(sessionFocusLine(SessionResolver.resolve(13,4,ProgramAuthority.V73)).startsWith("Speed lead ·"))
+        assertTrue(sessionFocusLine(SessionResolver.resolve(17,4,ProgramAuthority.V73)).startsWith("Speed lead ·"))
+    }
     @Test fun representativeDaysUseDerivedFocusLines() {
         assertEquals("Rest · no training blocks", line(1, 7))
         assertEquals("Rest · no training blocks", line(32, 7))

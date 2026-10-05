@@ -21,6 +21,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,7 +43,23 @@ import com.jk.operatorperformance.state.ToolsDataStore
 import com.jk.operatorperformance.tools.PlateInventoryItem
 import com.jk.operatorperformance.tools.PlateLoad
 import com.jk.operatorperformance.tools.PlateMath
+import com.jk.operatorperformance.tools.PlateMathResult
 import com.jk.operatorperformance.tools.UnitSystem
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
+
+private data class PlateCalculationInput(
+    val target: Double, val equipment: Double, val collars: Double?,
+    val inventory: List<PlateInventoryItem>,
+)
+
+private data class PlateCalculationState(
+    val input: PlateCalculationInput? = null, val working: Boolean = false,
+    val result: PlateMathResult? = null, val error: String? = null,
+)
 
 @Composable
 internal fun AdditionalToolsCards(authority: ProgramAuthority = ProgramAuthority.V73) {
@@ -64,6 +81,7 @@ private fun PlateCalculatorCard() {
     var pairDraft by rememberSaveable { mutableStateOf("") }
     var targetDraft by rememberSaveable { mutableStateOf("") }
     var selectedCandidate by remember { mutableStateOf<PlateLoad?>(null) }
+    var calculationState by remember { mutableStateOf(PlateCalculationState()) }
 
     fun persist(next: ToolsDataState) {
         state = next
@@ -71,18 +89,38 @@ private fun PlateCalculatorCard() {
         selectedCandidate = null
     }
 
-    val equipment = equipmentDraft.toDoubleOrNull()?.takeIf { it.isFinite() && it >= 0.0 }
-    val collars = collarDraft.toDoubleOrNull()?.takeIf { it.isFinite() && it >= 0.0 }
-    val target = targetDraft.toDoubleOrNull()?.takeIf { it.isFinite() && it > 0.0 }
-    val calculation = if (target != null && equipment != null) {
-        runCatching { PlateMath.calculate(target, equipment, collars, state.plateInventory) }.getOrNull()
-    } else null
-    val displayedLoad = calculation?.exact ?: selectedCandidate
+    val equipment = equipmentDraft.toDoubleOrNull()?.takeIf(PlateMath::validEquipmentWeight)
+    val collars = collarDraft.toDoubleOrNull()?.takeIf(PlateMath::validEquipmentWeight)
+    val target = targetDraft.toDoubleOrNull()?.takeIf(PlateMath::validTargetLoad)
+    val input = if (target != null && equipment != null && (collarDraft.isBlank() || collars != null))
+        PlateCalculationInput(target, equipment, collars, state.plateInventory) else null
+    LaunchedEffect(input) {
+        selectedCandidate = null
+        calculationState = PlateCalculationState(input, working = input != null)
+        if (input != null) {
+            try {
+                val result = withContext(Dispatchers.Default) {
+                    val context = currentCoroutineContext()
+                    PlateMath.calculate(input.target, input.equipment, input.collars, input.inventory) { context.ensureActive() }
+                }
+                calculationState = PlateCalculationState(input, result = result)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (invalid: IllegalArgumentException) {
+                calculationState = PlateCalculationState(input, error = invalid.message)
+            }
+        }
+    }
+    val currentCalculation = calculationState.takeIf { it.input == input }
+    val calculation = currentCalculation?.result
+    val working = input != null && (currentCalculation == null || currentCalculation.working)
+    val displayedLoad = calculation?.exact ?: selectedCandidate.takeIf { calculation != null }
 
     Card(modifier = Modifier.fillMaxWidth().testTag("plate_math_tool")) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("PLATE CALCULATOR", style = MaterialTheme.typography.titleSmall)
             Text("Standalone utility. Workout-row plate-math eligibility is not inferred.")
+            state.plateInventoryWarning?.let { Text(it) }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 UnitSystem.entries.forEach { unit ->
                     FilterChip(
@@ -103,6 +141,8 @@ private fun PlateCalculatorCard() {
                 value = equipmentDraft,
                 onValueChange = { equipmentDraft = numericDecimal(it) },
                 label = { Text("Bar/equipment effective weight (${state.unitSystem.name})") },
+                isError = equipmentDraft.isNotBlank() && equipment == null,
+                supportingText = { Text("0–1000 ${state.unitSystem.name}") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().testTag("plate_equipment_weight"),
@@ -111,6 +151,8 @@ private fun PlateCalculatorCard() {
                 value = collarDraft,
                 onValueChange = { collarDraft = numericDecimal(it) },
                 label = { Text("Collar pair total (${state.unitSystem.name}, optional)") },
+                isError = collarDraft.isNotBlank() && collars == null,
+                supportingText = { Text("0–1000 ${state.unitSystem.name}, or leave blank") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().testTag("plate_collar_weight"),
@@ -140,6 +182,7 @@ private fun PlateCalculatorCard() {
                     value = plateDraft,
                     onValueChange = { plateDraft = numericDecimal(it) },
                     label = { Text("Plate") },
+                    supportingText = { Text("0.001–200 ${state.unitSystem.name}") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
                     modifier = Modifier.weight(1f).testTag("plate_inventory_weight"),
@@ -148,22 +191,26 @@ private fun PlateCalculatorCard() {
                     value = pairDraft,
                     onValueChange = { pairDraft = it.filter(Char::isDigit) },
                     label = { Text("Pairs") },
+                    isError = pairDraft.isNotBlank() && pairDraft.toIntOrNull()?.let { it in 1..PlateMath.MAX_PAIRS_PER_WEIGHT } != true,
+                    supportingText = { Text("1–20 pairs") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
                     modifier = Modifier.weight(1f).testTag("plate_inventory_pairs"),
                 )
             }
-            val newPlate = plateDraft.toDoubleOrNull()?.takeIf { it.isFinite() && it > 0.0 }
-            val newPairs = pairDraft.toIntOrNull()?.takeIf { it > 0 }
+            val newPlate = plateDraft.toDoubleOrNull()?.takeIf(PlateMath::validPlateWeight)
+            val newPairs = pairDraft.toIntOrNull()?.takeIf { it in 1..PlateMath.MAX_PAIRS_PER_WEIGHT }
+            val roomForPlate = state.plateInventory.size < PlateMath.MAX_PLATE_TYPES || state.plateInventory.any { it.weight == newPlate }
+            if (!roomForPlate) Text("Use at most 12 plate types. Remove a type before adding another.")
             Button(
                 onClick = {
                     val item = PlateInventoryItem(requireNotNull(newPlate), requireNotNull(newPairs))
                     val next = (state.plateInventory.filterNot { it.weight == item.weight } + item).sortedByDescending { it.weight }
-                    persist(state.copy(plateInventory = next))
+                    persist(state.copy(plateInventory = next, plateInventoryWarning = null))
                     plateDraft = ""
                     pairDraft = ""
                 },
-                enabled = newPlate != null && newPairs != null,
+                enabled = newPlate != null && newPairs != null && roomForPlate,
                 colors = legendButtonColors(),
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("plate_inventory_add"),
             ) { Text("ADD / REPLACE PLATE") }
@@ -175,13 +222,18 @@ private fun PlateCalculatorCard() {
                     selectedCandidate = null
                 },
                 label = { Text("Target total load (${state.unitSystem.name})") },
+                isError = targetDraft.isNotBlank() && target == null,
+                supportingText = { Text("Positive total, at most 10000 ${state.unitSystem.name}") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().testTag("plate_target"),
             )
             when {
-                targetDraft.isNotBlank() && target == null -> Text("Enter a positive target load.")
+                targetDraft.isNotBlank() && target == null -> Text("Enter a positive target load up to 10000.")
                 equipment == null -> Text("Configure the bar/equipment effective weight before calculating.")
+                collarDraft.isNotBlank() && collars == null -> Text("Enter a collar pair weight from 0 to 1000, or leave it blank.")
+                working -> Text("Calculating…", modifier = Modifier.testTag("plate_calculating"))
+                currentCalculation?.error != null -> Text(requireNotNull(currentCalculation.error), modifier = Modifier.testTag("plate_calculation_error"))
                 calculation?.exact != null -> PlateLoadResult("EXACT", calculation.exact)
                 calculation != null -> {
                     Text("Target is not exactly achievable with the configured inventory. Select a nearby achievable load; none is chosen automatically.")

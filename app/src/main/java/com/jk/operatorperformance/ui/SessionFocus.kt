@@ -44,6 +44,7 @@ internal fun rowSymbol(session: SessionReference, row: SessionRow): MapSymbol? {
     }
     val title = row.title
     return when {
+        isSpeedPreparation(row) -> MapSymbol.SPEED
         title.contains("300", ignoreCase = true) || title.contains("fly", ignoreCase = true) ||
             title.contains("Acceleration", ignoreCase = true) || title.contains("endurance", ignoreCase = true) -> MapSymbol.SPEED
         title.contains("Threshold", ignoreCase = true) || title.contains("interval", ignoreCase = true) ||
@@ -82,11 +83,17 @@ private fun before(index: Int, other: Int): Boolean = other < 0 || index < other
 
 private fun isSpeedWork(row: SessionRow): Boolean {
     if (row.kind != SessionRowKind.CONDITIONING || isSupportRow(row)) return false
+    if (isSpeedPreparation(row)) return true
     val title = row.title
     return title.contains("300", ignoreCase = true) || title.contains("fly", ignoreCase = true) ||
         title.contains("Acceleration", ignoreCase = true) || title.contains("endurance", ignoreCase = true) ||
         title.contains("Speed", ignoreCase = true)
 }
+
+/** Stable resolver identities distinguish jump/throw preparation from aerobic work. */
+private fun isSpeedPreparation(row: SessionRow): Boolean =
+    row.kind == SessionRowKind.CONDITIONING &&
+        (row.id.endsWith("_plyometrics") || row.id.matches(Regex("v73_w\\d+_throws")))
 
 private fun isRecoveryWork(row: SessionRow): Boolean {
     if (row.kind != SessionRowKind.CONDITIONING || isSupportRow(row)) return false

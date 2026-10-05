@@ -661,7 +661,7 @@ private fun WorkoutModeScreen(
                                     onProgress(WorkoutProgress.selectSubstitution(normalized, session, row.id, choice))
                                 },
                                 label = { Text("${index + 1}. $alternative") },
-                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("workout_alternative_${row.id}_$index"),
                             )
                         }
                     }
