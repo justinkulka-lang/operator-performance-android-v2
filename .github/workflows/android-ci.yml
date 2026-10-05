@@ -94,7 +94,7 @@ jobs:
       - name: Downloadable debug APK and ZIP
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: legend-debug-${{ env.SOURCE_COMMIT }}
+          name: legend-debug-${{ env.SOURCE_COMMIT }}-attempt-${{ github.run_attempt }}
           path: app/build/distribution/
           if-no-files-found: error
           retention-days: 90
@@ -102,7 +102,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: legend-evidence-${{ env.SOURCE_COMMIT }}
+          name: legend-evidence-${{ env.SOURCE_COMMIT }}-attempt-${{ github.run_attempt }}
           path: |
             app/build/reports/
             app/build/test-results/

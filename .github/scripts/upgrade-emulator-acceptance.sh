@@ -47,7 +47,14 @@ printf 'no\n' | avdmanager create avd -n "$avd_name" -k 'system-images;android-3
 # after the managed-device suite. Bound only this newly created test AVD to 2 GiB.
 "$sdk_root/emulator/emulator" -avd "$avd_name" -port 5580 -no-window -no-audio -no-snapshot -no-boot-anim -gpu swiftshader -memory 2048 -cores 2 -partition-size 2048 > "$out/emulator.log" 2>&1 &
 emulator_pid=$!
-trap '"$adb" -s "$serial" emu kill >/dev/null 2>&1 || true' EXIT
+cleanup() {
+  result=$?
+  "$adb" -s "$serial" logcat -d -b crash -b main -b system > "$out/final-logcat.txt" 2>&1 || true
+  "$adb" -s "$serial" shell dumpsys activity exit-info com.jk.operatorperformance > "$out/process-exit-info.txt" 2>&1 || true
+  "$adb" -s "$serial" emu kill >/dev/null 2>&1 || true
+  exit "$result"
+}
+trap cleanup EXIT
 
 wait_boot() {
   for attempt in {1..120}; do
@@ -70,7 +77,12 @@ snapshot() {
 }
 instrument() {
   "$adb" -s "$serial" shell am instrument -w -r -e persistenceMode "$1" -e class "com.jk.operatorperformance.V72TimerPersistenceUiTest#$2" com.jk.operatorperformance.test/androidx.test.runner.AndroidJUnitRunner > "$out/$3.txt"
-  grep -F 'OK (1 test)' "$out/$3.txt"
+  "$adb" -s "$serial" logcat -d -b crash -b main -b system > "$out/$3-logcat.txt" 2>&1 || true
+  if ! grep -F 'OK (1 test)' "$out/$3.txt"; then
+    cat "$out/$3.txt" >&2
+    echo "Instrumentation failed; Android logs retained in $out/$3-logcat.txt" >&2
+    return 1
+  fi
   if grep -E 'FAILURES|INSTRUMENTATION_FAILED' "$out/$3.txt"; then exit 1; fi
 }
 
@@ -92,5 +104,9 @@ snapshot before-reboot
 wait_boot
 snapshot after-reboot
 cmp "$out/before-reboot.xml" "$out/after-reboot.xml"
+# Complete a normal launch before attaching instrumentation to the rebooted runtime.
+# Keep the pre-launch byte comparison above: launch may legitimately expire a timer.
+"$adb" -s "$serial" shell am start -W -n com.jk.operatorperformance/.MainActivity > "$out/reboot-launch.txt"
+grep -F 'Status: ok' "$out/reboot-launch.txt"
 instrument verify timerAndPointerSurviveProcessDeath reboot-verification
 printf 'sourceCommit=%s\nbaselineCommit=%s\nprofileUpgrade=PASS\nforceStop=PASS\nreboot=PASS\nphysicalDevice=NOT_RUN\nphoneCertificateCompatibility=NOT_PROVEN\n' "$source_sha" "$baseline" > "$out/RESULT.txt"
