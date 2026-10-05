@@ -6,7 +6,7 @@
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
-        android:label="ARES Performance"
+        android:label="LEGEND"
         android:supportsRtl="true"
         android:theme="@style/Theme.OperatorPerformance">
         <activity

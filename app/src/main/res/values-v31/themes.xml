@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.OperatorPerformance" parent="android:style/Theme.Material.NoActionBar">
-        <item name="android:fontFamily">sans</item>
+        <item name="android:fontFamily">sans-serif-condensed</item>
         <item name="android:windowActionModeOverlay">true</item>
-        <item name="android:windowBackground">#0B0F14</item>
-        <item name="android:colorAccent">#58C4DC</item>
-        <item name="android:statusBarColor">#0B0F14</item>
-        <item name="android:navigationBarColor">#0B0F14</item>
+        <item name="android:windowBackground">#12110E</item>
+        <item name="android:colorAccent">#C4A574</item>
+        <item name="android:statusBarColor">#12110E</item>
+        <item name="android:navigationBarColor">#12110E</item>
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowLightNavigationBar">false</item>
-        <item name="android:windowSplashScreenBackground">#0B0D10</item>
-        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_ares_launcher_foreground</item>
-        <item name="android:windowSplashScreenIconBackgroundColor">#0B0D10</item>
+        <item name="android:windowSplashScreenBackground">#12110E</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_legend_launcher_foreground</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">#12110E</item>
     </style>
 </resources>

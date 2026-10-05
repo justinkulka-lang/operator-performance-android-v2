@@ -1,331 +1,112 @@
-name: ARES Performance v5.7 CI
+name: LEGEND versioned candidate
 
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
-      - 'construction/**'
+    branches: [main, 'construction/**', 'cursor/**', 'codex/**']
   pull_request:
-    branches:
-      - main
 
 permissions:
   contents: read
 
-jobs:
-  app-build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - name: Checkout exact source
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+concurrency:
+  group: legend-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+jobs:
+  candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      SOURCE_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: temurin
           java-version: '17'
-
-      - name: Set up Gradle 9.6
-        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+      - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
         with:
           gradle-version: '9.6.0'
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
+          cache-read-only: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+      - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
         with:
           cmdline-tools-version: 15859902
           packages: platform-tools
-
-      - name: Install Android API and emulator support
+      - name: SDK and source identity
         shell: bash
         run: |
           set -euo pipefail
-          sdkmanager --install \
-            "platforms;android-37.0" \
-            "build-tools;37.0.0" \
-            "emulator" \
-            "system-images;android-35;default;x86_64"
-          test -f "$ANDROID_HOME/platforms/android-37.0/android.jar"
-          test -f "$ANDROID_HOME/system-images/android-35/default/x86_64/system.img"
-
-      - name: Verify package, live version, v5.7 authority, branding, and offline manifest
+          sdkmanager --install 'platforms;android-36' 'build-tools;36.0.0'
+          test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
+          printf '%s  %s\n' '25a7ce497569913c4a56c057bcaa139290adddf20876a2d736790d5fefd436f3' 'docs/ARES_Performance_Unified_Master_Authority_v7.2_APPROVED.docx' | sha256sum -c -
+          git diff --exit-code 28944300f1e73015c70b8e342bcc90173022cd25 -- app/src/main/java/com/jk/operatorperformance/program/ProgramV56.kt app/src/main/java/com/jk/operatorperformance/program/ProgramV70.kt app/src/main/java/com/jk/operatorperformance/program/ProgramV71.kt app/src/main/java/com/jk/operatorperformance/program/ProgramV72.kt app/src/main/java/com/jk/operatorperformance/program/SessionResolverV72.kt app/src/main/java/com/jk/operatorperformance/program/ProgramNotesV71.kt app/src/main/java/com/jk/operatorperformance/program/ProgramNotesV72.kt app/src/test/resources/program-baseline.tsv
+          (cd docs/legend-v73 && sha256sum -c SHA256SUMS.txt)
+          printf '%s  %s\n' 'fbf181887806d14f6c02d9fb297e10a100952aee19853f3c2a1b822b0ed55edc' 'app/src/main/java/com/jk/operatorperformance/program/ProgramV72.kt' | sha256sum -c -
+          printf '%s  %s\n' '7e1ec7d27b9e4ec9cde468b0fef93e3f6f636d3e4cf6ec738b466bd2fd2d2a59' 'app/src/main/java/com/jk/operatorperformance/program/SessionResolverV72.kt' | sha256sum -c -
+      - name: Unit suite, exact program parity, lint, and debug APKs
+        run: GITHUB_SHA="$SOURCE_COMMIT" gradle :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
+      - name: Release signing fails closed without owner credentials
         shell: bash
         run: |
           set -euo pipefail
-          grep -q 'applicationId = "com.jk.operatorperformance"' app/build.gradle.kts
-          grep -q 'versionCode = 45' app/build.gradle.kts
-          grep -q 'versionName = "0.36.0"' app/build.gradle.kts
-          grep -q 'buildConfigField("String", "BUILD_COMMIT"' app/build.gradle.kts
-          grep -q 'AUTHORITY_VERSION = "5.7"' app/src/main/java/com/jk/operatorperformance/program/ProgramV56.kt
-          grep -q '867c468ba616a22185b871c649d8c026be5c1c61b3a7f690edac5b6169fc3d0a' app/src/main/java/com/jk/operatorperformance/program/ProgramV56.kt
-          grep -q 'PROGRAM_NAME = "ARES PERFORMANCE"' app/src/main/java/com/jk/operatorperformance/program/ProgramV56.kt
-          grep -q 'android:label="ARES Performance"' app/src/main/AndroidManifest.xml
-          grep -q 'parent="android:style/Theme.Material.NoActionBar"' app/src/main/res/values/themes.xml
-          grep -q '<item name="android:windowBackground">#0B0F14</item>' app/src/main/res/values/themes.xml
-          grep -q 'applicationId = "com.jk.operatorperformance"' legacy-fixture/build.gradle.kts
-          grep -q 'versionCode = 43' legacy-fixture/build.gradle.kts
-          if grep -Eq 'android.permission.INTERNET|android.permission.health|HealthConnect|POST_NOTIFICATIONS' app/src/main/AndroidManifest.xml; then
-            echo "Prohibited network/health/notification permission found in manifest" >&2
-            exit 1
-          fi
-
-      - name: Source stale-architecture and design-boundary scan
-        shell: bash
-        run: |
-          set -euo pipefail
-          pattern='ESTABLISH CURRENT CAPABILITY|Recent runs per week|Easy continuous run capacity|Next-day lower-leg soreness|PROGRAM TRACKING|PERFORMANCE PROFILE|HEALTH CONNECT|SESSION RESULT|EASY / GOOD / HARD / FAILED|POSITION [1-7]|bodyweight|progress-photo|benchmark result entry|RECOVERY MODE|HISTORY destination|sled push|sled pull|Speed \\+ sled|ProgramTrackingStore|ReadinessStore|BenchmarkStore|StrengthLog|RunStopwatchStore|ConditioningExecutionStore|ActiveSetProgressStore|actualLoad|actualReps|actualRir|performed load|performed reps|performed RIR|session score|workout rating|POST_NOTIFICATIONS|notification permission|automatic progression|block recomposition|OperatorProgramV54'
-          if grep -RniE "$pattern" app/src/main/java app/src/main/res; then
-            echo "Stale/prohibited runtime architecture reference found in production source" >&2
-            exit 1
-          fi
-          if grep -RniE 'Operator Performance v5\.6|Operator-Performance-v5\.6|operator-performance-v5\.6-export' app/src/main app/proguard-rules.pro --exclude-dir=build; then
-            echo "Stale v5.6 user-facing/build metadata found in production source" >&2
-            exit 1
-          fi
-
-      - name: Run canonical program and reference-state unit tests
-        run: gradle :app:testDebugUnitTest --stacktrace
-
-      - name: Verify computed v5.7 program exports
-        shell: bash
-        run: |
-          set -euo pipefail
-          matrix=app/build/reports/program-matrix.csv
-          resistance=app/build/reports/program-resistance-rows.csv
-          weeks=app/build/reports/program-weeks-1-32.csv
-          conditioning=app/build/reports/program-conditioning-weeks-1-32.csv
-          phases=app/build/reports/program-phases.csv
-          for file in "$matrix" "$resistance" "$weeks" "$conditioning" "$phases"; do test -f "$file"; done
-          grep -q 'Quads,13.0,2,10.0,2' "$matrix"
-          grep -Fq '"d1_squat"' "$resistance"
-          grep -Fq '1:Safety-bar squat' "$resistance"
-          grep -Fq 'Rest ~2–3+ min' "$resistance"
-          grep -q 'w1_300_baseline' "$conditioning"
-          grep -q 'w16_checkpoint' "$conditioning"
-          grep -q 'w24_checkpoint' "$conditioning"
-          grep -q 'w32_final300' "$conditioning"
-          grep -q 'w32_final15' "$conditioning"
-          grep -q 'MANUAL_REFERENCE_DEFAULT' "$conditioning"
-          grep -q '^1,"FOUNDATION","HEPHAESTUS",POPULATED_NORMAL,' "$weeks"
-          grep -q '^9,"DEVELOPMENT","HERMES",POPULATED_NORMAL,' "$weeks"
-          grep -q '^17,"SPECIFIC DEVELOPMENT","ARES",POPULATED_NORMAL,' "$weeks"
-          grep -q '^25,"INTEGRATION / PEAK","ZEUS",POPULATED_NORMAL,' "$weeks"
-          grep -q '^32,"INTEGRATION / PEAK","ZEUS",POPULATED_REALIZATION_TAPER,' "$weeks"
-          test "$(wc -l < "$weeks")" -eq 33
-          grep -q '"HEPHAESTUS"' "$phases"
-          grep -q '"HERMES"' "$phases"
-          grep -q '"ARES"' "$phases"
-          grep -q '"ZEUS"' "$phases"
-
-      - name: Build install-over compatibility fixture and current debug APK
-        run: gradle :legacy-fixture:assembleDebug :app:assembleDebug --stacktrace
-
-      - name: Verify exact commit embedded in debug APK
-        shell: bash
-        run: |
-          set -euo pipefail
-          apk="app/build/outputs/apk/debug/app-debug.apk"
-          test -f "$apk"
-          short_sha="${GITHUB_SHA:0:12}"
-          unzip -p "$apk" 'classes*.dex' 2>/dev/null | strings | grep -Fq "$short_sha"
-
-      - name: Run migration, airplane-mode, and reference UI acceptance
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -e /dev/kvm
-          sudo chmod 666 /dev/kvm
-          emulator_log="$RUNNER_TEMP/ares-emulator.log"
-          avd_dir="$HOME/.android/avd/ares-ci-api35.avd"
-          echo no | avdmanager create avd \
-            --force \
-            --name ares-ci-api35 \
-            --package "system-images;android-35;default;x86_64" \
-            --device "pixel_2"
-          printf '\ndisk.dataPartition.size=2048M\n' >> "$avd_dir/config.ini"
-          "$ANDROID_HOME/emulator/emulator" \
-            -avd ares-ci-api35 \
-            -partition-size 2048 \
-            -no-window -no-audio -no-boot-anim -no-snapshot-save \
-            -gpu swiftshader_indirect -accel on > "$emulator_log" 2>&1 &
-          emulator_pid=$!
-          trap 'kill "$emulator_pid" 2>/dev/null || true' EXIT
-          timeout 90 adb wait-for-device
-          timeout 240 bash -c 'until [[ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" == "1" ]]; do sleep 2; done'
-          adb shell settings put global window_animation_scale 0
-          adb shell settings put global transition_animation_scale 0
-          adb shell settings put global animator_duration_scale 0
-
-          legacy_apk="legacy-fixture/build/outputs/apk/debug/legacy-fixture-debug.apk"
-          current_apk="app/build/outputs/apk/debug/app-debug.apk"
-          test -f "$legacy_apk"
-          test -f "$current_apk"
-
-          echo "Installing v0.34 compatibility fixture"
-          adb install "$legacy_apk"
-          adb shell am start -W -n com.jk.operatorperformance/.MainActivity >/dev/null
-          legacy_package="$(adb shell dumpsys package com.jk.operatorperformance | tr -d '\r')"
-          grep -q 'versionCode=43' <<< "$legacy_package"
-          grep -q 'versionName=0.34.0' <<< "$legacy_package"
-          adb shell am force-stop com.jk.operatorperformance
-
-          echo "Installing live v0.36 app over v0.34 fixture without clearing app data"
-          adb install -r "$current_apk"
-          adb shell am start -W -n com.jk.operatorperformance/.MainActivity >/dev/null
-          current_package="$(adb shell dumpsys package com.jk.operatorperformance | tr -d '\r')"
-          grep -q 'versionCode=45' <<< "$current_package"
-          grep -q 'versionName=0.36.0' <<< "$current_package"
-
-          echo "Verifying pointer migration and inert legacy data retention"
-          current_state="$(adb shell run-as com.jk.operatorperformance cat shared_prefs/operator_v54_reference_state.xml | tr -d '\r')"
-          grep -q 'name="currentWeek" value="3"' <<< "$current_state"
-          grep -q 'name="currentDay" value="5"' <<< "$current_state"
-          legacy_state="$(adb shell run-as com.jk.operatorperformance cat shared_prefs/operator_performance_state.xml | tr -d '\r')"
-          grep -q 'legacy-fixture-row' <<< "$legacy_state"
-
-          echo "Clearing migration fixture data before offline acceptance suite"
-          adb shell pm clear com.jk.operatorperformance >/dev/null
-          if ! adb shell cmd connectivity airplane-mode enable >/dev/null 2>&1; then
-            adb shell settings put global airplane_mode_on 1
-            adb shell am broadcast -a android.intent.action.AIRPLANE_MODE --ez state true >/dev/null
-          fi
-          test "$(adb shell settings get global airplane_mode_on | tr -d '\r')" = "1"
-          adb shell am force-stop com.jk.operatorperformance || true
-          echo "Running ARES v5.7 reference UI suite with airplane mode enabled"
-          timeout 600 gradle :app:connectedDebugAndroidTest --stacktrace
-          test "$(adb shell settings get global airplane_mode_on | tr -d '\r')" = "1"
-
-      - name: Prepare persistent release signing when secrets are configured
-        shell: bash
-        env:
-          KEYSTORE_B64: ${{ secrets.OPERATOR_RELEASE_KEYSTORE_B64 }}
-          STORE_PASSWORD: ${{ secrets.OPERATOR_RELEASE_STORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.OPERATOR_RELEASE_KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.OPERATOR_RELEASE_KEY_PASSWORD }}
-        run: |
-          set -euo pipefail
-          configured=0
-          for value in "$KEYSTORE_B64" "$STORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD"; do
-            [[ -n "$value" ]] && configured=$((configured + 1))
+          mkdir -p app/build/reports/signing
+          for task in assembleRelease bundleRelease; do
+            if env -u OPERATOR_RELEASE_KEYSTORE_PATH -u OPERATOR_RELEASE_STORE_PASSWORD -u OPERATOR_RELEASE_KEY_ALIAS -u OPERATOR_RELEASE_KEY_PASSWORD gradle ":app:$task" > "app/build/reports/signing/$task.log" 2>&1; then
+              echo "Unsigned release path succeeded: $task" >&2
+              exit 1
+            fi
+            grep -F 'RELEASE_SIGNING_REQUIRED' "app/build/reports/signing/$task.log"
           done
-          if [[ "$configured" -ne 0 && "$configured" -ne 4 ]]; then
-            echo "Owner release signing is partially configured; all four signing secrets are required together." >&2
-            exit 1
-          fi
-          if [[ "$configured" -eq 4 ]]; then
-            keystore="$RUNNER_TEMP/operator-release.jks"
-            printf '%s' "$KEYSTORE_B64" | base64 --decode > "$keystore"
-            chmod 600 "$keystore"
-            echo "OPERATOR_RELEASE_KEYSTORE_PATH=$keystore" >> "$GITHUB_ENV"
-            echo "OPERATOR_RELEASE_STORE_PASSWORD=$STORE_PASSWORD" >> "$GITHUB_ENV"
-            echo "OPERATOR_RELEASE_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
-            echo "OPERATOR_RELEASE_KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
-            echo "RELEASE_SIGNING_CONFIGURED=true" >> "$GITHUB_ENV"
-          else
-            echo "RELEASE_SIGNING_CONFIGURED=false" >> "$GITHUB_ENV"
-          fi
-
-      - name: Build release APK
-        run: gradle :app:assembleRelease --stacktrace
-
-      - name: Verify release signing lineage
-        shell: bash
-        env:
-          EXPECTED_CERT_SHA256: ${{ secrets.OPERATOR_RELEASE_CERT_SHA256 }}
-        run: |
-          set -euo pipefail
-          apksigner="$ANDROID_HOME/build-tools/37.0.0/apksigner"
-          mkdir -p app/build/reports
-          cert_digest="UNCONFIGURED"
-          if [[ "$RELEASE_SIGNING_CONFIGURED" == "true" ]]; then
-            signed="app/build/outputs/apk/release/app-release.apk"
-            test -f "$signed"
-            if [[ -z "$EXPECTED_CERT_SHA256" ]]; then
-              echo "Owner signing is configured but OPERATOR_RELEASE_CERT_SHA256 is missing." >&2
-              exit 1
-            fi
-            verify_output="$($apksigner verify --verbose --print-certs "$signed")"
-            printf '%s\n' "$verify_output"
-            cert_digest="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' <<< "$verify_output" | head -n1 | tr '[:lower:]' '[:upper:]' | tr -d ':[:space:]')"
-            expected="$(printf '%s' "$EXPECTED_CERT_SHA256" | tr '[:lower:]' '[:upper:]' | tr -d ':[:space:]')"
-            test -n "$cert_digest"
-            if [[ "$cert_digest" != "$expected" ]]; then
-              echo "Release signing certificate fingerprint does not match the owner-pinned certificate." >&2
-              exit 1
-            fi
-          else
-            unsigned="app/build/outputs/apk/release/app-release-unsigned.apk"
-            test -f "$unsigned"
-            echo "Persistent release signing secrets are not configured; the release artifact is unsigned."
-          fi
-          echo "RELEASE_CERT_SHA256=$cert_digest" >> "$GITHUB_ENV"
-
-      - name: APK identity, permission, and stale-architecture scan
+          test ! -d app/build/outputs/apk/release
+          test ! -d app/build/outputs/bundle/release
+      - name: Full emulator suite
         shell: bash
         run: |
           set -euo pipefail
-          aapt2="$ANDROID_HOME/build-tools/37.0.0/aapt2"
-          permission_pattern='android.permission.INTERNET|android.permission.POST_NOTIFICATIONS|android.permission.health|HealthConnect'
-          runtime_pattern='ESTABLISH CURRENT CAPABILITY|PROGRAM TRACKING|PERFORMANCE PROFILE|HEALTH CONNECT|SESSION RESULT|RECOVERY MODE|Speed \\+ sled|ProgramTrackingStore|ReadinessStore|BenchmarkStore|StrengthLog|RunStopwatchStore|ConditioningExecutionStore|ActiveSetProgressStore|actualLoad|actualReps|actualRir|performed load|performed reps|performed RIR|session score|workout rating|automatic progression|block recomposition|OperatorProgramV54'
-          for apk in app/build/outputs/apk/debug/*.apk app/build/outputs/apk/release/*.apk; do
-            test -f "$apk"
-            badging="$($aapt2 dump badging "$apk" | head -n1)"
-            grep -q "package: name='com.jk.operatorperformance'" <<< "$badging"
-            grep -q "versionCode='45'" <<< "$badging"
-            grep -q "versionName='0.36.0'" <<< "$badging"
-            permissions="$($aapt2 dump permissions "$apk")"
-            if grep -Ei "$permission_pattern" <<< "$permissions"; then
-              echo "Prohibited permission found in merged APK manifest: $apk" >&2
-              exit 1
-            fi
-            if unzip -p "$apk" 'classes*.dex' 2>/dev/null | strings | grep -Ei "$runtime_pattern"; then
-              echo "Stale runtime reference found in $apk" >&2
-              exit 1
-            fi
+          if [[ -e /dev/kvm ]]; then sudo chmod 666 /dev/kvm; fi
+          GITHUB_SHA="$SOURCE_COMMIT" gradle :app:pixel2api35DebugAndroidTest --stacktrace
+          mkdir -p app/build/reports/full-emulator-suite
+          cp -a app/build/outputs/androidTest-results/managedDevice app/build/reports/full-emulator-suite/results
+          cp -a app/build/reports/androidTests/managedDevice app/build/reports/full-emulator-suite/html
+          if [[ -d app/build/outputs/managed_device_android_test_additional_output ]]; then
+            cp -a app/build/outputs/managed_device_android_test_additional_output app/build/reports/full-emulator-suite/screenshots
+          fi
+      - name: Repeat Key lifecycle suite five times without retries
+        shell: bash
+        run: |
+          set -euo pipefail
+          for pass in 1 2 3 4 5; do
+            GITHUB_SHA="$SOURCE_COMMIT" gradle :app:pixel2api35DebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.jk.operatorperformance.V72KeyUiTest --rerun-tasks --stacktrace
+            mkdir -p "app/build/reports/key-stability/$pass"
+            cp -a app/build/outputs/androidTest-results/managedDevice/. "app/build/reports/key-stability/$pass/"
           done
-
-      - name: Capture dependency graph and release provenance
+      - name: Same-certificate upgrade, force-stop, and emulator reboot
+        run: bash .github/scripts/upgrade-emulator-acceptance.sh "$SOURCE_COMMIT"
+      - name: Verify and package the matching debug candidate
         shell: bash
         run: |
           set -euo pipefail
-          gradle :app:dependencies > app/build/reports/dependencies.txt
-          {
-            echo "ARES PERFORMANCE RELEASE PROVENANCE"
-            echo "commit=$GITHUB_SHA"
-            echo "package=com.jk.operatorperformance"
-            echo "versionName=0.36.0"
-            echo "versionCode=45"
-            echo "authorityVersion=5.7"
-            echo "authoritySha256=867c468ba616a22185b871c649d8c026be5c1c61b3a7f690edac5b6169fc3d0a"
-            echo "releaseSigningConfigured=$RELEASE_SIGNING_CONFIGURED"
-            echo "releaseCertificateSha256=${RELEASE_CERT_SHA256:-UNCONFIGURED}"
-            echo
-            echo "APK SHA-256"
-            sha256sum app/build/outputs/apk/debug/*.apk app/build/outputs/apk/release/*.apk
-          } > app/build/reports/release-provenance.txt
-          cat app/build/reports/release-provenance.txt
-
-      - name: Upload ARES v5.7 evidence
+          bash .github/scripts/package-debug-candidate.sh "$SOURCE_COMMIT"
+      - name: Downloadable debug APK and ZIP
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: legend-debug-${{ env.SOURCE_COMMIT }}-attempt-${{ github.run_attempt }}
+          path: app/build/distribution/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Verification evidence (failures are retained)
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: ARES-Performance-v5.7
+          name: legend-evidence-${{ env.SOURCE_COMMIT }}-attempt-${{ github.run_attempt }}
           path: |
-            app/build/reports/tests/
+            app/build/reports/
             app/build/test-results/
-            app/build/reports/androidTests/
             app/build/outputs/androidTest-results/
-            app/build/reports/program-matrix.csv
-            app/build/reports/program-resistance-rows.csv
-            app/build/reports/program-weeks-1-32.csv
-            app/build/reports/program-conditioning-weeks-1-32.csv
-            app/build/reports/program-phases.csv
-            app/build/reports/dependencies.txt
-            app/build/reports/release-provenance.txt
-            app/build/outputs/apk/debug/*.apk
-            app/build/outputs/apk/release/*.apk
-            legacy-fixture/build/outputs/apk/debug/*.apk
+            app/build/outputs/managed_device_android_test_additional_output/
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 90

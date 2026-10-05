@@ -10,43 +10,51 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.jk.operatorperformance.BuildConfig
-import com.jk.operatorperformance.program.OperatorProgramV56
+import com.jk.operatorperformance.program.ProgramAuthority
+import com.jk.operatorperformance.program.ProgramV73
+import com.jk.operatorperformance.program.ProgramV72
 
 @Composable
-internal fun BuildIntegrityCard() {
+internal fun BuildIntegrityCard(authority: ProgramAuthority = ProgramAuthority.V73) {
     Card(Modifier.fillMaxWidth().testTag("build_integrity_card")) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("BUILD / AUTHORITY INTEGRITY", fontWeight = FontWeight.Bold)
+            Text("BUILD / AUTHORITY INTEGRITY", style = MaterialTheme.typography.titleSmall)
             Text(
                 "APP • ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
-                style = MaterialTheme.typography.bodyMedium,
+                style = technicalStyle(MaterialTheme.typography.bodyMedium),
             )
             Text(
                 "BUILD • ${BuildConfig.BUILD_COMMIT}",
-                style = MaterialTheme.typography.bodyMedium,
+                style = technicalStyle(MaterialTheme.typography.bodyMedium),
                 modifier = Modifier.testTag("build_commit"),
             )
             Text(
                 "PACKAGE • ${BuildConfig.APPLICATION_ID}",
-                style = MaterialTheme.typography.bodyMedium,
+                style = technicalStyle(MaterialTheme.typography.bodyMedium),
             )
             Text(
-                "AUTHORITY • v${OperatorProgramV56.AUTHORITY_VERSION}",
-                style = MaterialTheme.typography.bodyMedium,
+                "AUTHORITY • v${authority.versionLabel}",
+                style = technicalStyle(MaterialTheme.typography.bodyMedium),
             )
             Text(
-                "AUTHORITY SHA-256 • ${OperatorProgramV56.AUTHORITY_SHA256}",
-                style = MaterialTheme.typography.bodySmall,
+                "BASE v7.2 DOCX SHA-256 • ${ProgramV72.EXPECTED_DOCX_SHA256}",
+                style = technicalStyle(MaterialTheme.typography.bodySmall),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.testTag("authority_sha"),
+            )
+            Text("v7.3 AUTHORITY SHA-256 • ${ProgramV73.AUTHORITY_SHA256}", style = MaterialTheme.typography.bodySmall)
+            Text(
+                if (ProgramV72.DOCX_SHA256_VERIFIED) "DOCX digest recomputed from the approved file."
+                else "DOCX file was not in this workspace, so this digest was not recomputed.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
                 "${BuildConfig.BUILD_TYPE.uppercase()} BUILD • OFFLINE / LOCAL-ONLY",
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
                 "Signing-certificate identity is enforced by release CI once the owner signing lineage is configured.",

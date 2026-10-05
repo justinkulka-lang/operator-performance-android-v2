@@ -23,7 +23,7 @@ internal fun searchProgram(
         ?.groupValues
         ?.get(1)
         ?.toIntOrNull()
-    val requestedDay = Regex("\\bday ([1-7])\\b")
+    val requestedDay = Regex("\\bday ([1-8])\\b")
         .find(normalized)
         ?.groupValues
         ?.get(1)
@@ -32,7 +32,7 @@ internal fun searchProgram(
 
     val freeText = normalized
         .replace(Regex("\\bweek \\d{1,2}\\b"), " ")
-        .replace(Regex("\\bday [1-7]\\b"), " ")
+        .replace(Regex("\\bday [1-8]\\b"), " ")
         .replace(Regex("\\s+"), " ")
         .trim()
     val freeTextTokens = freeText.split(Regex("\\s+")).filter { it.isNotBlank() }
@@ -40,18 +40,11 @@ internal fun searchProgram(
     return buildList {
         for (week in 1..32) {
             if (requestedWeek != null && week != requestedWeek) continue
-            val sessions = SessionResolver.splitForWeek(
-                week = week,
-                deload = false,
-                machineInventoryConfigured = state.machineInventoryConfigured,
-                availableMachineModalities = state.availableMachineModalities,
-                speedVariant = state.speedVariant,
-                engineVariant = state.engineVariant,
-            )
+            val sessions = SessionResolver.splitForWeek(week, state.authorityForWeek(week))
             for (session in sessions) {
                 if (requestedDay != null && session.day != requestedDay) continue
 
-                val phaseText = "${session.phase.godName} ${session.phase.name}"
+                val phaseText = session.phase.name
                 val header = "week ${session.week} day ${session.day} ${session.title} $phaseText"
                 val rowText = session.rows.joinToString(" ") { row ->
                     buildString {
@@ -76,7 +69,7 @@ internal fun searchProgram(
                     freeTextTokens.isNotEmpty() && freeTextTokens.any(candidate::contains)
                 }
                 val snippet = matchingRow?.let { "${it.title} • ${it.prescription}" }
-                    ?: "${session.phase.godName} • ${session.phase.name}"
+                    ?: phaseFieldLabel(session.phase)
                 add(
                     ProgramSearchHit(
                         session = session,

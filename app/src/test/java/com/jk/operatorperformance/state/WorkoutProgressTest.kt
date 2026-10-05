@@ -1,213 +1,94 @@
 package com.jk.operatorperformance.state
 
-import com.jk.operatorperformance.program.MachineModality
-import com.jk.operatorperformance.program.SessionReference
-import com.jk.operatorperformance.program.SessionRow
-import com.jk.operatorperformance.program.SessionRowKind
+import com.jk.operatorperformance.program.ProgramAuthority
+import com.jk.operatorperformance.program.SessionResolver
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
 
 class WorkoutProgressTest {
-    private val session = SessionReference(
-        week = 2,
-        day = 2,
-        title = "Upper A",
-        rows = listOf(
-            SessionRow(
-                id = "a",
-                title = "Bench",
-                prescription = "2 × 5 • REST 1:30",
-                kind = SessionRowKind.RESISTANCE,
-                alternatives = listOf("Dumbbell bench"),
-                effortCount = 2,
-                restSeconds = 90,
-            ),
-            SessionRow(
-                id = "b",
-                title = "Row",
-                prescription = "1 × 8 • REST 1:30",
-                kind = SessionRowKind.RESISTANCE,
-                effortCount = 1,
-                restSeconds = 90,
-            ),
-        ),
-        deload = false,
-    )
+    private val state = ProgramUiState(initialized = true, currentWeek = 2, currentDay = 3, authority = ProgramAuthority.V72)
+    private val session = SessionResolver.resolve(2, 3, ProgramAuthority.V72)
 
-    @Test
-    fun startSnapshotsOnlyAuthorizedReferenceStateIncludingEquipmentInventory() {
-        val progress = WorkoutProgress.start(
-            ProgramUiState(
-                currentWeek = 2,
-                currentDay = 2,
-                deloadMode = true,
-                restTimerSeconds = 90,
-                machineInventoryConfigured = true,
-                availableMachineModalities = setOf(MachineModality.ROW_ERG),
-            ),
+    @Test fun sessionStatusHasFourStatesAndDoesNotNeedSetTaps() {
+        assertEquals(SessionStatus.NOT_STARTED, WorkoutProgress.status(null, showingWorkout = false))
+        val started = WorkoutProgress.start(state)
+        assertEquals(SessionStatus.ACTIVE, WorkoutProgress.status(started, showingWorkout = true))
+        assertEquals(SessionStatus.RESUMABLE, WorkoutProgress.status(started, showingWorkout = false))
+        assertEquals(SessionStatus.COMPLETED, WorkoutProgress.status(WorkoutProgress.markSessionComplete(started), showingWorkout = true))
+    }
+
+    @Test fun mutationsDoNotKeepPerSetOrResultFields() {
+        val started = WorkoutProgress.start(state).copy(
+            movementIndex = 4,
+            effortIndex = 3,
+            completedEffortIds = setOf("d3_bench:1"),
+            undoMovementIndex = 1,
+            undoEffortIndex = 1,
+            undoComplete = false,
+            undoCompletedEffortIds = setOf("stale"),
         )
-        assertEquals(2, progress.week)
-        assertEquals(2, progress.day)
-        assertTrue(progress.deloadMode)
-        assertTrue(progress.machineInventoryConfigured)
-        assertEquals(setOf(MachineModality.ROW_ERG), progress.availableMachineModalities)
-        assertEquals(0, progress.movementIndex)
-        assertEquals(1, progress.effortIndex)
-        assertTrue(progress.completedEffortIds.isEmpty())
-        assertFalse(progress.complete)
-        assertNull(progress.restTimerEndEpochMillis)
+        val normalized = WorkoutProgress.normalize(started, session)
+        assertEquals(0, normalized.movementIndex)
+        assertEquals(1, normalized.effortIndex)
+        assertTrue(normalized.completedEffortIds.isEmpty())
+        assertFalse(normalized.canUndo)
+        val completed = WorkoutProgress.markSessionComplete(normalized)
+        assertTrue(completed.complete)
+        assertTrue(completed.completedEffortIds.isEmpty())
+        assertEquals(null, completed.restTimerEndEpochMillis)
+        val row = session.rows.first { it.alternatives.isNotEmpty() }
+        val substituted = WorkoutProgress.selectSubstitution(completed, session, row.id, row.alternatives.first())
+        assertTrue(substituted.completedEffortIds.isEmpty())
+        assertEquals(row.alternatives.first(), substituted.selectedSubstitutions[row.id])
     }
 
-    @Test
-    fun setDoneMarksCompletionAndAdvancesSetThenMovementThenCompletes() {
-        var progress = ActiveWorkoutState(week = 2, day = 2, deloadMode = false)
-        progress = WorkoutProgress.advance(progress, session, nowMillis = 10_000L)
-        assertEquals(setOf("a#1"), progress.completedEffortIds)
-        assertEquals(0, progress.movementIndex)
-        assertEquals(2, progress.effortIndex)
-
-        progress = WorkoutProgress.skipRest(progress)
-        progress = WorkoutProgress.advance(progress, session, nowMillis = 20_000L)
-        assertEquals(setOf("a#1", "a#2"), progress.completedEffortIds)
-        assertEquals(1, progress.movementIndex)
-        assertEquals(1, progress.effortIndex)
-
-        progress = WorkoutProgress.advance(progress, session, nowMillis = 30_000L)
-        assertTrue(progress.complete)
-        assertEquals(3, WorkoutProgress.completedEfforts(progress, session))
+    @Test fun unknownSubstitutionIsRejected() {
+        val started = WorkoutProgress.start(state)
+        val row = session.rows.first { it.alternatives.isNotEmpty() }
+        val failed = runCatching { WorkoutProgress.selectSubstitution(started, session, row.id, "Trap-bar deadlift") }
+        assertTrue(failed.exceptionOrNull() is IllegalArgumentException)
     }
 
-    @Test
-    fun prescribedRowRestStartsAfterNonFinalSetAndUndoRestoresCompletionAndTimer() {
-        val start = ActiveWorkoutState(week = 2, day = 2, deloadMode = false)
-        val advanced = WorkoutProgress.advance(start, session, nowMillis = 10_000L)
-        assertEquals(100_000L, advanced.restTimerEndEpochMillis)
-        assertEquals(90, WorkoutProgress.remainingRestSeconds(advanced, 10_000L))
-        assertTrue("a#1" in advanced.completedEffortIds)
-
-        val extended = WorkoutProgress.addRestSeconds(advanced, 30)
-        assertEquals(130_000L, extended.restTimerEndEpochMillis)
-
-        val undone = WorkoutProgress.undo(extended)
-        assertEquals(0, undone.movementIndex)
-        assertEquals(1, undone.effortIndex)
-        assertFalse("a#1" in undone.completedEffortIds)
-        assertNull(undone.restTimerEndEpochMillis)
-        assertFalse(undone.canUndo)
+    @Test fun storeSourceDoesNotPersistProhibitedResults() {
+        val source = storeSource()
+        listOf(
+            "bodyweight", "calories", "readiness", "sleep", "heartRate", "hrv",
+            "photo", "Health Connect", "analytics", "cloudSync", "paceResult", "rirActual",
+        ).forEach { prohibited ->
+            assertFalse(source.contains(prohibited, ignoreCase = true))
+        }
+        assertTrue(source.contains("remove(KEY_COMPLETED)"))
+        assertTrue(source.contains("putBoolean(KEY_HAS_UNDO, false)"))
+        assertFalse(source.contains("putStringSet(KEY_COMPLETED"))
+        assertFalse(source.contains("putStringSet(KEY_UNDO_COMPLETED"))
+        val workoutKeys = source.substringAfter("WORKOUT_KEYS").substringAfter("listOf(").substringBefore(")")
+        assertFalse(workoutKeys.contains("ENGAGED"))
+        assertTrue(workoutKeys.contains("KEY_COMPLETED"))
     }
 
-    @Test
-    fun finalSetOfMovementDoesNotStartRestUnlessExplicitlyRequired() {
-        val beforeFinalBenchSet = ActiveWorkoutState(
-            week = 2,
-            day = 2,
-            deloadMode = false,
-            movementIndex = 0,
-            effortIndex = 2,
-            completedEffortIds = setOf("a#1"),
-        )
-        val advanced = WorkoutProgress.advance(beforeFinalBenchSet, session, nowMillis = 10_000L)
-        assertEquals(1, advanced.movementIndex)
-        assertNull(advanced.restTimerEndEpochMillis)
+    @Test fun v72SessionTextDoesNotCarryV71OrEightDayLabels() {
+        (1..32).forEach { week ->
+            (1..7).forEach { day ->
+                val resolved = SessionResolver.resolve(week, day, ProgramAuthority.V72)
+                val text = buildString {
+                    append(resolved.title)
+                    resolved.rows.forEach { row ->
+                        append(row.title).append(row.prescription).append(row.note.orEmpty())
+                        row.alternatives.forEach(::append)
+                    }
+                }
+                assertFalse("W$week D$day", text.contains("v7.1", ignoreCase = true))
+                assertFalse("W$week D$day", text.contains("eight-day", ignoreCase = true) || text.contains("8-day", ignoreCase = true) || text.contains("Day 8"))
+                assertTrue(resolved.day in 1..7)
+            }
+        }
     }
 
-    @Test
-    fun restAfterLastEffortSupportsWeekEightStyleBetweenSegmentRecovery() {
-        val special = SessionReference(
-            week = 8,
-            day = 3,
-            title = "Speed",
-            rows = listOf(
-                SessionRow("x", "300 m", "1 × 300 m", SessionRowKind.CONDITIONING, effortCount = 1, restSeconds = 720, restAfterLastEffort = true),
-                SessionRow("y", "150 m", "1 × 150 m", SessionRowKind.CONDITIONING, effortCount = 1),
-            ),
-            deload = false,
-        )
-        val advanced = WorkoutProgress.advance(ActiveWorkoutState(8, 3, false), special, nowMillis = 1_000L)
-        assertEquals(721_000L, advanced.restTimerEndEpochMillis)
-        assertEquals(1, advanced.movementIndex)
-    }
-
-    @Test
-    fun optionalBlockDoesNotInflateRequiredProgressAndCanBeSkippedAtOnce() {
-        val speed = SessionReference(
-            week = 1,
-            day = 3,
-            title = "Speed",
-            rows = listOf(
-                SessionRow("main", "Acceleration", "1 rep", SessionRowKind.CONDITIONING, effortCount = 1),
-                SessionRow("optional", "Machine finisher", "6 efforts", SessionRowKind.CONDITIONING, effortCount = 6, restSeconds = 80, optional = true),
-                SessionRow("cooldown", "Cooldown", "5:00", SessionRowKind.CONDITIONING, effortCount = 1),
-            ),
-            deload = false,
-        )
-        assertEquals(2, WorkoutProgress.totalEfforts(speed))
-
-        var progress = ActiveWorkoutState(1, 3, false)
-        progress = WorkoutProgress.advance(progress, speed)
-        assertEquals(1, progress.movementIndex)
-        assertFalse(progress.complete)
-
-        progress = WorkoutProgress.skipOptional(progress, speed)
-        assertEquals(2, progress.movementIndex)
-        assertEquals(1, WorkoutProgress.completedEfforts(progress, speed))
-        assertTrue((1..6).all { WorkoutProgress.isEffortComplete(progress, "optional", it) })
-
-        progress = WorkoutProgress.advance(progress, speed)
-        assertTrue(progress.complete)
-        assertEquals(2, WorkoutProgress.completedEfforts(progress, speed))
-    }
-
-    @Test
-    fun optionalBlockCanStillBeCompletedEffortByEffort() {
-        val speed = SessionReference(
-            week = 1,
-            day = 3,
-            title = "Speed",
-            rows = listOf(
-                SessionRow("optional", "Machine finisher", "6 efforts", SessionRowKind.CONDITIONING, effortCount = 6, restSeconds = 80, optional = true),
-                SessionRow("cooldown", "Cooldown", "5:00", SessionRowKind.CONDITIONING, effortCount = 1),
-            ),
-            deload = false,
-        )
-        var progress = ActiveWorkoutState(1, 3, false)
-        progress = WorkoutProgress.advance(progress, speed, nowMillis = 1_000L)
-        assertTrue(WorkoutProgress.isEffortComplete(progress, "optional", 1))
-        assertFalse(WorkoutProgress.isEffortComplete(progress, "optional", 2))
-        assertEquals(0, progress.movementIndex)
-        assertEquals(2, progress.effortIndex)
-    }
-
-    @Test
-    fun todayStyleToggleCanMarkAndUnmarkAnIndividualSet() {
-        val start = ActiveWorkoutState(week = 2, day = 2, deloadMode = false)
-        val checked = WorkoutProgress.toggleEffort(start, session, "a", 1, nowMillis = 10_000L)
-        assertTrue(WorkoutProgress.isEffortComplete(checked, "a", 1))
-        assertEquals(2, checked.effortIndex)
-        val unchecked = WorkoutProgress.toggleEffort(checked, session, "a", 1, nowMillis = 20_000L)
-        assertFalse(WorkoutProgress.isEffortComplete(unchecked, "a", 1))
-        assertEquals(1, unchecked.effortIndex)
-    }
-
-    @Test
-    fun substitutionIsSessionScopedAndMustBeAuthorizedForCanonicalRow() {
-        val start = ActiveWorkoutState(week = 2, day = 2, deloadMode = false)
-        val substituted = WorkoutProgress.selectSubstitution(start, session, "a", "Dumbbell bench")
-        assertEquals("Dumbbell bench", substituted.selectedSubstitutions["a"])
-        val canonical = WorkoutProgress.selectSubstitution(substituted, session, "a", null)
-        assertFalse(canonical.selectedSubstitutions.containsKey("a"))
-    }
-
-    @Test(expected = IllegalArgumentException::class)
-    fun unlistedSubstitutionIsRejected() {
-        WorkoutProgress.selectSubstitution(
-            ActiveWorkoutState(week = 2, day = 2, deloadMode = false),
-            session,
-            "a",
-            "Invented movement",
-        )
+    private fun storeSource(): String {
+        val relative = "src/main/java/com/jk/operatorperformance/state/ProgramStateStore.kt"
+        return listOf(File(relative), File("app/$relative"), File("../$relative")).first { it.isFile }.readText()
     }
 }

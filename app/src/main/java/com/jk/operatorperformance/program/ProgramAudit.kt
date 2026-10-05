@@ -1,203 +1,105 @@
 package com.jk.operatorperformance.program
 
-import kotlin.math.abs
-import kotlin.math.round
-
 object ProgramAudit {
-    val expectedNormalCredits = linkedMapOf(
-        Muscle.QUADS to 13.0, Muscle.GLUTES to 11.5, Muscle.HAMSTRINGS to 11.5,
-        Muscle.CHEST to 12.0, Muscle.LATS to 12.0, Muscle.UPPER_BACK to 11.0,
-        Muscle.DELTS to 15.0, Muscle.BICEPS to 11.5, Muscle.TRICEPS to 12.0,
-        Muscle.CALVES to 10.0, Muscle.TRAPS to 9.0, Muscle.FOREARMS to 9.5, Muscle.ABS to 10.0,
-    )
-
-    val expectedDeloadCredits = linkedMapOf(
-        Muscle.QUADS to 10.0, Muscle.GLUTES to 10.0, Muscle.HAMSTRINGS to 10.0,
-        Muscle.CHEST to 10.0, Muscle.LATS to 10.0, Muscle.UPPER_BACK to 10.0,
-        Muscle.DELTS to 10.0, Muscle.BICEPS to 9.0, Muscle.TRICEPS to 9.0,
-        Muscle.CALVES to 8.0, Muscle.TRAPS to 7.5, Muscle.FOREARMS to 6.0, Muscle.ABS to 8.0,
-    )
-
-    private val expectedNormalExposures = linkedMapOf(
-        Muscle.QUADS to 2, Muscle.GLUTES to 2, Muscle.HAMSTRINGS to 2,
-        Muscle.CHEST to 2, Muscle.LATS to 2, Muscle.UPPER_BACK to 3,
-        Muscle.DELTS to 3, Muscle.BICEPS to 2, Muscle.TRICEPS to 3,
-        Muscle.CALVES to 3, Muscle.TRAPS to 3, Muscle.FOREARMS to 3, Muscle.ABS to 4,
-    )
-
-    private val expectedDeloadExposures = linkedMapOf(
-        Muscle.QUADS to 2, Muscle.GLUTES to 2, Muscle.HAMSTRINGS to 2,
-        Muscle.CHEST to 2, Muscle.LATS to 2, Muscle.UPPER_BACK to 3,
-        Muscle.DELTS to 3, Muscle.BICEPS to 2, Muscle.TRICEPS to 3,
-        Muscle.CALVES to 2, Muscle.TRAPS to 3, Muscle.FOREARMS to 2, Muscle.ABS to 3,
-    )
-
-    private val fractionalFloors = linkedMapOf(
-        Muscle.QUADS to 10.0, Muscle.GLUTES to 10.0, Muscle.HAMSTRINGS to 10.0,
-        Muscle.CHEST to 10.0, Muscle.LATS to 10.0, Muscle.UPPER_BACK to 10.0,
-        Muscle.DELTS to 10.0, Muscle.BICEPS to 9.0, Muscle.TRICEPS to 9.0,
-        Muscle.CALVES to 8.0,
-    )
-
-    private val directFloors = linkedMapOf(
-        Muscle.TRAPS to 6,
-        Muscle.FOREARMS to 4,
-        Muscle.ABS to 8,
-    )
-
-    private val week32SetOverrides = linkedMapOf(
-        "d1_squat" to 2, "d1_rdl" to 1, "d1_leg_press" to 1, "d1_leg_curl" to 1, "d1_calf" to 2, "d1_abs" to 1,
-        "d5_deadlift" to 2, "d5_hip" to 1, "d5_bss" to 1, "d5_extension" to 1, "d5_calf" to 2, "d5_abs" to 1, "d5_wrist" to 1,
-        "d6_incline" to 1, "d6_fly" to 1, "d6_pushdown" to 1, "d6_wrist" to 1, "d6_calf" to 1, "d6_abs" to 1,
-    )
-
-    fun credits(deload: Boolean): Map<Muscle, Double> {
-        val totals = Muscle.entries.associateWith { 0.0 }.toMutableMap()
-        OperatorProgramV56.resistanceSlots.forEach { slot ->
-            val sets = if (deload) slot.deloadSets else slot.workingSets
-            if (sets > 0) slot.roleMap.forEach { (muscle, role) ->
-                totals[muscle] = totals.getValue(muscle) + sets * role.creditPerSet
-            }
-        }
-        return Muscle.entries.associateWith { totals.getValue(it) }
-    }
-
-    fun exposures(deload: Boolean): Map<Muscle, Int> {
-        val days = Muscle.entries.associateWith { linkedSetOf<Int>() }.toMutableMap()
-        OperatorProgramV56.resistanceSlots.forEach { slot ->
-            val sets = if (deload) slot.deloadSets else slot.workingSets
-            if (sets > 0) slot.roleMap.keys.forEach { days.getValue(it).add(slot.day) }
-        }
-        return Muscle.entries.associateWith { days.getValue(it).size }
-    }
-
-    fun directSets(deload: Boolean): Map<Muscle, Int> {
-        val totals = Muscle.entries.associateWith { 0 }.toMutableMap()
-        OperatorProgramV56.resistanceSlots.forEach { slot ->
-            val sets = if (deload) slot.deloadSets else slot.workingSets
-            if (sets > 0) totals[slot.ownerMuscle] = totals.getValue(slot.ownerMuscle) + sets
-        }
-        return Muscle.entries.associateWith { totals.getValue(it) }
-    }
-
-    fun matrix(): List<ProgramMatrixRow> {
-        val normal = credits(false)
-        val deload = credits(true)
-        val normalExposures = exposures(false)
-        val deloadExposures = exposures(true)
-        val normalDirect = directSets(false)
-        val deloadDirect = directSets(true)
-        return Muscle.entries.map { muscle ->
-            ProgramMatrixRow(
-                muscle, normal.getValue(muscle), normalExposures.getValue(muscle),
-                deload.getValue(muscle), deloadExposures.getValue(muscle),
-                normalDirect.getValue(muscle), deloadDirect.getValue(muscle),
-            )
-        }
-    }
-
-    fun sprintVolumeStatus(meters: Int): SprintVolumeStatus = when {
-        meters < 0 -> SprintVolumeStatus.PROHIBITED
-        meters <= 500 -> SprintVolumeStatus.ALLOWED
-        meters <= 600 -> SprintVolumeStatus.WARNING
+    fun sprintVolumeStatus(meters:Int)=when {
+        meters<0 -> SprintVolumeStatus.PROHIBITED
+        meters<=500 -> SprintVolumeStatus.ALLOWED
+        meters<=600 -> SprintVolumeStatus.WARNING
         else -> SprintVolumeStatus.PROHIBITED
     }
 
-    fun validate(): List<String> {
-        val errors = mutableListOf<String>()
-        val normal = credits(false)
-        val deload = credits(true)
-        val normalExposures = exposures(false)
-        val deloadExposures = exposures(true)
-        val normalDirect = directSets(false)
-        val deloadDirect = directSets(true)
+    fun validate():List<String> = buildList {
+        if(ProgramV71.AUTHORITY_VERSION!="7.1") add("Authority version must be 7.1.")
+        if(ProgramV71.AUTHORITY_SHA256!="1d33dbca214b34dd456a971d32bc1c19d59e3a13069393429fc9e2115e3a036c") add("Authority SHA-256 mismatch.")
+        if(ProgramV71.weeks.map { it.week }!=(1..32).toList()) add("Exactly Weeks 1–32 must be populated.")
+        if(ProgramV71.blocks.map { it.startWeek to it.endWeek }!=listOf(1 to 8,9 to 16,17 to 24,25 to 32)) add("Phase boundaries mismatch.")
+        if(ProgramV71.dayTitles.keys!=(1..7).toSet()) add("Every week must contain Days 1–7.")
+        if(ProgramV71.dayTitles[7]!="Rest" || ProgramV71.dayTitles.filterValues { it=="Rest" }.keys!=setOf(7)) add("Day 7 must be the only rest day.")
+        if(setOf(8,16,24).any { !ProgramV71.isConsolidation(it) }) add("Consolidation weeks mismatch.")
+        if(setOf(8,16,24,30,31,32).any(ProgramV71::includesPlyometrics)) add("Plyometrics prohibited in consolidation/realization/test weeks.")
+        ProgramV71.resistanceSlots.forEach { slot ->
+            val primes=slot.roleMap.filterValues { it==MuscleRole.PRIME }.keys
+            if(primes.size!=1 || primes.single()!=slot.ownerMuscle) add("${slot.id}: owner must be unique PRIME.")
+            if(slot.alternatives.size>4 || slot.alternatives.map { it.rank }!=(1..slot.alternatives.size).toList()) add("${slot.id}: invalid alternatives.")
+        }
+        for(week in 1..32) {
+            val plan=ProgramV71.conditioningForWeek(week)
+            if(plan.d1.isEmpty()||plan.speed.isEmpty()||plan.engine.isEmpty()) add("Week $week missing conditioning.")
+            if(sprintVolumeStatus(plan.speed.sumOf { it.qualifyingSprintMeters })==SprintVolumeStatus.PROHIBITED) add("Week $week exceeds sprint cap.")
+            val split=SessionResolver.splitForWeek(week, ProgramAuthority.V71)
+            if(split.size!=7) add("Week $week must resolve seven days.")
+            if(split.count { session -> session.rows.any { it.kind==SessionRowKind.REST } }!=1) add("Week $week must have exactly one rest day.")
+        }
+        if(!ProgramV71.conditioningForWeek(1).speed.single().title.contains("baseline",true)) add("Week 1 baseline missing.")
+        if(!ProgramV71.conditioningForWeek(16).speed.single().title.contains("checkpoint",true)) add("Week 16 checkpoint missing.")
+        if(!ProgramV71.conditioningForWeek(24).engine.single().title.contains("checkpoint",true)) add("Week 24 checkpoint missing.")
+        if(!ProgramV71.conditioningForWeek(32).speed.single().title.contains("Final",true)) add("Week 32 300 m final missing.")
+        if(!ProgramV71.conditioningForWeek(32).engine.single().title.contains("Final",true)) add("Week 32 1.5-mile final missing.")
+        if(!ProgramV71.omitShortUpper(24)||!ProgramV71.omitShortUpper(32)) add("Required short-upper omissions missing.")
+        if(sprintVolumeStatus(500)!=SprintVolumeStatus.ALLOWED||sprintVolumeStatus(501)!=SprintVolumeStatus.WARNING||sprintVolumeStatus(601)!=SprintVolumeStatus.PROHIBITED) add("Sprint cap boundary mismatch.")
+    }
 
-        if (OperatorProgramV56.AUTHORITY_VERSION != "5.7") errors += "Authority version must be 5.7."
-        if (OperatorProgramV56.AUTHORITY_SHA256 != "867c468ba616a22185b871c649d8c026be5c1c61b3a7f690edac5b6169fc3d0a") {
-            errors += "Authority SHA-256 does not match approved v5.7."
-        }
-        if (OperatorProgramV56.weeks.map { it.week } != (1..32).toList()) errors += "Exactly Weeks 1–32 must be populated."
-        if (OperatorProgramV56.blocks.size != 4 || OperatorProgramV56.blocks.any { it.status != BlockStatus.POPULATED }) {
-            errors += "All four phases must be populated."
-        }
-        if (OperatorProgramV56.blocks.map { it.godName } != listOf("HEPHAESTUS", "HERMES", "ARES", "ZEUS")) {
-            errors += "Greek phase labels do not match the approved ARES display mapping."
-        }
-        if (normal != expectedNormalCredits) errors += "Normal fractional-credit vector mismatch: $normal"
-        if (deload != expectedDeloadCredits) errors += "Deload fractional-credit vector mismatch: $deload"
-        if (normalExposures != expectedNormalExposures) errors += "Normal exposure vector mismatch: $normalExposures"
-        if (deloadExposures != expectedDeloadExposures) errors += "Deload exposure vector mismatch: $deloadExposures"
-
-        fractionalFloors.forEach { (muscle, floor) ->
-            if (normal.getValue(muscle) < floor) errors += "Normal fractional floor failed for ${muscle.label}."
-            if (deload.getValue(muscle) < floor) errors += "Deload fractional floor failed for ${muscle.label}."
-        }
-        directFloors.forEach { (muscle, floor) ->
-            if (normalDirect.getValue(muscle) < floor) errors += "Normal direct-set floor failed for ${muscle.label}."
-            if (deloadDirect.getValue(muscle) < floor) errors += "Deload direct-set floor failed for ${muscle.label}."
-        }
-        Muscle.entries.forEach { muscle ->
-            if (normalExposures.getValue(muscle) < 2) errors += "Normal exposure minimum failed for ${muscle.label}."
-            if (deloadExposures.getValue(muscle) < 2) errors += "Deload exposure minimum failed for ${muscle.label}."
-        }
-
-        val normalTotal = normal.values.sum()
-        val deloadTotal = deload.values.sum()
-        if (abs(normalTotal - 148.0) > 1e-9) errors += "Normal total must equal 148.0, got $normalTotal"
-        if (abs(deloadTotal - 117.5) > 1e-9) errors += "Deload total must equal 117.5, got $deloadTotal"
-        val reduction = (normalTotal - deloadTotal) / normalTotal * 100.0
-        if (abs(round(reduction * 10.0) / 10.0 - 20.6) > 1e-9) errors += "Deload reduction must round to 20.6%, got $reduction"
-        if (normal.values.max() / normal.values.min() > 1.75) errors += "Normal balance exceeds 1.75."
-        if (deload.values.max() / deload.values.min() > 1.75) errors += "Deload balance exceeds 1.75."
-
-        OperatorProgramV56.resistanceSlots.forEach { slot ->
-            val primes = slot.roleMap.filterValues { it == MuscleRole.PRIME }.keys
-            if (primes.size != 1 || primes.single() != slot.ownerMuscle) errors += "${slot.id}: owner muscle must be unique PRIME."
-            if (slot.alternatives.size !in 2..4) errors += "${slot.id}: requires 2–4 ranked alternatives."
-            if (slot.alternatives.map { it.rank } != (1..slot.alternatives.size).toList()) errors += "${slot.id}: alternative ranks invalid."
-            if ((slot.movement + slot.alternatives.joinToString { it.name }).contains("sled", true)) errors += "${slot.id}: sled reference prohibited."
-        }
-
+    /** Versioned reference audit only; does not change prescriptions or session state. */
+    fun validateV73(): List<String> = buildList {
         for (week in 1..32) {
-            val plan = OperatorProgramV56.conditioningForWeek(week)
-            if (plan.d1.isEmpty() || plan.speed.isEmpty() || plan.engine.isEmpty()) errors += "Week $week missing D1/D3/D6 conditioning."
-            val meters = plan.speed.sumOf { it.qualifyingSprintMeters }
-            if (sprintVolumeStatus(meters) == SprintVolumeStatus.PROHIBITED) errors += "Week $week exceeds 600 m sprint cap: $meters"
-        }
-
-        if (OperatorProgramV56.conditioningForWeek(1).speed.single().title != "300 M BASELINE") errors += "Week 1 D3 baseline missing."
-        if (OperatorProgramV56.conditioningForWeek(1).engine.single().title != "1.5-MILE BASELINE") errors += "Week 1 D6 baseline missing."
-        if (OperatorProgramV56.conditioningForWeek(16).speed.single().title != "300 M CHECKPOINT") errors += "Week 16 checkpoint missing."
-        if (OperatorProgramV56.conditioningForWeek(24).engine.single().title != "1.5-MILE CHECKPOINT") errors += "Week 24 checkpoint missing."
-        if (OperatorProgramV56.conditioningForWeek(32).speed.single().title != "FINAL 300 M TEST") errors += "Week 32 300 m final missing."
-        if (OperatorProgramV56.conditioningForWeek(32).engine.single().title != "FINAL 1.5-MILE TEST") errors += "Week 32 1.5-mile final missing."
-
-        val taperActual = week32SetOverrides.mapValues { (slotId, _) ->
-            val slot = OperatorProgramV56.resistanceSlots.singleOrNull { it.id == slotId }
-            if (slot == null) -1 else OperatorProgramV56.week32Sets(slotId, slot.workingSets)
-        }
-        if (taperActual != week32SetOverrides) errors += "Week 32 reduced-set prescription mismatch: $taperActual"
-        OperatorProgramV56.resistanceSlots
-            .filter { it.day in setOf(2, 4) }
-            .forEach { slot ->
-                if (OperatorProgramV56.week32Sets(slot.id, slot.workingSets) != slot.workingSets) {
-                    errors += "Week 32 ${slot.id}: D2/D4 must retain normal approved sets."
-                }
+            val split = SessionResolver.splitForWeek(week, ProgramAuthority.V73)
+            val total = split.flatMap { it.rows }.filter { it.kind == SessionRowKind.RESISTANCE }.sumOf { it.effortCount }
+            val expected = when (week) { 8,16 -> 59; 24 -> 65; 30,31 -> 77; 32 -> 13; in 17..23 -> 146; else -> 136 }
+            if (total != expected) add("Week $week resistance total $total != $expected")
+            for (session in split) {
+                val sets = session.rows.filter { it.kind == SessionRowKind.RESISTANCE }.sumOf { it.effortCount }
+                if (sets > ProgramV73.sessionCap(week,session.day)) add("Week $week Day ${session.day} exceeds cap")
             }
-        if (OperatorProgramV56.week32RirFloor(1) != 3 || OperatorProgramV56.week32RirFloor(2) != 1 ||
-            OperatorProgramV56.week32RirFloor(4) != 1 || OperatorProgramV56.week32RirFloor(5) != 3 ||
-            OperatorProgramV56.week32RirFloor(6) != 2
-        ) errors += "Week 32 RIR floors mismatch."
-
-        val finisher = OperatorProgramV56.machinePowerFinisher
-        if (finisher.efforts != 6 || finisher.hardSeconds != 10 || finisher.easySeconds != 80) errors += "Finisher must be 6×10/80."
-        if (finisher.hierarchy != listOf(MachineModality.AIR_FAN_BIKE, MachineModality.STATIONARY_CYCLE, MachineModality.ROW_ERG, MachineModality.SKI_ERG)) {
-            errors += "Finisher equipment hierarchy mismatch."
+            if (split[0].rows.any { it.kind == SessionRowKind.RESISTANCE }) add("Week $week Engine must be alone")
+            if (split[3].rows.any { it.id == "v73_w${week}_throws" } != (week in ProgramV73.THROW_WEEKS)) add("Week $week throw scope mismatch")
+            val meters = ProgramV73.conditioningForWeek(week).speed.sumOf { it.qualifyingSprintMeters }
+            if (meters > 600) add("Week $week exceeds sprint cap")
+            if (meters == 600 && split[3].rows.none { it.note.orEmpty().contains("WORKLOAD WARNING") }) add("Week $week missing 600 m warning")
         }
-        if (sprintVolumeStatus(500) != SprintVolumeStatus.ALLOWED || sprintVolumeStatus(501) != SprintVolumeStatus.WARNING ||
-            sprintVolumeStatus(600) != SprintVolumeStatus.WARNING || sprintVolumeStatus(601) != SprintVolumeStatus.PROHIBITED
-        ) errors += "Sprint cap boundary mismatch."
+        ProgramV73.resistanceSlots.forEach { slot ->
+            if (slot.roleMap.values.count { it == MuscleRole.PRIME } != 1 || slot.roleMap[slot.ownerMuscle] != MuscleRole.PRIME) add("${slot.id}: PRIME ownership mismatch")
+        }
+    }
 
-        return errors
+    fun validateV72(): List<String> = buildList {
+        if (ProgramV72.AUTHORITY_VERSION != "7.2") add("v7.2 version mismatch.")
+        if (ProgramV72.TOTAL_WEEKS * ProgramV72.DAYS_PER_WEEK != ProgramV72.TOTAL_DAYS) add("224-day duration mismatch.")
+        val expectedVolume = mapOf(
+            1 to mapOf("total" to 104, "chest" to 11, "back" to 13, "quads" to 13, "hamstrings" to 12, "biceps" to 8, "triceps" to 6),
+            2 to mapOf("total" to 100, "chest" to 11, "back" to 14, "quads" to 14, "hamstrings" to 12, "biceps" to 8, "triceps" to 6),
+            3 to mapOf("total" to 88, "chest" to 10, "back" to 12, "quads" to 11, "hamstrings" to 10, "biceps" to 8, "triceps" to 6),
+            4 to mapOf("total" to 71, "chest" to 8, "back" to 10, "quads" to 8, "hamstrings" to 8, "biceps" to 6, "triceps" to 6),
+        )
+        expectedVolume.forEach { (phase, expected) ->
+            val actual = ProgramV72.phaseVolume(phase)
+            expected.forEach { (key, value) -> if (actual[key] != value) add("Phase $phase $key expected $value was ${actual[key]}.") }
+        }
+        if (ProgramV72.resistanceSlots.any { it.alternatives.any { alt -> alt.name.contains("trap-bar", true) && it.movement.contains("Romanian", true) } }) {
+            add("RDL alternatives must not substitute a trap-bar deadlift.")
+        }
+        for (week in 1..32) {
+            val split = SessionResolver.splitForWeek(week, ProgramAuthority.V72)
+            if (split.size != 7) add("Week $week must resolve seven v7.2 days.")
+            if (split.count { session -> session.day == 7 && session.rows.any { it.kind == SessionRowKind.REST } } != 1) add("Week $week rest day mismatch.")
+            if (split.any { it.authority != ProgramAuthority.V72 }) add("Week $week leaked another authority.")
+            val sprint = ProgramV72.conditioningForWeek(week).speed.sumOf { it.qualifyingSprintMeters }
+            if (sprint > 600) add("Week $week exceeds 600 m.")
+            val speedNote = split[3].rows.joinToString(" ") { it.note.orEmpty() }
+            if (sprint == 600 && !speedNote.contains("WORKLOAD WARNING")) add("Week $week missing 600 m warning.")
+            if (sprint in 1..599 && speedNote.contains("WORKLOAD WARNING")) add("Week $week warns below 600 m.")
+            if (ProgramV72.includesPlyometrics(week) != split[3].rows.any { it.id.endsWith("plyometrics") }) add("Week $week plyometric scope mismatch.")
+            if (split[0].rows.none { it.title == "Cooldown" }) add("Week $week Day 1 missing Engine cooldown.")
+            if (split[3].rows.none { it.title == "Cooldown" }) add("Week $week Day 4 missing Speed cooldown.")
+        }
+        val laterCurls = ProgramV72.resistanceSlots.filter { it.phase > 1 && it.day == 3 && it.id.endsWith("_curl") }
+        if (laterCurls.size != 3 || laterCurls.any { slot -> slot.alternatives.map { it.name } != listOf("Behind-body cable curl") }) {
+            add("Later-phase Day 3 curls must keep the Phase 1 behind-body cable alternative.")
+        }
+        if (SessionResolver.resolve(1, 1, ProgramAuthority.V72).rows.any { it.kind == SessionRowKind.RESISTANCE }) add("Week 1 Day 1 must omit short upper.")
+        if (SessionResolver.resolve(32, 2, ProgramAuthority.V72).rows.any { it.kind == SessionRowKind.RESISTANCE }) add("Week 32 Day 2 must not lift.")
+        if (SessionResolver.resolve(32, 5, ProgramAuthority.V72).rows.any { it.title == "Easy aerobic" }) add("Week 32 Day 5 must omit easy aerobic.")
+        if (SessionResolver.resolve(32, 6, ProgramAuthority.V72).rows.any { it.kind == SessionRowKind.RESISTANCE }) add("Week 32 Day 6 must not lift.")
+        val pace = SessionResolver.resolve(13, 1, ProgramAuthority.V72).rows.first { it.title == "Goal pace" }.note.orEmpty()
+        if (!pace.contains("1:39.4") || pace.contains("400 m 1:40") || pace.contains("2:30") || pace.contains("3:20") || pace.contains("4:10")) add("Goal-pace table mismatch.")
     }
 }

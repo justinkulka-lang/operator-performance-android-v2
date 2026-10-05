@@ -14,62 +14,54 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.jk.operatorperformance.program.ProgramNotesV56
+import com.jk.operatorperformance.program.ProgramNotesV72
+import com.jk.operatorperformance.program.SessionRowKind
+import com.jk.operatorperformance.program.ProgramV71
+import com.jk.operatorperformance.program.ProgramV72
+import com.jk.operatorperformance.program.ProgramAuthority
 import com.jk.operatorperformance.program.SessionReference
-import com.jk.operatorperformance.program.SessionRow
-import com.jk.operatorperformance.state.ActiveWorkoutState
 import com.jk.operatorperformance.state.ProgramUiState
-import com.jk.operatorperformance.state.WorkoutProgress
-
-internal enum class WorkoutMapVisualState {
-    COMPLETE,
-    CURRENT,
-    UPCOMING,
-}
 
 internal fun sessionExecutionGuidance(session: SessionReference): List<String> = buildList {
-    if (session.day == 3) {
-        add(ProgramNotesV56.execution[0])
-        if (session.week == 1) add(ProgramNotesV56.execution[1])
+    if (session.authority != ProgramAuthority.V71 && session.day != 7) {
+        addAll(ProgramNotesV72.safety)
+        if (session.rows.any { it.kind == SessionRowKind.RESISTANCE }) {
+            addAll(ProgramNotesV72.resistanceExecution)
+            add(ProgramNotesV72.calibrationCorrection)
+        }
+        if (session.day == 4) {
+            add(ProgramNotesV72.accelerationIntent)
+            add(ProgramNotesV72.fullRecovery)
+        }
+        if (session.day in listOf(1, 4)) {
+            add(ProgramNotesV72.easyRecovery)
+            add(ProgramNotesV72.qualityReview)
+        }
+        if (session.day == 5 && session.week != 32) {
+            add(ProgramNotesV72.easyAerobic)
+            if (session.authority == ProgramAuthority.V73) add(ProgramV71.easyRunNote)
+        }
     }
-    if (session.day == 6) {
-        if (session.week == 1) add(ProgramNotesV56.execution[2])
-        add(ProgramNotesV56.execution[3])
+    val speedDay = if (session.authority != ProgramAuthority.V71) 4 else 3
+    val engineDay = if (session.authority != ProgramAuthority.V71) 1 else 6
+    if (session.day == speedDay) {
+        add("Perform speed fresh on a safe surface. Quality and mechanics govern the session.")
+        val timed = if (session.authority != ProgramAuthority.V71) ProgramV72.isTimed300(session.week) else ProgramV71.isTimed300(session.week)
+        if (timed) add(if (session.authority != ProgramAuthority.V71) ProgramV72.testGate else ProgramV71.testGate)
+    }
+    if (session.day == engineDay) {
+        add(if (session.authority == ProgramAuthority.V73) "Engine is the only Day 1 work. Complete the cooldown; no lifting or extra intervals." else "Complete the prescribed engine work before any short upper. Do not add result entry or extra intervals.")
     }
 }
 
 internal fun foundationReferenceLabel(session: SessionReference, state: ProgramUiState): String? {
-    if (session.week !in 2..8) return null
-    return when (session.day) {
-        3 -> "FOUNDATION SPEED • ${state.speedVariant.label} • MANUAL REFERENCE"
-        6 -> "FOUNDATION ENGINE • ${state.engineVariant.label} • MANUAL REFERENCE"
+    val consolidation = if (session.authority != ProgramAuthority.V71) ProgramV72.isConsolidation(session.week) else ProgramV71.isConsolidation(session.week)
+    return when {
+        consolidation -> "PLANNED CONSOLIDATION • FIXED PRESCRIPTION"
+        session.week in setOf(30, 31) -> "PLANNED REALIZATION • FIXED PRESCRIPTION"
+        session.week == 32 -> "WEEK 32 OVERLAY • FIXED PRESCRIPTION"
         else -> null
     }
-}
-
-internal fun rowIsComplete(progress: ActiveWorkoutState, row: SessionRow): Boolean =
-    (1..row.effortCount).all { WorkoutProgress.isEffortComplete(progress, row.id, it) }
-
-internal fun workoutMapState(
-    progress: ActiveWorkoutState,
-    session: SessionReference,
-    rowIndex: Int,
-): WorkoutMapVisualState {
-    val row = session.rows[rowIndex]
-    return when {
-        rowIsComplete(progress, row) -> WorkoutMapVisualState.COMPLETE
-        !progress.complete && rowIndex == progress.movementIndex -> WorkoutMapVisualState.CURRENT
-        else -> WorkoutMapVisualState.UPCOMING
-    }
-}
-
-internal fun nextIncompleteMovementTitle(progress: ActiveWorkoutState, session: SessionReference): String? {
-    if (progress.complete) return null
-    val orderedIndices = ((progress.movementIndex + 1)..session.rows.lastIndex).toList() +
-        (0 until progress.movementIndex).toList()
-    val nextIndex = orderedIndices.firstOrNull { !rowIsComplete(progress, session.rows[it]) } ?: return null
-    val row = session.rows[nextIndex]
-    return progress.selectedSubstitutions[row.id] ?: row.title
 }
 
 @Composable
@@ -88,12 +80,12 @@ internal fun SessionExecutionBanner(session: SessionReference) {
     if (guidance.isEmpty()) return
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Text("EXECUTION", color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.Bold)
+            Text("EXECUTION", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
             guidance.forEach {
-                Text("• $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                Text("• $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -107,9 +99,9 @@ internal fun FoundationReferenceBanner(session: SessionReference, state: Program
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(label, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+            Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
             Text(
-                "Weeks 2–8 only. Selection remains manual; change it in TOOLS.",
+                "This overlay is part of v${session.authority.versionLabel} and is not a user-selectable deload.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
