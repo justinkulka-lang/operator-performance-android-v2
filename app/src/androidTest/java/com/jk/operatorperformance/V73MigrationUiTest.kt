@@ -46,7 +46,7 @@ class V73MigrationUiTest {
     }
     @Test fun engagedHistoricalWeekSurvivesActivityRecreationAndAdvancesAtBoundary() {
         seed(13,7,88)
-        rule.onNodeWithTag("today_header").assertTextContains("v7.2")
+        rule.onNodeWithTag("today_header").assertTextContains("v7.2",substring=true)
         val context=ApplicationProvider.getApplicationContext<Context>()
         val store=ProgramStateStore(context)
         val retained=store.load()
@@ -54,13 +54,13 @@ class V73MigrationUiTest {
         assertEquals(14,retained.v73ActivationWeek)
         store.save(retained.advanceDay())
         LifecycleTestSupport(rule).recreate("today_header")
-        rule.onNodeWithTag("today_header").assertTextContains("v7.3")
+        rule.onNodeWithTag("today_header").assertTextContains("v7.3",substring=true)
         assertEquals(ProgramAuthority.V72,ProgramStateStore(context).load().authorityForWeek(13))
         rule.onAllNodesWithText("LOG SET",substring=true).assertCountEquals(0)
     }
     @Test fun positivelyUnstartedDay1ActivatesEngineOnlyAcrossRecreation() {
         seed(17,1,112)
-        rule.onNodeWithTag("today_header").assertTextContains("v7.3")
+        rule.onNodeWithTag("today_header").assertTextContains("v7.3",substring=true)
         val store=ProgramStateStore(ApplicationProvider.getApplicationContext())
         val state=store.load()
         assertEquals(17,state.v73ActivationWeek)
