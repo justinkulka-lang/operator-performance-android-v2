@@ -19,6 +19,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -141,6 +142,7 @@ internal fun WorkoutRestPanel(
 
 @Composable
 private fun RestCountdown(endEpochMillis: Long, testTag: String, onFinished: () -> Unit) {
+    val latestOnFinished by rememberUpdatedState(onFinished)
     var remaining by remember(endEpochMillis) { mutableIntStateOf(remainingSeconds(endEpochMillis, System.currentTimeMillis())) }
     val haptic = LocalHapticFeedback.current
 
@@ -150,7 +152,7 @@ private fun RestCountdown(endEpochMillis: Long, testTag: String, onFinished: () 
             remaining = next
             if (next <= 0) {
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                onFinished()
+                latestOnFinished()
                 break
             }
             delay(250L)

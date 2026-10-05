@@ -44,6 +44,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -533,21 +534,24 @@ private fun WorkoutModeScreen(
 ) {
     val session = SessionResolver.resolve(progress.week, progress.day, authority)
     val normalized = WorkoutProgress.normalize(progress, session)
+    val latestProgress by rememberUpdatedState(normalized)
+    val latestOnProgress by rememberUpdatedState(onProgress)
     val haptic = LocalHapticFeedback.current
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     val restSeconds = WorkoutProgress.remainingRestSeconds(normalized, now)
 
     KeepScreenOnEffect()
 
-    LaunchedEffect(normalized.restTimerEndEpochMillis) {
+    LaunchedEffect(progress.week, progress.day, authority, normalized.restTimerEndEpochMillis) {
         val end = normalized.restTimerEndEpochMillis
+        now = System.currentTimeMillis()
         while (end != null && end > System.currentTimeMillis()) {
             delay(1_000)
             now = System.currentTimeMillis()
         }
-        if (end != null && end <= System.currentTimeMillis()) {
+        if (end != null && end == latestProgress.restTimerEndEpochMillis && end <= System.currentTimeMillis()) {
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-            onProgress(WorkoutProgress.clearExpiredRest(normalized, System.currentTimeMillis()))
+            latestOnProgress(WorkoutProgress.clearExpiredRest(latestProgress, System.currentTimeMillis()))
         }
     }
 
@@ -877,16 +881,19 @@ private fun ProgramScreen(
 @Composable
 private fun ToolsScreen(state: ProgramUiState, onStateChanged: (ProgramUiState) -> Unit, onOpenKey: () -> Unit) {
     val haptic = LocalHapticFeedback.current
+    val latestState by rememberUpdatedState(state)
+    val latestOnStateChanged by rememberUpdatedState(onStateChanged)
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(state.utilityRestTimerEndEpochMillis) {
         val end = state.utilityRestTimerEndEpochMillis
+        now = System.currentTimeMillis()
         while (end != null && end > System.currentTimeMillis()) {
             delay(1_000)
             now = System.currentTimeMillis()
         }
-        if (end != null && end <= System.currentTimeMillis()) {
+        if (end != null && end == latestState.utilityRestTimerEndEpochMillis && end <= System.currentTimeMillis()) {
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-            onStateChanged(state.copy(utilityRestTimerEndEpochMillis = null))
+            latestOnStateChanged(latestState.copy(utilityRestTimerEndEpochMillis = null))
         }
     }
     val timerRemaining = state.utilityRestTimerEndEpochMillis?.let { ((it - now).coerceAtLeast(0L) / 1_000L).toInt() } ?: 0
