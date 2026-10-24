@@ -469,12 +469,6 @@ private fun TodayScreen(
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("reset_today_workout"),
                 ) { Text("RESET TODAY'S WORKOUT") }
             }
-            if (canConsolidate) {
-                Button(
-                    onClick = { confirmConsolidate = true },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("consolidate_now"),
-                ) { Text("CONSOLIDATE NOW") }
-            }
             if (atEnd) {
                 Card(Modifier.fillMaxWidth()) {
                     Text("LEGEND • 32-WEEK / 224-DAY PROGRAM COMPLETE", Modifier.padding(16.dp), fontWeight = FontWeight.Bold)
@@ -487,13 +481,23 @@ private fun TodayScreen(
             }
         }
     }
-    if (!isRest && sessionStatus != SessionStatus.COMPLETED) {
+    if (canConsolidate || (!isRest && sessionStatus != SessionStatus.COMPLETED)) {
         Surface(color = MaterialTheme.colorScheme.surface) {
-            Button(
-                onClick = onStartWorkout,
-                colors = legendButtonColors(),
-                modifier = Modifier.fillMaxWidth().padding(12.dp).heightIn(min = 56.dp).testTag("start_resume_workout"),
-            ) { Text(if (sessionStatus == SessionStatus.NOT_STARTED) "START WORKOUT" else "RESUME WORKOUT", fontWeight = FontWeight.Bold) }
+            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (canConsolidate) {
+                    Button(
+                        onClick = { confirmConsolidate = true },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("consolidate_now"),
+                    ) { Text("CONSOLIDATE NOW") }
+                }
+                if (!isRest && sessionStatus != SessionStatus.COMPLETED) {
+                    Button(
+                        onClick = onStartWorkout,
+                        colors = legendButtonColors(),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("start_resume_workout"),
+                    ) { Text(if (sessionStatus == SessionStatus.NOT_STARTED) "START WORKOUT" else "RESUME WORKOUT", fontWeight = FontWeight.Bold) }
+                }
+            }
         }
     }
     }

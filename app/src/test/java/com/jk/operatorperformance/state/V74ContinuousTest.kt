@@ -270,6 +270,52 @@ class V74ContinuousTest {
         })
     }
 
+    @Test fun retainedWeek32SeedStaysV72AndConsolidateSeedIsAvailable() {
+        val prefs = MemoryPrefs()
+        prefs.edit {
+            putBoolean("v71Initialized", true)
+            putInt("currentWeek", 32)
+            putInt("currentDay", 1)
+            putString("authorityVersion", "V72")
+            putBoolean("v72MigrationApplied", true)
+            putInt("v72MigrationRevision", 2)
+            putBoolean("v72ActivationProven", true)
+            putBoolean("v74MigrationApplied", true)
+            putInt("v74ActivationWeek", 33)
+            putStringSet("historicalWeekAuthorities", (1..32).map { "$it:V72" }.toSet())
+        }
+        val retained = ProgramStateStore(prefs, MemoryPrefs()).load()
+        assertEquals(32, retained.currentWeek)
+        assertEquals(1, retained.currentDay)
+        assertEquals(ProgramAuthority.V72, retained.authorityForWeek(32))
+        assertEquals(33, retained.v74ActivationWeek)
+        assertNull(retained.v74Block)
+        assertFalse(retained.canConsolidate(false, WeekStartEvidence.NOT_STARTED))
+
+        val consolidate = MemoryPrefs()
+        consolidate.edit {
+            putBoolean("v71Initialized", true)
+            putInt("currentWeek", 5)
+            putInt("currentDay", 1)
+            putString("authorityVersion", "V74")
+            putBoolean("v72MigrationApplied", true)
+            putInt("v72MigrationRevision", 2)
+            putBoolean("v72ActivationProven", true)
+            putBoolean("v73MigrationApplied", true)
+            putInt("v73ActivationWeek", 1)
+            putBoolean("v74MigrationApplied", true)
+            putInt("v74ActivationWeek", 1)
+            putInt("v74Block", 1)
+            putInt("v74BlockWeek", 5)
+            putInt("v74Loop", 1)
+            putInt("engagedAbsoluteDay", 28)
+        }
+        val store = ProgramStateStore(consolidate, MemoryPrefs())
+        val ready = store.load()
+        assertEquals(WeekStartEvidence.NOT_STARTED, store.evidenceForWeek(5))
+        assertTrue(ready.canConsolidate(store.loadWorkout() != null, store.evidenceForWeek(5)))
+    }
+
     @Test fun everyStartPositionPersistsAndAdvancesByTheNormalRule() {
         val prefs = MemoryPrefs()
         val store = ProgramStateStore(prefs, MemoryPrefs())

@@ -297,7 +297,9 @@ class V72ReferenceUiTest {
             .putInt("v74ActivationWeek", 33)
             .putStringSet("historicalWeekAuthorities", (1..32).map { "$it:V72" }.toSet())
             .commit()
-        lifecycle.recreate("today_header")
+        // Recreation restores the Program destination. Today is not composed, so the
+        // retained-week browser is the screen this seed is about to use.
+        lifecycle.recreate("program_screen")
     }
 
     private fun longestSession() = (1..32).flatMap { week ->
