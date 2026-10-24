@@ -21,10 +21,12 @@ LEGEND v7.4 Continuous was approved by the owner on 10/20/2026 and is pending im
 
 The app displays the fixed approved prescription for the authority recorded for that week. It does not select speed or engine variants, trigger deloads, infer missing prescriptions, inherit browsing choices, or automatically recompose the program.
 
+The phase purpose copy is intentionally neutral display text, enforced by `LegendVisualIdentityTest.phasePurposeCopyStaysNeutral`, and is not a prescription.
+
 A new install starts at Week 1 Day 1 under v7.3. An initialized historical week finishes under the authority already recorded for it. Moving the pointer, changing a utility timer, or saving a workout must not erase a week-authority assignment already recorded. An explicit reset to Week 1 Day 1 under v7.3 is the path that clears those assignments. The following week after a retained week uses the activation boundary already stored. No week after 32 is created.
 
 The app may persist the current week/day pointer, the active authority, the per-week authority history, completion marks, substitutions, timers, and local utility settings. It must not collect or persist bodyweight, calories, readiness, sleep, heart rate or HRV, pace or test results, load, reps, RIR, photos, Health Connect data, analytics, cloud-sync data, or automatic program adjustments.
 
 Today resolves the authority recorded for the current week. A saved session or pointer that names a different authority is not applied to that reference.
 
-Audit notes for earlier candidates remain in `docs/audit/`. v7.3 implementation evidence is in `docs/legend-v73/`.
+Audit notes for earlier candidates remain in `docs/archive/v7.2-candidate-376925a/`. v7.3 implementation evidence is in `docs/legend-v73/`.
