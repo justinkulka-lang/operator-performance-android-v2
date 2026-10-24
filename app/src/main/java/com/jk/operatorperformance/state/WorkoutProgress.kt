@@ -2,6 +2,15 @@ package com.jk.operatorperformance.state
 
 import com.jk.operatorperformance.program.SessionReference
 
+/**
+ * A saved workout whose authority is not the authority of its week is not shown on Today.
+ * A null authority is kept; [WorkoutProgress.normalize] still rejects a real mismatch.
+ */
+fun workoutForToday(state: ProgramUiState, workout: ActiveWorkoutState?): ActiveWorkoutState? {
+    val savedAuthority = workout?.authority ?: return workout
+    return if (savedAuthority == state.authorityForWeek(workout.week)) workout else null
+}
+
 enum class SessionStatus {
     NOT_STARTED,
     ACTIVE,

@@ -351,26 +351,28 @@ class ProgramStateStore internal constructor(
         )
     }
 
-    fun markSessionEngaged(week: Int, day: Int) {
+    fun markSessionEngaged(week: Int, day: Int): ProgramUiState {
         require(week in 1..32)
         require(day in 1..7)
         val state = load()
-        if (state.v73MigrationApplied && week !in state.historicalAuthorities) {
-            save(state.copy(historicalAuthorities = state.historicalAuthorities + (week to state.authorityForWeek(week))))
-        }
+        val recorded = if (state.v73MigrationApplied && week !in state.historicalAuthorities) {
+            state.copy(historicalAuthorities = state.historicalAuthorities + (week to state.authorityForWeek(week)))
+        } else state
+        if (recorded != state) save(recorded)
         val absolute = (week - 1) * 7 + day
         val existing = prefs.getInt(KEY_ENGAGED_ABSOLUTE_DAY, 0)
         if (!prefs.contains(KEY_ENGAGED_ABSOLUTE_DAY) || absolute > existing) {
             prefs.edit { putInt(KEY_ENGAGED_ABSOLUTE_DAY, absolute) }
         }
+        return recorded
     }
 
     fun clearSessionStatus() {
         prefs.edit { remove(KEY_ENGAGED_ABSOLUTE_DAY) }
     }
 
-    fun saveWorkout(s: ActiveWorkoutState) {
-        markSessionEngaged(s.week, s.day)
+    fun saveWorkout(s: ActiveWorkoutState): ProgramUiState {
+        val recorded = markSessionEngaged(s.week, s.day)
         prefs.edit {
             putBoolean(KEY_WORKOUT_ACTIVE, true)
             putString(KEY_WORKOUT_AUTHORITY, (s.authority ?: load().authorityForWeek(s.week)).name)
@@ -386,6 +388,7 @@ class ProgramStateStore internal constructor(
             if (s.restTimerEndEpochMillis != null) putLong(KEY_WORKOUT_TIMER, s.restTimerEndEpochMillis) else remove(KEY_WORKOUT_TIMER)
             listOf(KEY_UNDO_MOVEMENT, KEY_UNDO_EFFORT, KEY_UNDO_COMPLETE, KEY_UNDO_COMPLETED, KEY_UNDO_TIMER).forEach(::remove)
         }
+        return recorded
     }
 
     fun clearWorkout() {

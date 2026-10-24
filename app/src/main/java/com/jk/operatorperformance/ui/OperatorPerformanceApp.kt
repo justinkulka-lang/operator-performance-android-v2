@@ -72,6 +72,7 @@ import com.jk.operatorperformance.state.ProgramStateStore
 import com.jk.operatorperformance.state.ProgramUiState
 import com.jk.operatorperformance.state.SessionStatus
 import com.jk.operatorperformance.state.WorkoutProgress
+import com.jk.operatorperformance.state.workoutForToday
 import kotlinx.coroutines.delay
 
 private enum class Destination(val label: String) {
@@ -97,7 +98,7 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
 
     fun persistWorkout(next: ActiveWorkoutState) {
         activeWorkout = next
-        stateStore.saveWorkout(next)
+        state = stateStore.saveWorkout(next)
     }
 
     fun clearWorkout() {
@@ -199,21 +200,26 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
             },
         ) { padding ->
             Surface(Modifier.fillMaxSize().padding(padding), color = MaterialTheme.colorScheme.background) {
+                val todayWorkout = workoutForToday(state, activeWorkout)
+                LaunchedEffect(activeWorkout) {
+                    val saved = activeWorkout
+                    if (saved != null && workoutForToday(state, saved) == null) clearWorkout()
+                }
                 when (destination) {
                     Destination.TODAY -> TodayScreen(
                         state = state,
-                        activeWorkout = activeWorkout?.takeIf { it.matchesPointer(state) },
+                        activeWorkout = todayWorkout?.takeIf { it.matchesPointer(state) },
                         onStartWorkout = {
-                            val existing = activeWorkout?.takeIf { it.matchesPointer(state) && !it.complete }
+                            val existing = todayWorkout?.takeIf { it.matchesPointer(state) && !it.complete }
                             persistWorkout(existing ?: WorkoutProgress.start(state))
                             workoutMode = true
                         },
                         onProgress = ::persistWorkout,
                         onResetWorkout = ::clearWorkout,
                         onAdvance = {
-                            stateStore.markSessionEngaged(state.currentWeek, state.currentDay)
+                            val engaged = stateStore.markSessionEngaged(state.currentWeek, state.currentDay)
                             clearWorkout()
-                            val next = state.advanceDay()
+                            val next = engaged.advanceDay()
                             persist(next)
                             selectedProgramWeek = next.currentWeek
                         },
