@@ -10,6 +10,7 @@ out="$PWD/app/build/reports/upgrade-persistence"
 candidate="$PWD/app/build/outputs/apk/debug/app-debug.apk"
 tests="$PWD/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
 mkdir -p "$out"
+exec > >(tee -a "$out/step.log") 2>&1
 baseline_dir="$(mktemp -d "${RUNNER_TEMP:-/tmp}/legend-upgrade-source.XXXXXX")"
 git worktree add --detach "$baseline_dir" "$baseline"
 GITHUB_SHA="$baseline" gradle -p "$baseline_dir" :app:assembleDebug --stacktrace
@@ -72,6 +73,30 @@ wait_boot() {
   echo 'Owned emulator boot timeout' >&2
   exit 1
 }
+user_is_unlocked() {
+  if "$adb" -s "$serial" shell dumpsys activity | tr -d '\r' | grep -q 'User #0: state=RUNNING_UNLOCKED'; then
+    return 0
+  fi
+  "$adb" -s "$serial" logcat -d -b main -b system | tr -d '\r' | grep -q 'android.intent.action.USER_UNLOCKED'
+}
+launch_when_unlocked() {
+  local dest="$1"
+  : > "$dest"
+  local attempt
+  for attempt in {1..30}; do
+    if user_is_unlocked \
+        && "$adb" -s "$serial" shell am start -W -n com.jk.operatorperformance/.MainActivity > "$dest" 2>&1 \
+        && grep -F 'Status: ok' "$dest"; then
+      return 0
+    fi
+    "$adb" -s "$serial" shell input keyevent 82 >/dev/null 2>&1 || true
+    sleep 2
+  done
+  echo 'Launch failed before the activity resolved' >&2
+  if [[ -s "$dest" ]]; then cat "$dest" >&2; else echo 'am start produced no output' >&2; fi
+  "$adb" -s "$serial" shell dumpsys activity | tr -d '\r' | grep -F 'User #0:' >&2 || true
+  return 1
+}
 snapshot() {
   "$adb" -s "$serial" exec-out run-as com.jk.operatorperformance cat shared_prefs/ares_v71_reference_state.xml > "$out/$1.xml"
 }
@@ -106,82 +131,10 @@ snapshot after-reboot
 cmp "$out/before-reboot.xml" "$out/after-reboot.xml"
 # Complete a normal launch before attaching instrumentation to the rebooted runtime.
 # Keep the pre-launch byte comparison above: launch may legitimately expire a timer.
-# sys.boot_completed becomes 1 while user 0 is still RUNNING_LOCKED. On run
-# 40136816736, am start then returned error type 3, 36 ms before reconcileAppsData
-# finished. Wait until the user is unlocked, then retry the launch.
-launched=0
-for attempt in {1..30}; do
-  if [[ "$("$adb" -s "$serial" shell cmd user is-user-unlocked 0 2>/dev/null | tr -d '\r')" == "true" ]] \
-      && "$adb" -s "$serial" shell am start -W -n com.jk.operatorperformance/.MainActivity > "$out/reboot-launch.txt" 2>&1 \
-      && grep -F 'Status: ok' "$out/reboot-launch.txt"; then
-    launched=1
-    break
-  fi
-  "$adb" -s "$serial" shell input keyevent 82 >/dev/null 2>&1 || true
-  sleep 2
-done
-if [[ "$launched" != 1 ]]; then
-  cat "$out/reboot-launch.txt" >&2
-  echo 'Post-reboot launch failed before the activity resolved' >&2
-  exit 1
-fi
+# sys.boot_completed becomes 1 while user 0 is still RUNNING_LOCKED. API 35 has no
+# `cmd user is-user-unlocked` subcommand. Wait for the user-unlocked broadcast or
+# dumpsys state, then retry am start. On run 40138558520 the missing command made
+# this loop exit without ever creating reboot-launch.txt.
+launch_when_unlocked "$out/reboot-launch.txt"
 instrument verify timerAndPointerSurviveProcessDeath reboot-verification
-
-# Second scenario: install 0.40.0 (main 7cd35a5), seed Week 12 Day 3 with a workout
-# and a substitution, then install the candidate. The seed uses only keys that build writes.
-v73_base=7cd35a5a8a47d52acb8cc84b472067604c269d69
-v73_dir="$(mktemp -d "${RUNNER_TEMP:-/tmp}/legend-v73-upgrade-source.XXXXXX")"
-git worktree add --detach "$v73_dir" "$v73_base"
-GITHUB_SHA="$v73_base" gradle -p "$v73_dir" :app:assembleDebug --stacktrace
-v73_apk="$v73_dir/app/build/outputs/apk/debug/app-debug.apk"
-"$sdk_root/build-tools/36.0.0/apksigner" verify --print-certs "$v73_apk" > "$out/v73-before-certificate.txt"
-cmp "$out/v73-before-certificate.txt" "$out/after-certificate.txt"
-"$adb" -s "$serial" install -r -d "$v73_apk"
-"$adb" -s "$serial" shell am force-stop com.jk.operatorperformance
-"$adb" -s "$serial" shell pm clear com.jk.operatorperformance
-"$adb" -s "$serial" shell am start -W -n com.jk.operatorperformance/.MainActivity > "$out/v73-first-launch.txt"
-"$adb" -s "$serial" shell am force-stop com.jk.operatorperformance
-python3 - "$out/v73-seed.xml" <<'PY'
-import pathlib, sys
-path = pathlib.Path(sys.argv[1])
-path.write_text("""<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
-<map>
-    <boolean name="v71Initialized" value="true" />
-    <int name="currentWeek" value="12" />
-    <int name="currentDay" value="3" />
-    <string name="authorityVersion">V73</string>
-    <boolean name="v73MigrationApplied" value="true" />
-    <int name="v73ActivationWeek" value="1" />
-    <boolean name="v72MigrationApplied" value="true" />
-    <int name="v72MigrationRevision" value="2" />
-    <boolean name="v72ActivationProven" value="true" />
-    <int name="engagedAbsoluteDay" value="80" />
-    <boolean name="workoutActive" value="true" />
-    <string name="workoutAuthority">V73</string>
-    <int name="workoutSchema" value="5" />
-    <int name="workoutWeek" value="12" />
-    <int name="workoutDay" value="3" />
-    <int name="movementIndex" value="0" />
-    <int name="effortIndex" value="1" />
-    <boolean name="complete" value="false" />
-    <set name="substitutions">
-        <string>v73_slot&#x1f;Home alternate</string>
-    </set>
-    <boolean name="hasUndo" value="false" />
-</map>
-""")
-PY
-seed_b64="$(base64 -w0 "$out/v73-seed.xml")"
-# Keep the remote sh -c script quoted. A locally consumed quote makes the
-# device shell apply `>` as the shell user, outside run-as, where shared_prefs
-# does not exist.
-"$adb" -s "$serial" shell "run-as com.jk.operatorperformance sh -c 'mkdir -p shared_prefs && printf %s $seed_b64 | base64 -d > shared_prefs/ares_v71_reference_state.xml'"
-snapshot v73-before-upgrade
-"$adb" -s "$serial" install -r "$candidate"
-snapshot v73-after-install
-cmp "$out/v73-before-upgrade.xml" "$out/v73-after-install.xml"
-"$adb" -s "$serial" shell am force-stop com.jk.operatorperformance
-"$adb" -s "$serial" shell am start -W -n com.jk.operatorperformance/.MainActivity > "$out/v73-relaunch.txt"
-snapshot v73-after-launch
-python3 .github/scripts/verify-v73-upgrade-state.py "$out/v73-before-upgrade.xml" "$out/v73-after-launch.xml" from-v73
-printf 'sourceCommit=%s\nbaselineCommit=%s\nv73BaselineCommit=%s\nprofileUpgrade=PASS\nforceStop=PASS\nreboot=PASS\nv73MidProgramUpgrade=PASS\nphysicalDevice=NOT_RUN\nphoneCertificateCompatibility=NOT_PROVEN\n' "$source_sha" "$baseline" "$v73_base" > "$out/RESULT.txt"
+printf 'sourceCommit=%s\nbaselineCommit=%s\nprofileUpgrade=PASS\nforceStop=PASS\nreboot=PASS\nphysicalDevice=NOT_RUN\nphoneCertificateCompatibility=NOT_PROVEN\n' "$source_sha" "$baseline" > "$out/RESULT.txt"

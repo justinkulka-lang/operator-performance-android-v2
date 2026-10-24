@@ -87,6 +87,8 @@ jobs:
           done
       - name: Same-certificate upgrade, force-stop, and emulator reboot
         run: bash .github/scripts/upgrade-emulator-acceptance.sh "$SOURCE_COMMIT"
+      - name: v7.3 Week 12 upgrade on a fresh emulator
+        run: bash .github/scripts/upgrade-v73-emulator-acceptance.sh "$SOURCE_COMMIT"
       - name: Verify and package the matching debug candidate
         shell: bash
         run: |
