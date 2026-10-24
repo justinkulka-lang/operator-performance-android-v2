@@ -11,7 +11,7 @@ evidence=app/build/reports/packaging
 label="${source_sha:0:12}"
 mkdir -p "$out" "$evidence"
 "$tools/aapt2" dump badging "$apk" > "$out/badging.txt"
-grep -F "package: name='com.jk.operatorperformance' versionCode='48' versionName='0.39.0'" "$out/badging.txt"
+grep -F "package: name='com.jk.operatorperformance' versionCode='49' versionName='0.40.0'" "$out/badging.txt"
 grep -F "application-label:'LEGEND'" "$out/badging.txt"
 "$tools/aapt2" dump xmltree "$apk" --file AndroidManifest.xml > "$out/manifest.txt"
 "$tools/aapt2" dump permissions "$apk" > "$out/permissions.txt"
