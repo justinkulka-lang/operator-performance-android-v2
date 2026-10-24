@@ -39,3 +39,19 @@ C-7. The owner reinstalls the app for every update, which erases saved state, so
    - Block IV Week 8 Day 7 → Week 33 = Loop 2 · I · 1.
    - [instrumented] A fresh install can start at a position and Today shows the matching header.
 5. This addition does not change any other 2b rule. Report it under its own heading.
+
+## C-8
+
+C-8. Task 3 may be built on a branch stacked on the Task 2c head instead of waiting for PR #21 to merge. Nothing merges until the owner's final audit passes; PR #21 merges first.
+
+## C-9
+
+C-9. On V74 rows, "Stop for pain or declining landing quality." becomes "Stop when landing quality declines." and "Stop for pain or degraded mechanics." becomes "Stop when mechanics degrade." The single global line covers pain.
+
+## C-10
+
+C-10. The Task 3 serif is EB Garamond (SIL OFL 1.1), bundled offline.
+
+## C-11
+
+C-11. C-9 applies to the V74 rows only, by substitution, never by editing a frozen file. The V74 jump prescription is ProgramV72.plyometrics with exactly one change: "Stop for pain or declining landing quality." → "Stop when landing quality declines." The V74 throws note is the v7.3 throws note with exactly one change: "Stop for pain or degraded mechanics." → "Stop when mechanics degrade." For §5, "the existing v7.2 plyometrics row" and "the existing v7.3 throws row" mean that row's text after this substitution. ProgramV72.kt, SessionResolverV72.kt and SessionResolverV73.kt stay byte-identical, so the retained v7.2 and v7.3 text does not change.

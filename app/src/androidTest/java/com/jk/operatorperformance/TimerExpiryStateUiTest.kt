@@ -87,14 +87,27 @@ class TimerExpiryStateUiTest {
         assertEquals(state.utilityRestTimerEndEpochMillis, store.load().utilityRestTimerEndEpochMillis)
         assertEquals(90, store.load().restTimerSeconds)
         rule.waitUntil(40_000L) { store.load().utilityRestTimerEndEpochMillis == null }
-        val loaded = store.load()
-        assertEquals(90, loaded.restTimerSeconds)
-        assertNull(loaded.utilityRestTimerEndEpochMillis)
-        assertEquals(17, loaded.currentWeek)
-        assertEquals(2, loaded.currentDay)
-        assertEquals(ProgramAuthority.V73, loaded.authorityForWeek(17))
+        val expected = ProgramUiState(
+            initialized = true,
+            currentWeek = 17,
+            currentDay = 2,
+            restTimerSeconds = 90,
+            utilityRestTimerEndEpochMillis = null,
+            authority = ProgramAuthority.V73,
+            retainedV71Week = null,
+            v72ActivationProven = true,
+            v73ActivationWeek = 1,
+            v73MigrationApplied = true,
+            historicalAuthorities = (1..17).associateWith { ProgramAuthority.V73 },
+            v74MigrationApplied = true,
+            v74ActivationWeek = 18,
+            v74Block = null,
+            v74BlockWeek = null,
+            v74Loop = null,
+        )
+        assertEquals(expected, store.load())
         lifecycle.recreate("tools_screen")
-        assertEquals(90, store.load().restTimerSeconds)
+        assertEquals(expected, store.load())
         reveal("tools_screen", "rest_choice_90")
         rule.onNodeWithTag("rest_choice_90").assertTextContains("SELECTED", substring = true)
     }

@@ -32,10 +32,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.jk.operatorperformance.program.CoachingNotes
 import com.jk.operatorperformance.program.ProgramAuthority
-import com.jk.operatorperformance.program.ProgramNotesV71
-import com.jk.operatorperformance.program.ProgramNotesV73
 import com.jk.operatorperformance.program.ProgramNotesV72
+import com.jk.operatorperformance.program.V74SurfaceText
 import com.jk.operatorperformance.state.LegacyDataManager
 import com.jk.operatorperformance.state.ProgramStateStore
 import com.jk.operatorperformance.state.ToolsDataState
@@ -270,38 +270,36 @@ private fun PlateLoadResult(label: String, load: PlateLoad) {
 @Composable
 private fun ProgramNotesCard(authority: ProgramAuthority) {
     var expanded by rememberSaveable { mutableStateOf(false) }
+    val page = CoachingNotes.page(authority)
     Card(modifier = Modifier.fillMaxWidth().testTag("program_notes_tool")) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("PROGRAM / COACHING NOTES", style = MaterialTheme.typography.titleSmall)
-            Text("Execution, progression, interference, sprint-volume, run-impact, and planned-overlay guidance for v${authority.versionLabel}. No performance logging required.")
+            page.intro?.let { Text(it) }
             TextButton(
                 onClick = { expanded = !expanded },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("program_notes_toggle"),
             ) { Text(if (expanded) "HIDE NOTES" else "SHOW NOTES") }
             if (expanded) {
-                NotesSection("SAFETY / PARTICIPATION", (if (authority == ProgramAuthority.V73) ProgramNotesV73.safety else ProgramNotesV72.safety))
-                NotesSection("RESISTANCE EXECUTION", (if (authority == ProgramAuthority.V73) ProgramNotesV73.resistanceExecution else ProgramNotesV72.resistanceExecution))
-                NotesSection("RECOVERY / REVIEW", (if (authority == ProgramAuthority.V73) ProgramNotesV73.recovery else ProgramNotesV72.recovery))
-                NotesSection("RUNNING EXECUTION", (if (authority == ProgramAuthority.V73) ProgramNotesV73.runningExecution else ProgramNotesV72.runningExecution))
-                NotesSection("EXECUTION", (if (authority == ProgramAuthority.V73) ProgramNotesV73.execution else if (authority == ProgramAuthority.V71) ProgramNotesV71.execution else ProgramNotesV72.execution))
-                NotesSection("RESISTANCE PROGRESSION", (if (authority == ProgramAuthority.V73) ProgramNotesV73.resistanceProgression else if (authority == ProgramAuthority.V71) ProgramNotesV71.resistanceProgression else ProgramNotesV72.resistanceProgression))
-                NotesSection("INTERFERENCE", (if (authority == ProgramAuthority.V73) ProgramNotesV73.interference else if (authority == ProgramAuthority.V71) ProgramNotesV71.interference else ProgramNotesV72.interference))
-                NotesSection("SPRINT VOLUME", (if (authority == ProgramAuthority.V73) ProgramNotesV73.sprintVolume else if (authority == ProgramAuthority.V71) ProgramNotesV71.sprintVolume else ProgramNotesV72.sprintVolume))
-                NotesSection("RUN / IMPACT", (if (authority == ProgramAuthority.V73) ProgramNotesV73.runImpact else if (authority == ProgramAuthority.V71) ProgramNotesV71.runImpact else ProgramNotesV72.runImpact))
-                Text("300 m • 46 s TARGET • AVERAGE-VELOCITY REFERENCES", style = MaterialTheme.typography.titleSmall)
-                ProgramNotesV72.sprintReference.forEach { (distance, time) ->
-                    Row(Modifier.fillMaxWidth().testTag("sprint_reference_${distance.substringBefore(' ')}"), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(distance)
-                        Text(time, style = technicalStyle(MaterialTheme.typography.bodyMedium))
-                    }
+                page.sections.forEach { section ->
+                    if (page.showSprintReference && section.title == "PLANNED OVERLAYS") SprintReferenceBlock()
+                    NotesSection(section.title, section.lines)
                 }
-                Text(ProgramNotesV72.sprintReferenceLimit)
-                Text("Percentage repetitions use the current pain-free 300 m result, not the 46 s target. Acceleration and flying repetitions have no mandatory split.")
-                NotesSection("PLANNED OVERLAYS", (if (authority == ProgramAuthority.V73) ProgramNotesV73.plannedOverlays else if (authority == ProgramAuthority.V71) ProgramNotesV71.plannedOverlays else ProgramNotesV72.plannedOverlays))
-                NotesSection("AUTHORITY LIMITS", (if (authority == ProgramAuthority.V73) ProgramNotesV73.authorityLimits else if (authority == ProgramAuthority.V71) ProgramNotesV71.authorityLimits else ProgramNotesV72.authorityLimits))
             }
         }
     }
+}
+
+@Composable
+private fun SprintReferenceBlock() {
+    Text(CoachingNotes.SPRINT_HEADING, style = MaterialTheme.typography.titleSmall)
+    ProgramNotesV72.sprintReference.forEach { (distance, time) ->
+        Row(Modifier.fillMaxWidth().testTag("sprint_reference_${distance.substringBefore(' ')}"), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(distance)
+            Text(time, style = technicalStyle(MaterialTheme.typography.bodyMedium))
+        }
+    }
+    Text(ProgramNotesV72.sprintReferenceLimit)
+    Text(CoachingNotes.PERCENTAGE_NOTE)
 }
 
 @Composable
@@ -365,18 +363,24 @@ private fun DataControlsCard() {
         AlertDialog(
             onDismissRequest = { confirmReset = false },
             title = { Text("Reset current program pointer?") },
-            text = { Text("Choose Week 1 or a block, block week, and day. Continuous program: four 8-week blocks, repeated.") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(V74SurfaceText.RESET_CHOOSER)
+                    TextButton(
+                        onClick = { confirmReset = false; confirmWeekOne = true },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("reset_week_one"),
+                    ) { Text(V74SurfaceText.START_WEEK_ONE) }
+                    TextButton(
+                        onClick = { confirmReset = false; showStartPosition = true },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("reset_at_position"),
+                    ) { Text(V74SurfaceText.START_AT_POSITION) }
+                }
+            },
             confirmButton = {
                 TextButton(
-                    onClick = { confirmReset = false; confirmWeekOne = true },
-                    modifier = Modifier.heightIn(min = 48.dp).testTag("reset_week_one"),
-                ) { Text("START WEEK 1 • DAY 1") }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { confirmReset = false; showStartPosition = true },
-                    modifier = Modifier.heightIn(min = 48.dp).testTag("reset_at_position"),
-                ) { Text("START AT A POSITION") }
+                    onClick = { confirmReset = false },
+                    modifier = Modifier.heightIn(min = 48.dp).testTag("reset_chooser_cancel"),
+                ) { Text("CANCEL") }
             },
         )
     }
@@ -384,7 +388,7 @@ private fun DataControlsCard() {
         AlertDialog(
             onDismissRequest = { confirmWeekOne = false },
             title = { Text("Reset current program pointer?") },
-            text = { Text("This starts Week 1, Day 1. ${com.jk.operatorperformance.program.V74Pointer.CONTINUOUS_LINE} It clears current session status, substitutions, workout timer, engagement evidence and historical week-authority assignments. Program content, retained legacy data and utility settings remain.") },
+            text = { Text(V74SurfaceText.RESET_WEEK_ONE_CONFIRMATION) },
             confirmButton = {
                 TextButton(
                     onClick = {

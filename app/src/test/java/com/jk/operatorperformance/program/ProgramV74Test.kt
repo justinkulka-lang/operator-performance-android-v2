@@ -1,5 +1,8 @@
 package com.jk.operatorperformance.program
 
+import com.jk.operatorperformance.ui.phaseFieldLabel
+import com.jk.operatorperformance.ui.positionConfirmation
+import com.jk.operatorperformance.ui.sessionFocusLine
 import java.io.File
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
@@ -19,6 +22,12 @@ class ProgramV74Test {
         val clarifications = repoFile("docs/legend-v74/CLARIFICATIONS.md").readText()
         assertTrue(clarifications.contains("The §9 blocklist entry \"anchor\" is too broad"))
         assertTrue(clarifications.contains("Use \"300 m anchor\" and \"anchor formula\" in the blocklist instead of \"anchor\"."))
+        assertTrue(clarifications.contains("## C-8"))
+        assertTrue(clarifications.contains("## C-9"))
+        assertTrue(clarifications.contains("## C-10"))
+        assertTrue(clarifications.contains("## C-11"))
+        assertTrue(clarifications.contains("\"Stop for pain or declining landing quality.\" → \"Stop when landing quality declines.\""))
+        assertTrue(clarifications.contains("\"Stop for pain or degraded mechanics.\" → \"Stop when mechanics degrade.\""))
     }
 
     @Test fun computedConsolidationMatchesTheTableForEverySlot() {
@@ -185,17 +194,34 @@ class ProgramV74Test {
     }
 
     @Test fun jumpsAndThrowsReuseTheExistingRowsAndWarmupsDropRemovedSentences() {
+        val landingBefore = "Stop for pain or declining landing quality."
+        val landingAfter = "Stop when landing quality declines."
+        val mechanicsBefore = "Stop for pain or degraded mechanics."
+        val mechanicsAfter = "Stop when mechanics degrade."
+        val v72Source = repoFile("app/src/main/java/com/jk/operatorperformance/program/ProgramV72.kt").readText()
+        val v73Source = repoFile("app/src/main/java/com/jk/operatorperformance/program/SessionResolverV73.kt").readText()
+        assertTrue(v72Source.contains(landingBefore))
+        assertFalse(v72Source.contains(landingAfter))
+        assertTrue(v73Source.contains(mechanicsBefore))
+        assertFalse(v73Source.contains(mechanicsAfter))
+        assertTrue(ProgramV72.plyometrics.contains(landingBefore))
         val v72Jumps = SessionResolver.resolve(3, 4, ProgramAuthority.V72).rows.single { it.id.endsWith("plyometrics") }
         val v74Jumps = SessionResolverV74.resolve(1, 3, 4).rows.single { it.title == "Low-dose plyometrics" }
         assertEquals(v72Jumps.title, v74Jumps.title)
-        assertEquals(v72Jumps.prescription, v74Jumps.prescription)
+        assertEquals(1, Regex.fromLiteral(landingBefore).findAll(ProgramV72.plyometrics).count())
+        assertEquals(ProgramV72.plyometrics.replace(landingBefore, landingAfter), v74Jumps.prescription)
+        assertEquals(v72Jumps.prescription, ProgramV72.plyometrics)
+        assertFalse(v74Jumps.prescription.contains("pain"))
         assertEquals(v72Jumps.note, v74Jumps.note)
         assertEquals(v72Jumps.effortCount, v74Jumps.effortCount)
         assertEquals(v72Jumps.effortLabel, v74Jumps.effortLabel)
         val v73Throws = SessionResolver.resolve(3, 4, ProgramAuthority.V73).rows.single { it.title == "Hip-driven medicine-ball throws" }
         val v74Throws = SessionResolverV74.resolve(2, 4, 4).rows.single { it.title == v73Throws.title }
+        val v73Note = requireNotNull(v73Throws.note)
         assertEquals(v73Throws.prescription, v74Throws.prescription)
-        assertEquals(v73Throws.note, v74Throws.note)
+        assertEquals(1, Regex.fromLiteral(mechanicsBefore).findAll(v73Note).count())
+        assertEquals(v73Note.replace(mechanicsBefore, mechanicsAfter), v74Throws.note)
+        assertFalse(v74Throws.note.orEmpty().contains("pain"))
         assertEquals(v73Throws.effortCount, v74Throws.effortCount)
         assertEquals(v73Throws.effortLabel, v74Throws.effortLabel)
         val legacyQuality = SessionResolver.resolve(2, 1, ProgramAuthority.V72).rows.single { it.title == "Engine warm-up" }
@@ -236,31 +262,63 @@ class ProgramV74Test {
         assertEquals("Rest", rest.title)
         assertEquals(1, rest.rows.size)
         assertEquals(SessionRowKind.REST, rest.rows.single().kind)
-        val forbidden = listOf("MISSING", "goal pace", "300 m anchor", "anchor formula", "calibration", "validated injury", "outside the app")
+        val forbidden = listOf(
+            "MISSING", "goal pace", "300 m anchor", "anchor formula", "calibration",
+            "validated injury", "outside the app", "v7.3 starts", "LEGEND v7.3",
+        )
+        val reachable = mutableListOf<String>()
         for (block in 1..4) for (blockWeek in 1..8) for (day in 1..7) {
             val session = SessionResolverV74.resolve(block, blockWeek, day)
             assertEquals(ProgramV74.dayTitles.getValue(day), session.title)
             assertEquals(ProgramV74.GLOBAL_LINE, session.globalLine)
             assertEquals(1, listOf(session.globalLine).count { it == ProgramV74.GLOBAL_LINE })
             assertFalse(session.rows.any { it.prescription == ProgramV74.GLOBAL_LINE || it.note == ProgramV74.GLOBAL_LINE })
-            val shown = buildList {
-                add(session.title)
-                add(session.globalLine)
-                session.rows.forEach { row ->
-                    add(row.title); add(row.prescription); add(row.note.orEmpty()); addAll(row.alternatives)
-                }
-            }
-            shown.forEach { text ->
-                val lowerText = text.lowercase()
-                forbidden.forEach { term -> assertFalse("$term in B$block W$blockWeek D$day: $text", lowerText.contains(term.lowercase())) }
-                assertFalse(lowerText.contains("pull-up"))
-                assertFalse(lowerText.contains("t-bar"))
-                assertFalse(text.contains("goal-pace"))
-                assertFalse(text.contains("Planned consolidation"))
-                assertFalse(text.contains("Planned realization"))
-                assertFalse(text.contains(ProgramV72.speedTestBuildup))
+            val absolute = V74Pointer.absoluteWeek(block, blockWeek)
+            val shown = V74Pointer.reference(absolute, block, blockWeek, day)
+            reachable += listOf(
+                session.title,
+                session.globalLine,
+                V74Pointer.header(absolute, block, blockWeek),
+                "Loop ${V74Pointer.loopFor(absolute)}",
+                sessionFocusLine(shown),
+                phaseFieldLabel(shown.phase),
+            )
+            session.rows.forEach { row ->
+                reachable += row.title
+                reachable += row.prescription
+                reachable += row.note.orEmpty()
+                reachable += row.alternatives
             }
         }
+        val notes = CoachingNotes.page(ProgramAuthority.V74)
+        assertEquals(
+            listOf("Week structure", "Progression", "Autoregulation", "Running effort guide"),
+            notes.sections.map { it.title },
+        )
+        assertNull(notes.intro)
+        assertFalse(notes.showSprintReference)
+        notes.sections.forEach { section ->
+            reachable += section.title
+            reachable += section.lines
+        }
+        val retained = CoachingNotes.page(ProgramAuthority.V73)
+        assertTrue(retained.showSprintReference)
+        assertEquals(ProgramNotesV73.authorityLimits, retained.sections.single { it.title == "AUTHORITY LIMITS" }.lines)
+        assertEquals(ProgramNotesV72.resistanceProgression, retained.sections.single { it.title == "RESISTANCE PROGRESSION" }.lines)
+        reachable += V74SurfaceText.chrome()
+        reachable += (1..7).map { V74SurfaceText.setCurrentDay(it) }
+        for (block in 1..4) for (blockWeek in 1..8) for (day in 1..7) {
+            reachable += positionConfirmation(block, blockWeek, day)
+        }
+        reachable.forEach { text -> assertAllowedV74Copy(text, forbidden) }
+        val app = repoFile("app/src/main/java/com/jk/operatorperformance/ui/OperatorPerformanceApp.kt").readText()
+        assertFalse(app.contains("LEGEND v7.3"))
+        assertFalse(app.contains("v7.3 starts"))
+        assertTrue(reachable.any { it.contains("anchored to rack") })
+        assertTrue(reachable.any { it.contains("anchored high on the rack") })
+        val v71Notes = CoachingNotes.page(ProgramAuthority.V71)
+        assertEquals(ProgramNotesV71.execution, v71Notes.sections.single { it.title == "EXECUTION" }.lines)
+        assertEquals(ProgramNotesV72.safety, v71Notes.sections.single { it.title == "SAFETY / PARTICIPATION" }.lines)
         val homes = SessionResolverV74.resolve(1, 1, 2).rows.flatMap { it.alternatives } +
             SessionResolverV74.resolve(1, 1, 5).rows.flatMap { it.alternatives } +
             SessionResolverV74.resolve(1, 1, 6).rows.flatMap { it.alternatives }
@@ -291,9 +349,23 @@ class ProgramV74Test {
         assertTrue(lines.all { it.split('\t').size == 8 })
         val digest = java.security.MessageDigest.getInstance("SHA-256").digest(file.readBytes())
         assertEquals(
-            "3e62a6ae06ffcb3f689297608caa033d15b7562d3300c90c57568fc308e86ad8",
+            "af562e6e0ccde91abd84777956e1adefabf60952b5a6ecd92090303bcc61c7fa",
             digest.joinToString("") { "%02x".format(it) },
         )
+    }
+
+    private fun assertAllowedV74Copy(text: String, forbidden: List<String>) {
+        assertFalse("MISSING in: $text", text.contains("MISSING"))
+        val lowerText = text.lowercase()
+        forbidden.filter { it != "MISSING" }.forEach { term ->
+            assertFalse("$term in: $text", lowerText.contains(term.lowercase()))
+        }
+        assertFalse(lowerText.contains("pull-up"))
+        assertFalse(lowerText.contains("t-bar"))
+        assertFalse(text.contains("goal-pace"))
+        assertFalse(text.contains("Planned consolidation"))
+        assertFalse(text.contains("Planned realization"))
+        assertFalse(text.contains(ProgramV72.speedTestBuildup))
     }
 
     private fun encodeDumpField(value: Any?): String = value?.toString()

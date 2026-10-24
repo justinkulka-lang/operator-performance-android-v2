@@ -64,6 +64,7 @@ import com.jk.operatorperformance.program.ProgramV73
 import com.jk.operatorperformance.program.ProgramV72
 import com.jk.operatorperformance.program.ProgramV74
 import com.jk.operatorperformance.program.ProgramAuthority
+import com.jk.operatorperformance.program.V74SurfaceText
 import com.jk.operatorperformance.program.SessionReference
 import com.jk.operatorperformance.program.SessionResolver
 import com.jk.operatorperformance.program.SessionRow
@@ -120,17 +121,15 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
                     Text("LEGEND", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(12.dp))
                     Text(V74Pointer.CONTINUOUS_LINE)
-                    Spacer(Modifier.height(12.dp))
-                    Text("Starting begins at Week 1, Day 1. Existing progress is preserved. Engaged historical weeks keep their authority; LEGEND v7.3 starts at the next positively unstarted Day 1.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(24.dp))
                     Button(
                         onClick = { clearWorkout(); stateStore.clearSessionStatus(); persist(state.startV74()); selectedProgramWeek = 1 },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("start_v72"),
-                    ) { Text("START WEEK 1 • DAY 1", fontWeight = FontWeight.Bold) }
+                    ) { Text(V74SurfaceText.START_WEEK_ONE, fontWeight = FontWeight.Bold) }
                     Button(
                         onClick = { showStartPosition = true },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("start_at_position"),
-                    ) { Text("START AT A POSITION", fontWeight = FontWeight.Bold) }
+                    ) { Text(V74SurfaceText.START_AT_POSITION, fontWeight = FontWeight.Bold) }
                 }
             }
             if (showStartPosition) {
@@ -299,7 +298,7 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
                 title = { Text("Change current program day?") },
                 text = {
                     Text(
-                        if (state.v74MigrationApplied) "Set the current day to Day $day? The block, block week, loop, and absolute week stay. This clears the current session status, substitutions and workout timer. It preserves the utility timer and recorded engagement."
+                        if (state.v74MigrationApplied) V74SurfaceText.setCurrentDay(day)
                         else "Set the current pointer to Week $week, Day $day? This clears the current session status, substitutions and workout timer. It preserves the utility timer, recorded engagement and each week’s authority; it does not mark any new movement complete.",
                     )
                 },
@@ -414,6 +413,7 @@ private fun TodayScreen(
                 modifier = Modifier.testTag("today_header"),
             )
             Text(session.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            V74GlobalLine(session.authority == ProgramAuthority.V74)
             if ((session.authority == ProgramAuthority.V71 || session.authority == ProgramAuthority.V72) && state.v73MigrationApplied) {
                 Text("RETAINED WEEK • v${session.authority.versionLabel}", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
             }
@@ -502,7 +502,7 @@ private fun TodayScreen(
         AlertDialog(
             onDismissRequest = { confirmAdvance = false },
             title = { Text("Advance to the next day?") },
-            text = { Text("Move the program pointer to the next day? This clears the active session. It does not store loads, reps, or results.") },
+            text = { Text(V74SurfaceText.advanceConfirmation(session.authority == ProgramAuthority.V74)) },
             confirmButton = {
                 TextButton(
                     onClick = { confirmAdvance = false; onAdvance() },
@@ -517,7 +517,7 @@ private fun TodayScreen(
         AlertDialog(
             onDismissRequest = { confirmConsolidate = false },
             title = { Text("Consolidate this block week?") },
-            text = { Text("This block week becomes the consolidation week. ${ProgramV74.CONSOLIDATION_LABEL}") },
+            text = { Text(V74SurfaceText.consolidateConfirmation()) },
             confirmButton = {
                 TextButton(
                     onClick = { confirmConsolidate = false; onConsolidate() },
@@ -532,7 +532,7 @@ private fun TodayScreen(
         AlertDialog(
             onDismissRequest = { confirmReset = false },
             title = { Text("Reset today's workout?") },
-            text = { Text("Clear today's active session, chosen alternatives, and rest timer? The week stays marked as engaged, and no loads, reps, or results are stored.") },
+            text = { Text(V74SurfaceText.resetWorkoutConfirmation(session.authority == ProgramAuthority.V74)) },
             confirmButton = {
                 TextButton(
                     onClick = { confirmReset = false; onResetWorkout() },
@@ -667,6 +667,7 @@ private fun WorkoutModeScreen(
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.testTag("workout_status"),
                 )
+                V74GlobalLine(session.authority == ProgramAuthority.V74)
                 Text(
                     "Read the whole session while training. Nothing here asks for loads, reps, or a tap on every set.",
                     style = MaterialTheme.typography.bodySmall,
@@ -771,6 +772,7 @@ private fun WeekScreen(state: ProgramUiState, onOpenDay: (SessionReference) -> U
                 "WEEK ${state.currentWeek}",
                 style = technicalStyle(MaterialTheme.typography.headlineSmall),
             )
+            V74GlobalLine(state.authorityForWeek(state.currentWeek) == ProgramAuthority.V74)
         }
         items(split, key = { it.day }) { session ->
             Card(
@@ -818,6 +820,7 @@ private fun V74ProgramScreen(
         item {
             BrandHeader()
             Text(V74Pointer.CONTINUOUS_LINE, style = technicalStyle(MaterialTheme.typography.headlineSmall))
+            V74GlobalLine(true)
             Text(
                 "Loop ${state.v74Loop}",
                 style = technicalStyle(MaterialTheme.typography.labelSmall),
@@ -851,7 +854,7 @@ private fun V74ProgramScreen(
         if (searchQuery.isNotBlank()) {
             item {
                 Text(
-                    if (searchHits.isEmpty()) "No matching approved sessions." else "${searchHits.size} matching session${if (searchHits.size == 1) "" else "s"} shown.",
+                    V74SurfaceText.searchStatus(searchHits.size),
                     modifier = Modifier.testTag("program_search_status"),
                 )
                 TextButton(
@@ -1012,7 +1015,7 @@ private fun ProgramScreen(
                 HorizontalDivider()
                 Text("SEARCH RESULTS", fontWeight = FontWeight.Bold)
                 Text(
-                    if (searchHits.isEmpty()) "No matching approved sessions." else "${searchHits.size} matching session${if (searchHits.size == 1) "" else "s"} shown.",
+                    V74SurfaceText.searchStatus(searchHits.size),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.testTag("program_search_status"),
                 )
@@ -1195,6 +1198,7 @@ private fun DayReferenceDialog(
                     active = session.phase.startWeek == blockFor(state, state.currentWeek).startWeek,
                 )
                 Text("AUTHORITY v${session.authority.versionLabel}", style = MaterialTheme.typography.labelMedium)
+                V74GlobalLine(session.authority == ProgramAuthority.V74)
                 if (sessionExecutionGuidance(session).isNotEmpty()) SessionExecutionBanner(session)
                 if (foundationReferenceLabel(session, state) != null) FoundationReferenceBanner(session, state)
                 session.rows.forEach { row ->
@@ -1256,3 +1260,9 @@ private fun blockFor(state: ProgramUiState, week: Int) = when (state.authorityFo
 }
 
 private fun formatRest(seconds: Int): String = "%d:%02d".format(seconds / 60, seconds % 60)
+
+@Composable
+private fun V74GlobalLine(show: Boolean) {
+    if (!show) return
+    Text(ProgramV74.GLOBAL_LINE, style = MaterialTheme.typography.bodyMedium)
+}

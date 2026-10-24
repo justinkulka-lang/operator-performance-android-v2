@@ -10,6 +10,11 @@ data class V74Session(
 )
 
 object SessionResolverV74 {
+    private const val LANDING_STOP_BEFORE = "Stop for pain or declining landing quality."
+    private const val LANDING_STOP_AFTER = "Stop when landing quality declines."
+    private const val MECHANICS_STOP_BEFORE = "Stop for pain or degraded mechanics."
+    private const val MECHANICS_STOP_AFTER = "Stop when mechanics degrade."
+
     fun resolve(block: Int, blockWeek: Int, day: Int): V74Session {
         require(block in 1..4) { "Block must be 1–4." }
         require(blockWeek in 1..8) { "Block week must be 1–8." }
@@ -82,7 +87,7 @@ object SessionResolverV74 {
     private fun jumps(block: Int, blockWeek: Int) = SessionRow(
         id = id(block, blockWeek, "plyometrics"),
         title = "Low-dose plyometrics",
-        prescription = ProgramV72.plyometrics,
+        prescription = substitute(ProgramV72.plyometrics, LANDING_STOP_BEFORE, LANDING_STOP_AFTER),
         kind = SessionRowKind.CONDITIONING,
         note = "After the running warm-up and before the sprint repetitions.",
         effortCount = 6,
@@ -94,7 +99,11 @@ object SessionResolverV74 {
         title = "Hip-driven medicine-ball throws",
         prescription = "3 × 3 hip-driven scoop OR rotational medicine-ball throws. Nine total throws, both sides combined. Alternate sides and the starting side between exposures. No chest passes.",
         kind = SessionRowKind.CONDITIONING,
-        note = "After jumps, before sprints. Zero qualifying sprint meters. Stop for pain or degraded mechanics.",
+        note = substitute(
+            "After jumps, before sprints. Zero qualifying sprint meters. Stop for pain or degraded mechanics.",
+            MECHANICS_STOP_BEFORE,
+            MECHANICS_STOP_AFTER,
+        ),
         effortCount = 3,
         effortLabel = "SET",
     )
@@ -164,4 +173,12 @@ object SessionResolverV74 {
 
     private fun effortLabel(prescription: String): String =
         if (effortCount(prescription) > 1) "REP" else "BLOCK"
+
+    private fun substitute(source: String, old: String, new: String): String {
+        require(old in source) { "Missing sentence: $old" }
+        val updated = source.replace(old, new)
+        check(updated != source) { "Replacement did not change the source." }
+        check(old !in updated) { "Old sentence remained after replacement." }
+        return updated
+    }
 }

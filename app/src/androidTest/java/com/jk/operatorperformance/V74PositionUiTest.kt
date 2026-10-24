@@ -3,11 +3,14 @@ package com.jk.operatorperformance
 import android.content.Context
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.test.core.app.ApplicationProvider
 import com.jk.operatorperformance.state.ProgramStateStore
 import org.junit.Assert.assertEquals
@@ -39,6 +42,39 @@ class V74PositionUiTest {
         assertEquals(20, loaded.currentWeek)
         assertEquals(3, loaded.v74Block)
         assertEquals(4, loaded.v74BlockWeek)
+        assertEquals(2, loaded.currentDay)
+        assertEquals(1, loaded.v74Loop)
+    }
+
+    @Test fun toolsResetStartsAtBlockTwoWeekThreeDayTwo() {
+        rule.onNodeWithTag("start_v72").performScrollTo().performClick()
+        rule.onNodeWithTag("today_header").assertTextContains("Week 1 · I · Draft · Week 1 of 8")
+        rule.onNodeWithTag("nav_TOOLS").performClick()
+        rule.onNodeWithTag("tools_screen").performScrollToNode(hasTestTag("reset_pointer"))
+        rule.onNodeWithTag("reset_pointer").performClick()
+        rule.onNodeWithTag("reset_chooser_cancel").performClick()
+        assertEquals(0, rule.onAllNodesWithTag("reset_at_position").fetchSemanticsNodes().size)
+        val unchanged = ProgramStateStore(context).load()
+        assertEquals(1, unchanged.currentWeek)
+        assertEquals(1, unchanged.currentDay)
+        assertEquals(1, unchanged.v74Block)
+        assertEquals(1, unchanged.v74BlockWeek)
+        assertEquals(1, unchanged.v74Loop)
+        rule.onNodeWithTag("tools_screen").performScrollToNode(hasTestTag("reset_pointer"))
+        rule.onNodeWithTag("reset_pointer").performClick()
+        rule.onNodeWithTag("reset_at_position").performClick()
+        rule.onNodeWithTag("position_block_2").performScrollTo().performClick()
+        rule.onNodeWithTag("position_week_3").performScrollTo().performClick()
+        rule.onNodeWithTag("position_day_2").performScrollTo().performClick()
+        rule.onNodeWithTag("position_continue").performClick()
+        rule.onNodeWithTag("confirm_start_position_text").assertTextContains("Block II · Week 3 · Day 2")
+        rule.onNodeWithTag("confirm_start_position").performClick()
+        lifecycle.screen("today_header")
+        rule.onNodeWithTag("today_header").assertTextContains("Week 11 · II · Build · Week 3 of 8")
+        val loaded = ProgramStateStore(context).load()
+        assertEquals(11, loaded.currentWeek)
+        assertEquals(2, loaded.v74Block)
+        assertEquals(3, loaded.v74BlockWeek)
         assertEquals(2, loaded.currentDay)
         assertEquals(1, loaded.v74Loop)
     }
