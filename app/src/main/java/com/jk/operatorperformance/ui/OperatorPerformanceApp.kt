@@ -72,6 +72,7 @@ import com.jk.operatorperformance.state.ProgramStateStore
 import com.jk.operatorperformance.state.ProgramUiState
 import com.jk.operatorperformance.state.SessionStatus
 import com.jk.operatorperformance.state.WorkoutProgress
+import com.jk.operatorperformance.state.todayAuthorityMismatch
 import kotlinx.coroutines.delay
 
 private enum class Destination(val label: String) {
@@ -97,7 +98,8 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
 
     fun persistWorkout(next: ActiveWorkoutState) {
         activeWorkout = next
-        stateStore.saveWorkout(next)
+        val recorded = stateStore.saveWorkout(next)
+        state = state.copy(historicalAuthorities = recorded.historicalAuthorities)
     }
 
     fun clearWorkout() {
@@ -120,7 +122,14 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
                     Text("Starting begins at Week 1, Day 1. Existing progress is preserved. Engaged historical weeks keep their authority; LEGEND v7.3 starts at the next positively unstarted Day 1.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(24.dp))
                     Button(
-                        onClick = { clearWorkout(); stateStore.clearSessionStatus(); persist(state.startV73()); selectedProgramWeek = 1 },
+                        onClick = {
+                            clearWorkout()
+                            stateStore.clearSessionStatus()
+                            val started = state.startV73()
+                            state = started
+                            stateStore.save(started, replaceHistoricalAuthorities = true)
+                            selectedProgramWeek = 1
+                        },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("start_v72"),
                     ) { Text("START WEEK 1 • DAY 1", fontWeight = FontWeight.Bold) }
                 }
@@ -204,16 +213,24 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
                         state = state,
                         activeWorkout = activeWorkout?.takeIf { it.matchesPointer(state) },
                         onStartWorkout = {
-                            val existing = activeWorkout?.takeIf { it.matchesPointer(state) && !it.complete }
-                            persistWorkout(existing ?: WorkoutProgress.start(state))
-                            workoutMode = true
+                            val weekAuthority = state.authorityForWeek(state.currentWeek)
+                            val saved = activeWorkout?.takeIf { it.matchesPointer(state) }
+                            val savedAuthority = saved?.authority
+                            if (savedAuthority == null || savedAuthority == weekAuthority) {
+                                val existing = saved?.takeIf { !it.complete }
+                                persistWorkout(existing ?: WorkoutProgress.start(state))
+                                workoutMode = true
+                            }
                         },
                         onProgress = ::persistWorkout,
                         onResetWorkout = ::clearWorkout,
                         onAdvance = {
-                            stateStore.markSessionEngaged(state.currentWeek, state.currentDay)
-                            clearWorkout()
-                            val next = state.advanceDay()
+                            val engaged = stateStore.markSessionEngaged(state.currentWeek, state.currentDay)
+                            val weekAuthority = engaged.authorityForWeek(state.currentWeek)
+                            val saved = activeWorkout?.takeIf { it.matchesPointer(state) }
+                            val savedAuthority = saved?.authority
+                            if (savedAuthority == null || savedAuthority == weekAuthority) clearWorkout()
+                            val next = engaged.advanceDay()
                             persist(next)
                             selectedProgramWeek = next.currentWeek
                         },
@@ -341,7 +358,9 @@ private fun TodayScreen(
     onAdvance: () -> Unit,
 ) {
     val session = resolveSession(state.currentWeek, state.currentDay, state)
-    val progress = activeWorkout?.let { WorkoutProgress.normalize(it, session) }
+    val mismatch = todayAuthorityMismatch(state, activeWorkout)
+    val applicableWorkout = if (mismatch?.savedAuthority != null) null else activeWorkout
+    val progress = applicableWorkout?.let { WorkoutProgress.normalize(it, session) }
     val sessionStatus = WorkoutProgress.status(progress, showingWorkout = false)
     val atEnd = state.currentWeek == 32 && state.currentDay == 7
     val isRest = session.rows.all { it.kind == SessionRowKind.REST }
@@ -368,6 +387,25 @@ private fun TodayScreen(
             Text(session.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             if (session.authority != ProgramAuthority.V73 && state.v73MigrationApplied) {
                 Text("RETAINED WEEK • v${session.authority.versionLabel}", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+            }
+            if (mismatch != null) {
+                Text(
+                    buildString {
+                        append("WEEK AUTHORITY MISMATCH")
+                        mismatch.savedAuthority?.let { append(" • saved session v${it.versionLabel}") }
+                        mismatch.pointerAuthority?.let { append(" • pointer v${it.versionLabel}") }
+                        append(" • week v${mismatch.weekAuthority.versionLabel}")
+                    },
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.testTag("today_authority_mismatch"),
+                )
+                if (mismatch.savedAuthority != null) {
+                    Text("Today's reference stays on this week's authority. The saved session is not applied.")
+                }
+                if (mismatch.pointerAuthority != null) {
+                    Text("Today's reference uses this week's authority.")
+                }
             }
             if (!isRest) Text(
                 when (sessionStatus) {
@@ -433,7 +471,7 @@ private fun TodayScreen(
             }
         }
     }
-    if (!isRest && sessionStatus != SessionStatus.COMPLETED) {
+    if (!isRest && sessionStatus != SessionStatus.COMPLETED && mismatch?.savedAuthority == null) {
         Surface(color = MaterialTheme.colorScheme.surface) {
             Button(
                 onClick = onStartWorkout,

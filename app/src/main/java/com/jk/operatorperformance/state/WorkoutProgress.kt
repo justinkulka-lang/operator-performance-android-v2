@@ -1,6 +1,30 @@
 package com.jk.operatorperformance.state
 
+import com.jk.operatorperformance.program.ProgramAuthority
 import com.jk.operatorperformance.program.SessionReference
+
+data class TodayAuthorityMismatch(
+    val weekAuthority: ProgramAuthority,
+    val pointerAuthority: ProgramAuthority?,
+    val savedAuthority: ProgramAuthority?,
+)
+
+/**
+ * Today resolves the week authority. A saved session or pointer that names a different
+ * authority is not applied to that reference.
+ */
+fun todayAuthorityMismatch(state: ProgramUiState, workout: ActiveWorkoutState?): TodayAuthorityMismatch? {
+    val weekAuthority = state.authorityForWeek(state.currentWeek)
+    val savedAuthority = workout?.takeIf { it.matchesPointer(state) }?.authority
+    val savedDisagrees = savedAuthority != null && savedAuthority != weekAuthority
+    val pointerDisagrees = state.authority != weekAuthority
+    if (!savedDisagrees && !pointerDisagrees) return null
+    return TodayAuthorityMismatch(
+        weekAuthority = weekAuthority,
+        pointerAuthority = if (pointerDisagrees) state.authority else null,
+        savedAuthority = if (savedDisagrees) savedAuthority else null,
+    )
+}
 
 enum class SessionStatus {
     NOT_STARTED,
