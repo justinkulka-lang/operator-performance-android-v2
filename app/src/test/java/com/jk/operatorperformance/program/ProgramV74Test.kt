@@ -289,6 +289,11 @@ class ProgramV74Test {
         assertEquals(224, sessions.size)
         assertEquals(expected, sessions)
         assertTrue(lines.all { it.split('\t').size == 8 })
+        val digest = java.security.MessageDigest.getInstance("SHA-256").digest(file.readBytes())
+        assertEquals(
+            "3e62a6ae06ffcb3f689297608caa033d15b7562d3300c90c57568fc308e86ad8",
+            digest.joinToString("") { "%02x".format(it) },
+        )
     }
 
     private fun encodeDumpField(value: Any?): String = value?.toString()

@@ -108,6 +108,15 @@ class SessionFocusTest {
 
     /** Expected marks from the published day order, including the Week 32 title exceptions. */
     private fun calendarSymbol(authority: ProgramAuthority, week: Int, day: Int): MapSymbol = when (authority) {
+        ProgramAuthority.V74 -> when (day) {
+            7 -> MapSymbol.REST
+            1 -> MapSymbol.ENGINE
+            2, 6 -> MapSymbol.LOWER
+            3 -> MapSymbol.UPPER_A
+            4 -> MapSymbol.SPEED
+            5 -> MapSymbol.UPPER_B
+            else -> error("day $day")
+        }
         ProgramAuthority.V72, ProgramAuthority.V73 -> when (day) {
             7 -> MapSymbol.REST
             1 -> MapSymbol.ENGINE

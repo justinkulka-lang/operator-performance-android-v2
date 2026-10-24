@@ -320,6 +320,8 @@ private fun DataControlsCard() {
     var pendingExport by remember { mutableStateOf<String?>(null) }
     var exportStatus by remember { mutableStateOf<String?>(null) }
     var confirmReset by remember { mutableStateOf(false) }
+    var confirmWeekOne by remember { mutableStateOf(false) }
+    var showStartPosition by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
 
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
@@ -363,20 +365,51 @@ private fun DataControlsCard() {
         AlertDialog(
             onDismissRequest = { confirmReset = false },
             title = { Text("Reset current program pointer?") },
-            text = { Text("This starts LEGEND v7.3 at Week 1, Day 1. It clears current session status, substitutions, workout timer, engagement evidence and historical week-authority assignments. Program content, retained legacy data and utility settings remain.") },
+            text = { Text("Choose Week 1 or a block, block week, and day. Continuous program: four 8-week blocks, repeated.") },
+            confirmButton = {
+                TextButton(
+                    onClick = { confirmReset = false; confirmWeekOne = true },
+                    modifier = Modifier.heightIn(min = 48.dp).testTag("reset_week_one"),
+                ) { Text("START WEEK 1 • DAY 1") }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { confirmReset = false; showStartPosition = true },
+                    modifier = Modifier.heightIn(min = 48.dp).testTag("reset_at_position"),
+                ) { Text("START AT A POSITION") }
+            },
+        )
+    }
+    if (confirmWeekOne) {
+        AlertDialog(
+            onDismissRequest = { confirmWeekOne = false },
+            title = { Text("Reset current program pointer?") },
+            text = { Text("This starts Week 1, Day 1. ${com.jk.operatorperformance.program.V74Pointer.CONTINUOUS_LINE} It clears current session status, substitutions, workout timer, engagement evidence and historical week-authority assignments. Program content, retained legacy data and utility settings remain.") },
             confirmButton = {
                 TextButton(
                     onClick = {
                         stateStore.clearWorkout()
                         stateStore.clearSessionStatus()
-                        stateStore.save(stateStore.load().resetToV73Start())
-                        confirmReset = false
+                        stateStore.save(stateStore.load().resetToV74Start())
+                        confirmWeekOne = false
                         context.findActivity()?.recreate()
                     },
                     modifier = Modifier.heightIn(min = 48.dp).testTag("confirm_reset_pointer"),
                 ) { Text("RESET") }
             },
-            dismissButton = { TextButton(onClick = { confirmReset = false }, modifier = Modifier.heightIn(min = 48.dp)) { Text("CANCEL") } },
+            dismissButton = { TextButton(onClick = { confirmWeekOne = false }, modifier = Modifier.heightIn(min = 48.dp)) { Text("CANCEL") } },
+        )
+    }
+    if (showStartPosition) {
+        StartPositionFlow(
+            onDismiss = { showStartPosition = false },
+            onConfirm = { block, blockWeek, day ->
+                stateStore.clearWorkout()
+                stateStore.clearSessionStatus()
+                stateStore.save(stateStore.load().startAtPosition(block, blockWeek, day))
+                showStartPosition = false
+                context.findActivity()?.recreate()
+            },
         )
     }
 

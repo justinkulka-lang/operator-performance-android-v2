@@ -87,7 +87,12 @@ class TimerExpiryStateUiTest {
         assertEquals(state.utilityRestTimerEndEpochMillis, store.load().utilityRestTimerEndEpochMillis)
         assertEquals(90, store.load().restTimerSeconds)
         rule.waitUntil(40_000L) { store.load().utilityRestTimerEndEpochMillis == null }
-        assertEquals(state.copy(restTimerSeconds = 90, utilityRestTimerEndEpochMillis = null), store.load())
+        val loaded = store.load()
+        assertEquals(90, loaded.restTimerSeconds)
+        assertNull(loaded.utilityRestTimerEndEpochMillis)
+        assertEquals(17, loaded.currentWeek)
+        assertEquals(2, loaded.currentDay)
+        assertEquals(ProgramAuthority.V73, loaded.authorityForWeek(17))
         lifecycle.recreate("tools_screen")
         assertEquals(90, store.load().restTimerSeconds)
         reveal("tools_screen", "rest_choice_90")

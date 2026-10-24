@@ -93,7 +93,7 @@ private fun isSpeedWork(row: SessionRow): Boolean {
 /** Stable resolver identities distinguish jump/throw preparation from aerobic work. */
 private fun isSpeedPreparation(row: SessionRow): Boolean =
     row.kind == SessionRowKind.CONDITIONING &&
-        (row.id.endsWith("_plyometrics") || row.id.matches(Regex("v73_w\\d+_throws")))
+        (row.id.endsWith("_plyometrics") || row.id.endsWith("_throws") || row.id.matches(Regex("v73_w\\d+_throws")))
 
 private fun isRecoveryWork(row: SessionRow): Boolean {
     if (row.kind != SessionRowKind.CONDITIONING || isSupportRow(row)) return false
@@ -105,6 +105,7 @@ private fun isEngineWork(row: SessionRow): Boolean =
     row.kind == SessionRowKind.CONDITIONING && !isSupportRow(row) && !isSpeedWork(row) && !isRecoveryWork(row)
 
 private fun ownerMuscle(session: SessionReference, row: SessionRow): Muscle? {
+    if (session.authority == ProgramAuthority.V74) return null
     val slots = if (session.authority == ProgramAuthority.V73 && session.week != 32) ProgramV73.resistanceSlots else if (session.authority != ProgramAuthority.V71) ProgramV72.resistanceSlots else ProgramV71.resistanceSlots
     val phase = if (session.authority != ProgramAuthority.V71) ProgramV72.phaseForWeek(session.week) else ProgramV71.phaseForWeek(session.week)
     return slots.firstOrNull { it.phase == phase && it.id == row.id }?.ownerMuscle

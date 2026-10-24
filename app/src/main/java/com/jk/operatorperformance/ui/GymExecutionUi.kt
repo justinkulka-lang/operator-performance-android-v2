@@ -23,6 +23,7 @@ import com.jk.operatorperformance.program.SessionReference
 import com.jk.operatorperformance.state.ProgramUiState
 
 internal fun sessionExecutionGuidance(session: SessionReference): List<String> = buildList {
+    if (session.authority == ProgramAuthority.V74) return emptyList()
     if (session.authority != ProgramAuthority.V71 && session.day != 7) {
         addAll(ProgramNotesV72.safety)
         if (session.rows.any { it.kind == SessionRowKind.RESISTANCE }) {
@@ -55,6 +56,7 @@ internal fun sessionExecutionGuidance(session: SessionReference): List<String> =
 }
 
 internal fun foundationReferenceLabel(session: SessionReference, state: ProgramUiState): String? {
+    if (session.authority == ProgramAuthority.V74) return null
     val consolidation = if (session.authority != ProgramAuthority.V71) ProgramV72.isConsolidation(session.week) else ProgramV71.isConsolidation(session.week)
     return when {
         consolidation -> "PLANNED CONSOLIDATION • FIXED PRESCRIPTION"

@@ -54,7 +54,7 @@ class V72FontScaleUiTest {
         assertTrue("resume height ${resumeDp}dp", resumeDp >= 56f)
         composeRule.onNodeWithTag("start_resume_workout").assertIsDisplayed()
         val longest = (1..32).flatMap { week ->
-            (1..7).map { day -> SessionResolver.resolve(week, day, ProgramAuthority.V73) }
+            (1..7).map { day -> SessionResolver.resolve(week, day, ProgramAuthority.V74) }
         }.maxBy { session ->
             session.rows.sumOf { row ->
                 row.title.length + row.prescription.length + (row.note?.length ?: 0) + row.alternatives.sumOf { it.length }

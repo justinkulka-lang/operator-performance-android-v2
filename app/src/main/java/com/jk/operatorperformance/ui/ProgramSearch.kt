@@ -1,7 +1,9 @@
 package com.jk.operatorperformance.ui
 
+import com.jk.operatorperformance.program.ProgramAuthority
 import com.jk.operatorperformance.program.SessionReference
 import com.jk.operatorperformance.program.SessionResolver
+import com.jk.operatorperformance.program.V74Pointer
 import com.jk.operatorperformance.state.ProgramUiState
 
 internal data class ProgramSearchHit(
@@ -28,7 +30,7 @@ internal fun searchProgram(
         ?.groupValues
         ?.get(1)
         ?.toIntOrNull()
-    if (requestedWeek != null && requestedWeek !in 1..32) return emptyList()
+    if (requestedWeek != null && !weekIsSearchable(state, requestedWeek)) return emptyList()
 
     val freeText = normalized
         .replace(Regex("\\bweek \\d{1,2}\\b"), " ")
@@ -38,13 +40,11 @@ internal fun searchProgram(
     val freeTextTokens = freeText.split(Regex("\\s+")).filter { it.isNotBlank() }
 
     return buildList {
-        for (week in 1..32) {
-            if (requestedWeek != null && week != requestedWeek) continue
-            val sessions = SessionResolver.splitForWeek(week, state.authorityForWeek(week))
-            for (session in sessions) {
-                if (requestedDay != null && session.day != requestedDay) continue
+        for (session in catalogSessions(state)) {
+            if (requestedWeek != null && session.week != requestedWeek) continue
+            if (requestedDay != null && session.day != requestedDay) continue
 
-                val phaseText = session.phase.name
+            val phaseText = session.phase.name
                 val header = "week ${session.week} day ${session.day} ${session.title} $phaseText"
                 val rowText = session.rows.joinToString(" ") { row ->
                     buildString {
@@ -78,9 +78,48 @@ internal fun searchProgram(
                     ),
                 )
                 if (size >= limit) return@buildList
-            }
         }
     }
+}
+
+internal fun catalogSessions(state: ProgramUiState): List<SessionReference> {
+    if (!state.v74MigrationApplied) {
+        return (1..32).flatMap { week -> SessionResolver.splitForWeek(week, state.authorityForWeek(week)) }
+    }
+    val activation = state.v74ActivationWeek ?: 1
+    val retained = (1 until activation).filter { it in 1..32 }.flatMap { week ->
+        SessionResolver.splitForWeek(week, state.authorityForWeek(week))
+    }
+    val loop = (1..4).flatMap { block ->
+        (1..8).flatMap { blockWeek ->
+            val absolute = V74Pointer.absoluteWeek(block, blockWeek)
+            (1..7).map { day -> V74Pointer.reference(absolute, block, blockWeek, day) }
+        }
+    }
+    return retained + loop
+}
+
+internal fun exportCatalogCsv(state: ProgramUiState): String = buildString {
+    appendLine("authority,week,block,block_week,day,title")
+    for (session in catalogSessions(state)) {
+        val block = if (session.authority == ProgramAuthority.V74) session.phase.godName else ""
+        val blockWeek = if (session.authority == ProgramAuthority.V74) {
+            ((session.week - 1) % 8) + 1
+        } else ""
+        append(session.authority.name).append(',')
+            .append(session.week).append(',')
+            .append(block).append(',')
+            .append(blockWeek).append(',')
+            .append(session.day).append(',')
+            .append(session.title)
+            .appendLine()
+    }
+}
+
+private fun weekIsSearchable(state: ProgramUiState, week: Int): Boolean {
+    if (!state.v74MigrationApplied) return week in 1..32
+    val retained = week >= 1 && week < (state.v74ActivationWeek ?: 1)
+    return retained || week in 1..32
 }
 
 internal fun normalizeProgramQuery(query: String): String {

@@ -54,13 +54,14 @@ class V73MigrationUiTest {
         assertEquals(14,retained.v73ActivationWeek)
         store.save(retained.advanceDay())
         LifecycleTestSupport(rule).recreate("today_header")
-        rule.onNodeWithTag("today_header").assertTextContains("v7.3",substring=true)
+        rule.onNodeWithTag("today_header").assertTextContains("Week 14 · II · Build · Week 6 of 8",substring=true)
         assertEquals(ProgramAuthority.V72,ProgramStateStore(context).load().authorityForWeek(13))
+        assertEquals(ProgramAuthority.V74,ProgramStateStore(context).load().authorityForWeek(14))
         rule.onAllNodesWithText("LOG SET",substring=true).assertCountEquals(0)
     }
     @Test fun positivelyUnstartedDay1ActivatesEngineOnlyAcrossRecreation() {
         seed(17,1,112)
-        rule.onNodeWithTag("today_header").assertTextContains("v7.3",substring=true)
+        rule.onNodeWithTag("today_header").assertTextContains("Week 17 · III · Backstop · Week 1 of 8",substring=true)
         val store=ProgramStateStore(ApplicationProvider.getApplicationContext())
         val state=store.load()
         assertEquals(17,state.v73ActivationWeek)

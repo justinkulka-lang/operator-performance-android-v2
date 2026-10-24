@@ -4,6 +4,7 @@ enum class ProgramAuthority(val versionLabel: String) {
     V71("7.1"),
     V72("7.2"),
     V73("7.3"),
+    V74("7.4"),
 }
 
 enum class Muscle(val label: String) {

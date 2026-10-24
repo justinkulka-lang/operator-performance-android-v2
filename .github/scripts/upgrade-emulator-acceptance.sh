@@ -109,4 +109,59 @@ cmp "$out/before-reboot.xml" "$out/after-reboot.xml"
 "$adb" -s "$serial" shell am start -W -n com.jk.operatorperformance/.MainActivity > "$out/reboot-launch.txt"
 grep -F 'Status: ok' "$out/reboot-launch.txt"
 instrument verify timerAndPointerSurviveProcessDeath reboot-verification
-printf 'sourceCommit=%s\nbaselineCommit=%s\nprofileUpgrade=PASS\nforceStop=PASS\nreboot=PASS\nphysicalDevice=NOT_RUN\nphoneCertificateCompatibility=NOT_PROVEN\n' "$source_sha" "$baseline" > "$out/RESULT.txt"
+
+# Second scenario: install 0.40.0 (main 7cd35a5), seed Week 12 Day 3 with a workout
+# and a substitution, then install the candidate. The seed uses only keys that build writes.
+v73_base=7cd35a5a8a47d52acb8cc84b472067604c269d69
+v73_dir="$(mktemp -d "${RUNNER_TEMP:-/tmp}/legend-v73-upgrade-source.XXXXXX")"
+git worktree add --detach "$v73_dir" "$v73_base"
+GITHUB_SHA="$v73_base" gradle -p "$v73_dir" :app:assembleDebug --stacktrace
+v73_apk="$v73_dir/app/build/outputs/apk/debug/app-debug.apk"
+"$sdk_root/build-tools/36.0.0/apksigner" verify --print-certs "$v73_apk" > "$out/v73-before-certificate.txt"
+cmp "$out/v73-before-certificate.txt" "$out/after-certificate.txt"
+"$adb" -s "$serial" install -r -d "$v73_apk"
+"$adb" -s "$serial" shell am force-stop com.jk.operatorperformance
+"$adb" -s "$serial" shell pm clear com.jk.operatorperformance
+"$adb" -s "$serial" shell am start -W -n com.jk.operatorperformance/.MainActivity > "$out/v73-first-launch.txt"
+"$adb" -s "$serial" shell am force-stop com.jk.operatorperformance
+python3 - "$out/v73-seed.xml" <<'PY'
+import pathlib, sys
+path = pathlib.Path(sys.argv[1])
+path.write_text("""<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
+<map>
+    <boolean name="v71Initialized" value="true" />
+    <int name="currentWeek" value="12" />
+    <int name="currentDay" value="3" />
+    <string name="authorityVersion">V73</string>
+    <boolean name="v73MigrationApplied" value="true" />
+    <int name="v73ActivationWeek" value="1" />
+    <boolean name="v72MigrationApplied" value="true" />
+    <int name="v72MigrationRevision" value="2" />
+    <boolean name="v72ActivationProven" value="true" />
+    <int name="engagedAbsoluteDay" value="80" />
+    <boolean name="workoutActive" value="true" />
+    <string name="workoutAuthority">V73</string>
+    <int name="workoutSchema" value="5" />
+    <int name="workoutWeek" value="12" />
+    <int name="workoutDay" value="3" />
+    <int name="movementIndex" value="0" />
+    <int name="effortIndex" value="1" />
+    <boolean name="complete" value="false" />
+    <set name="substitutions">
+        <string>v73_slot&#x1f;Home alternate</string>
+    </set>
+    <boolean name="hasUndo" value="false" />
+</map>
+""")
+PY
+seed_b64="$(base64 -w0 "$out/v73-seed.xml")"
+"$adb" -s "$serial" shell run-as com.jk.operatorperformance sh -c "echo $seed_b64 | base64 -d > shared_prefs/ares_v71_reference_state.xml"
+snapshot v73-before-upgrade
+"$adb" -s "$serial" install -r "$candidate"
+snapshot v73-after-install
+cmp "$out/v73-before-upgrade.xml" "$out/v73-after-install.xml"
+"$adb" -s "$serial" shell am force-stop com.jk.operatorperformance
+"$adb" -s "$serial" shell am start -W -n com.jk.operatorperformance/.MainActivity > "$out/v73-relaunch.txt"
+snapshot v73-after-launch
+python3 .github/scripts/verify-v73-upgrade-state.py "$out/v73-before-upgrade.xml" "$out/v73-after-launch.xml" from-v73
+printf 'sourceCommit=%s\nbaselineCommit=%s\nv73BaselineCommit=%s\nprofileUpgrade=PASS\nforceStop=PASS\nreboot=PASS\nv73MidProgramUpgrade=PASS\nphysicalDevice=NOT_RUN\nphoneCertificateCompatibility=NOT_PROVEN\n' "$source_sha" "$baseline" "$v73_base" > "$out/RESULT.txt"

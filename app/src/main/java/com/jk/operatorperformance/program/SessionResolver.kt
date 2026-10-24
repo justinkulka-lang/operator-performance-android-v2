@@ -32,10 +32,21 @@ data class SessionReference(
 )
 
 object SessionResolver {
-    fun resolve(week: Int, day: Int, authority: ProgramAuthority = ProgramAuthority.V72): SessionReference = when (authority) {
+    fun resolve(
+        week: Int,
+        day: Int,
+        authority: ProgramAuthority = ProgramAuthority.V72,
+        block: Int? = null,
+        blockWeek: Int? = null,
+    ): SessionReference = when (authority) {
         ProgramAuthority.V71 -> resolveV71(week, day)
         ProgramAuthority.V72 -> V72SessionBuilder.resolve(week, day)
         ProgramAuthority.V73 -> V73SessionBuilder.resolve(week, day)
+        ProgramAuthority.V74 -> {
+            val resolvedBlock = block ?: ProgramV74.position(week).first
+            val resolvedWeek = blockWeek ?: ProgramV74.position(week).second
+            V74Pointer.reference(week, resolvedBlock, resolvedWeek, day)
+        }
     }
 
     fun splitForWeek(week: Int, authority: ProgramAuthority = ProgramAuthority.V72): List<SessionReference> =

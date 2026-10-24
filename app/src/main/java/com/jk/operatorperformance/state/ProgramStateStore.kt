@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
 import com.jk.operatorperformance.program.ProgramAuthority
+import com.jk.operatorperformance.program.V74Pointer
 
 data class ProgramUiState(
     val initialized: Boolean = false,
@@ -17,26 +18,94 @@ data class ProgramUiState(
     val v73ActivationWeek: Int? = null,
     val v73MigrationApplied: Boolean = false,
     val historicalAuthorities: Map<Int, ProgramAuthority> = emptyMap(),
+    val v74MigrationApplied: Boolean = false,
+    val v74ActivationWeek: Int? = null,
+    val v74Block: Int? = null,
+    val v74BlockWeek: Int? = null,
+    val v74Loop: Int? = null,
 ) {
     init {
-        require(currentWeek in 1..32) { "currentWeek must be 1–32." }
         require(currentDay in 1..7) { "currentDay must be 1–7." }
         require(restTimerSeconds == null || restTimerSeconds > 0)
         require(utilityRestTimerEndEpochMillis == null || utilityRestTimerEndEpochMillis > 0L)
         require(retainedV71Week == null || retainedV71Week in 1..32)
         require(v73ActivationWeek == null || v73ActivationWeek in 1..32)
-        require(historicalAuthorities.keys.all { it in 1..32 })
+        if (v74MigrationApplied) {
+            require(currentWeek >= 1) { "currentWeek must be at least 1." }
+            require(v74ActivationWeek == null || v74ActivationWeek >= 1)
+            require(historicalAuthorities.keys.all { it >= 1 })
+        } else {
+            require(currentWeek in 1..32) { "currentWeek must be 1–32." }
+            require(historicalAuthorities.keys.all { it in 1..32 })
+        }
+        val onV74 = authorityForWeek(currentWeek) == ProgramAuthority.V74
+        if (onV74) {
+            require(v74Block in 1..4) { "v74Block must be 1–4." }
+            require(v74BlockWeek in 1..8) { "v74BlockWeek must be 1–8." }
+            require(v74Loop != null && v74Loop >= 1) { "v74Loop must be at least 1." }
+        } else {
+            require(v74Block == null && v74BlockWeek == null && v74Loop == null) {
+                "V74 position is stored only while the current week is V74."
+            }
+        }
     }
     fun authorityForWeek(week: Int): ProgramAuthority {
-        require(week in 1..32)
+        if (v74MigrationApplied) require(week >= 1) else require(week in 1..32)
         return historicalAuthorities[week]
             ?: if (retainedV71Week == week) ProgramAuthority.V71
+            else if (v74MigrationApplied && v74ActivationWeek != null && week >= v74ActivationWeek) ProgramAuthority.V74
             else if (v73ActivationWeek != null && week >= v73ActivationWeek) ProgramAuthority.V73
             else ProgramAuthority.V72
     }
+    fun atProgramEnd(): Boolean = !v74MigrationApplied && currentWeek == 32 && currentDay == 7
+    fun canConsolidate(workoutActive: Boolean, evidence: WeekStartEvidence): Boolean =
+        authorityForWeek(currentWeek) == ProgramAuthority.V74 &&
+            currentDay == 1 &&
+            !workoutActive &&
+            evidence == WeekStartEvidence.NOT_STARTED &&
+            v74BlockWeek != null &&
+            v74BlockWeek != 8
+    fun consolidateNow(workoutActive: Boolean, evidence: WeekStartEvidence): ProgramUiState {
+        require(canConsolidate(workoutActive, evidence)) { "Consolidate-now is not available." }
+        return copy(v74BlockWeek = 8)
+    }
+    fun startV74() = copy(
+        initialized = true,
+        currentWeek = 1,
+        currentDay = 1,
+        authority = ProgramAuthority.V74,
+        retainedV71Week = null,
+        v72ActivationProven = true,
+        v73ActivationWeek = 1,
+        v73MigrationApplied = true,
+        historicalAuthorities = emptyMap(),
+        v74MigrationApplied = true,
+        v74ActivationWeek = 1,
+        v74Block = 1,
+        v74BlockWeek = 1,
+        v74Loop = 1,
+    )
+    fun resetToV74Start() = startV74()
+    fun startAtPosition(block: Int, blockWeek: Int, day: Int) = copy(
+        initialized = true,
+        currentWeek = V74Pointer.absoluteWeek(block, blockWeek),
+        currentDay = day,
+        authority = ProgramAuthority.V74,
+        retainedV71Week = null,
+        v72ActivationProven = true,
+        v73ActivationWeek = 1,
+        v73MigrationApplied = true,
+        historicalAuthorities = emptyMap(),
+        v74MigrationApplied = true,
+        v74ActivationWeek = 1,
+        v74Block = block,
+        v74BlockWeek = blockWeek,
+        v74Loop = 1,
+    )
     fun startV73() = copy(initialized = true, currentWeek = 1, currentDay = 1,
         authority = ProgramAuthority.V73, retainedV71Week = null, v72ActivationProven = true,
-        v73ActivationWeek = 1, v73MigrationApplied = true, historicalAuthorities = emptyMap())
+        v73ActivationWeek = 1, v73MigrationApplied = true, historicalAuthorities = emptyMap(),
+        v74MigrationApplied = false, v74ActivationWeek = null, v74Block = null, v74BlockWeek = null, v74Loop = null)
     fun resetToV73Start() = startV73()
 
     fun startV71() = copy(initialized=true,currentWeek=2,currentDay=3)
@@ -50,6 +119,7 @@ data class ProgramUiState(
     )
     fun advanceDay(): ProgramUiState = when {
         currentDay < 7 -> copy(currentDay = currentDay + 1)
+        v74MigrationApplied -> advancePastDay7()
         currentWeek < 32 && v73MigrationApplied -> copy(currentWeek = currentWeek + 1,
             currentDay = 1, authority = authorityForWeek(currentWeek + 1))
         currentWeek < 32 -> {
@@ -64,8 +134,64 @@ data class ProgramUiState(
         }
         else -> this
     }
+
+    private fun advancePastDay7(): ProgramUiState {
+        val nextWeek = currentWeek + 1
+        if (authorityForWeek(currentWeek) == ProgramAuthority.V74) {
+            val block = requireNotNull(v74Block)
+            val blockWeek = requireNotNull(v74BlockWeek)
+            val loop = requireNotNull(v74Loop)
+            return if (blockWeek < 8) {
+                copy(
+                    currentWeek = nextWeek,
+                    currentDay = 1,
+                    authority = ProgramAuthority.V74,
+                    v74Block = block,
+                    v74BlockWeek = blockWeek + 1,
+                    v74Loop = loop,
+                )
+            } else {
+                val nextBlock = block % 4 + 1
+                copy(
+                    currentWeek = nextWeek,
+                    currentDay = 1,
+                    authority = ProgramAuthority.V74,
+                    v74Block = nextBlock,
+                    v74BlockWeek = 1,
+                    v74Loop = if (block == 4) loop + 1 else loop,
+                )
+            }
+        }
+        val nextAuthority = authorityForWeek(nextWeek)
+        return if (nextAuthority == ProgramAuthority.V74) {
+            val (block, blockWeek, loop) = V74Pointer.position(nextWeek)
+            copy(
+                currentWeek = nextWeek,
+                currentDay = 1,
+                authority = ProgramAuthority.V74,
+                v74Block = block,
+                v74BlockWeek = blockWeek,
+                v74Loop = loop,
+            )
+        } else {
+            copy(
+                currentWeek = nextWeek,
+                currentDay = 1,
+                authority = nextAuthority,
+                v74Block = null,
+                v74BlockWeek = null,
+                v74Loop = null,
+            )
+        }
+    }
+
     fun withCurrentPointer(week:Int,day:Int):ProgramUiState {
-        require(week in 1..32); require(day in 1..7)
+        require(day in 1..7)
+        if (v74MigrationApplied) {
+            require(week >= 1)
+            return copy(currentDay = day)
+        }
+        require(week in 1..32)
         if (v73MigrationApplied) return copy(currentWeek = week, currentDay = day,
             authority = authorityForWeek(week))
         val stillRetained = retainedV71Week == week
@@ -192,6 +318,64 @@ object V73AuthorityMigration {
     }
 }
 
+/** Retain every week through the last engaged or current week, then open V74 at the next week. */
+object V74AuthorityMigration {
+    fun apply(
+        state: ProgramUiState,
+        workoutActive: Boolean,
+        evidence: WeekStartEvidence,
+        latestEngagedWeek: Int? = null,
+    ): ProgramUiState {
+        if (state.v74MigrationApplied) return state
+        if (!state.initialized) {
+            return state.copy(
+                authority = ProgramAuthority.V74,
+                currentWeek = 1,
+                currentDay = 1,
+                v74Block = 1,
+                v74BlockWeek = 1,
+                v74Loop = 1,
+                v74ActivationWeek = 1,
+                v74MigrationApplied = true,
+                historicalAuthorities = emptyMap(),
+            )
+        }
+        val unstarted = state.currentDay == 1 && !workoutActive && evidence == WeekStartEvidence.NOT_STARTED
+        val lastRetained = maxOf(if (unstarted) state.currentWeek - 1 else state.currentWeek, latestEngagedWeek ?: 0)
+        val history = state.historicalAuthorities.toMutableMap()
+        for (week in 1..lastRetained) {
+            if (week !in history) {
+                history[week] = if (week in 1..32) state.authorityForWeek(week) else state.authority
+            }
+        }
+        val activation = lastRetained + 1
+        val currentBecomesV74 = unstarted && state.currentWeek == activation
+        return if (currentBecomesV74) {
+            history.remove(state.currentWeek)
+            val (block, blockWeek, loop) = V74Pointer.position(state.currentWeek)
+            state.copy(
+                authority = ProgramAuthority.V74,
+                v74ActivationWeek = activation,
+                v74MigrationApplied = true,
+                historicalAuthorities = history,
+                v74Block = block,
+                v74BlockWeek = blockWeek,
+                v74Loop = loop,
+            )
+        } else {
+            state.copy(
+                authority = state.authorityForWeek(state.currentWeek),
+                v74ActivationWeek = activation,
+                v74MigrationApplied = true,
+                historicalAuthorities = history,
+                v74Block = null,
+                v74BlockWeek = null,
+                v74Loop = null,
+            )
+        }
+    }
+}
+
 data class ActiveWorkoutState(
     val week:Int,
     val day:Int,
@@ -209,7 +393,7 @@ data class ActiveWorkoutState(
     val authority: ProgramAuthority? = null,
 ) {
     init {
-        require(week in 1..32); require(day in 1..7); require(movementIndex>=0); require(effortIndex>=1)
+        require(week >= 1); require(day in 1..7); require(movementIndex>=0); require(effortIndex>=1)
         require(restTimerEndEpochMillis==null || restTimerEndEpochMillis>0L)
         require(selectedSubstitutions.keys.none { it.isBlank() }); require(selectedSubstitutions.values.none { it.isBlank() })
         require(completedEffortIds.none { it.isBlank() })
@@ -264,7 +448,7 @@ private class SharedPrefsEditor(private val editor: SharedPreferences.Editor) : 
 class ProgramStateStore internal constructor(
     private val prefs: PrefsStore,
     private val legacyPrefs: PrefsStore,
-    private val targetAuthority: ProgramAuthority = ProgramAuthority.V73,
+    private val targetAuthority: ProgramAuthority = ProgramAuthority.V74,
 ) {
     constructor(context: Context) : this(
         SharedPrefsStore(context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)),
@@ -279,12 +463,12 @@ class ProgramStateStore internal constructor(
             else ProgramUiState(true, oldWeek, oldDay.coerceIn(1, 7))
             val legacyEvidence = if (oldDay == 8 && oldWeek < 32) WeekStartEvidence.NOT_STARTED else WeekStartEvidence.UNKNOWN
             val migrated = AuthorityMigration.apply(pointer, workoutActive = false, legacyEvidence)
-            return migrateV73(migrated, false, legacyEvidence)
+            return finishMigrations(migrated, false, legacyEvidence)
         }
         val stored = readState()
         val revision = prefs.getInt(KEY_MIGRATION_REVISION, 0)
         if (prefs.getBoolean(KEY_V72_MIGRATED, false) && revision >= AuthorityMigration.CURRENT_REVISION) {
-            return migrateV73(stored, prefs.getBoolean(KEY_WORKOUT_ACTIVE, false), currentEvidence(stored.currentWeek))
+            return finishMigrations(stored, prefs.getBoolean(KEY_WORKOUT_ACTIVE, false), currentEvidence(stored.currentWeek))
         }
         val workoutActive = prefs.getBoolean(KEY_WORKOUT_ACTIVE, false) && prefs.getInt(KEY_WORKOUT_SCHEMA, 0) == WORKOUT_SCHEMA
         val evidence = AuthorityMigration.evidenceFor(
@@ -297,17 +481,31 @@ class ProgramStateStore internal constructor(
         } else {
             AuthorityMigration.apply(stored, workoutActive, evidence)
         }
-        return migrateV73(migrated, workoutActive, evidence)
+        return finishMigrations(migrated, workoutActive, evidence)
     }
 
     private fun currentEvidence(week: Int) = AuthorityMigration.evidenceFor(
         prefs.contains(KEY_ENGAGED_ABSOLUTE_DAY), prefs.getInt(KEY_ENGAGED_ABSOLUTE_DAY, 0), week)
 
-    private fun migrateV73(state: ProgramUiState, workoutActive: Boolean, evidence: WeekStartEvidence): ProgramUiState {
-        val migrated = if (targetAuthority == ProgramAuthority.V73) V73AuthorityMigration.apply(state, workoutActive, evidence,
-            prefs.getInt(KEY_ENGAGED_ABSOLUTE_DAY, 0).takeIf { it in 1..224 }?.let { (it - 1) / 7 + 1 }) else state
+    fun evidenceForWeek(week: Int) = currentEvidence(week)
+
+    private fun cappedEngagedWeek(): Int? =
+        prefs.getInt(KEY_ENGAGED_ABSOLUTE_DAY, 0).takeIf { it in 1..224 }?.let { (it - 1) / 7 + 1 }
+
+    private fun unboundedEngagedWeek(): Int? {
+        if (!prefs.contains(KEY_ENGAGED_ABSOLUTE_DAY)) return null
+        val day = prefs.getInt(KEY_ENGAGED_ABSOLUTE_DAY, 0)
+        return day.takeIf { it >= 1 }?.let { (it - 1) / 7 + 1 }
+    }
+
+    private fun finishMigrations(state: ProgramUiState, workoutActive: Boolean, evidence: WeekStartEvidence): ProgramUiState {
+        val runV73 = targetAuthority == ProgramAuthority.V73 || targetAuthority == ProgramAuthority.V74
+        val afterV73 = if (runV73) V73AuthorityMigration.apply(state, workoutActive, evidence, cappedEngagedWeek()) else state
+        val migrated = if (targetAuthority == ProgramAuthority.V74) {
+            V74AuthorityMigration.apply(afterV73, workoutActive, evidence, unboundedEngagedWeek())
+        } else afterV73
         if (migrated != state || !prefs.contains(KEY_MIGRATION_REVISION)) save(migrated)
-        else if (targetAuthority != ProgramAuthority.V73) save(migrated)
+        else if (targetAuthority != ProgramAuthority.V73 && targetAuthority != ProgramAuthority.V74) save(migrated)
         return migrated
     }
 
@@ -319,6 +517,11 @@ class ProgramStateStore internal constructor(
             putString(KEY_AUTHORITY, state.authority.name)
             putBoolean(KEY_V73_MIGRATED, state.v73MigrationApplied)
             if (state.v73ActivationWeek != null) putInt(KEY_V73_ACTIVATION_WEEK, state.v73ActivationWeek) else remove(KEY_V73_ACTIVATION_WEEK)
+            putBoolean(KEY_V74_MIGRATED, state.v74MigrationApplied)
+            if (state.v74ActivationWeek != null) putInt(KEY_V74_ACTIVATION_WEEK, state.v74ActivationWeek) else remove(KEY_V74_ACTIVATION_WEEK)
+            if (state.v74Block != null) putInt(KEY_V74_BLOCK, state.v74Block) else remove(KEY_V74_BLOCK)
+            if (state.v74BlockWeek != null) putInt(KEY_V74_BLOCK_WEEK, state.v74BlockWeek) else remove(KEY_V74_BLOCK_WEEK)
+            if (state.v74Loop != null) putInt(KEY_V74_LOOP, state.v74Loop) else remove(KEY_V74_LOOP)
             putStringSet(KEY_HISTORY, state.historicalAuthorities.mapTo(linkedSetOf()) { (week, authority) -> "$week:${authority.name}" })
             putBoolean(KEY_V72_MIGRATED, true)
             putInt(KEY_MIGRATION_REVISION, AuthorityMigration.CURRENT_REVISION)
@@ -332,10 +535,13 @@ class ProgramStateStore internal constructor(
     fun loadWorkout(): ActiveWorkoutState? {
         if (!prefs.getBoolean(KEY_WORKOUT_ACTIVE, false) || prefs.getInt(KEY_WORKOUT_SCHEMA, 0) != WORKOUT_SCHEMA) return null
         val hasUndo = prefs.getBoolean(KEY_HAS_UNDO, false)
+        val v74Applied = prefs.getBoolean(KEY_V74_MIGRATED, false)
+        val rawWeek = prefs.getInt(KEY_WORKOUT_WEEK, 1)
+        val week = if (v74Applied) rawWeek.coerceAtLeast(1) else rawWeek.coerceIn(1, 32)
         return ActiveWorkoutState(
             authority = prefs.getString(KEY_WORKOUT_AUTHORITY, null)?.let { runCatching { ProgramAuthority.valueOf(it) }.getOrNull() }
-                ?: load().authorityForWeek(prefs.getInt(KEY_WORKOUT_WEEK, 1).coerceIn(1,32)),
-            week = prefs.getInt(KEY_WORKOUT_WEEK, 1).coerceIn(1, 32),
+                ?: load().authorityForWeek(week),
+            week = week,
             day = prefs.getInt(KEY_WORKOUT_DAY, 1).coerceIn(1, 7),
             movementIndex = prefs.getInt(KEY_MOVEMENT, 0).coerceAtLeast(0),
             effortIndex = prefs.getInt(KEY_EFFORT, 1).coerceAtLeast(1),
@@ -352,9 +558,9 @@ class ProgramStateStore internal constructor(
     }
 
     fun markSessionEngaged(week: Int, day: Int): ProgramUiState {
-        require(week in 1..32)
         require(day in 1..7)
         val state = load()
+        if (state.v74MigrationApplied) require(week >= 1) else require(week in 1..32)
         val recorded = if (state.v73MigrationApplied && week !in state.historicalAuthorities) {
             state.copy(historicalAuthorities = state.historicalAuthorities + (week to state.authorityForWeek(week)))
         } else state
@@ -397,26 +603,36 @@ class ProgramStateStore internal constructor(
         }
     }
 
-    private fun readState(): ProgramUiState = ProgramUiState(
-        initialized = prefs.getBoolean(KEY_INITIALIZED, false),
-        currentWeek = prefs.getInt(KEY_CYCLE, 1).coerceIn(1, 32),
-        currentDay = prefs.getInt(KEY_DAY, 1).coerceIn(1, 7),
-        restTimerSeconds = prefs.getInt(KEY_REST, 0).takeIf { it > 0 },
-        utilityRestTimerEndEpochMillis = prefs.getLong(KEY_TIMER_END, 0L).takeIf { it > 0L },
-        authority = runCatching {
-            ProgramAuthority.valueOf(prefs.getString(KEY_AUTHORITY, ProgramAuthority.V72.name).orEmpty())
-        }.getOrDefault(ProgramAuthority.V72),
-        retainedV71Week = prefs.getInt(KEY_RETAINED_V71_WEEK, 0).takeIf { it in 1..32 },
-        v72ActivationProven = prefs.getBoolean(KEY_V72_ACTIVATION_PROVEN, false),
-        v73MigrationApplied = prefs.getBoolean(KEY_V73_MIGRATED, false),
-        v73ActivationWeek = prefs.getInt(KEY_V73_ACTIVATION_WEEK, 0).takeIf { it in 1..32 },
-        historicalAuthorities = prefs.getStringSet(KEY_HISTORY, emptySet()).mapNotNull { entry ->
-            val parts = entry.split(':')
-            val week = parts.firstOrNull()?.toIntOrNull()?.takeIf { it in 1..32 }
-            val authority = parts.getOrNull(1)?.let { runCatching { ProgramAuthority.valueOf(it) }.getOrNull() }
-            if (week != null && authority != null) week to authority else null
-        }.toMap(),
-    )
+    private fun readState(): ProgramUiState {
+        val v74Applied = prefs.getBoolean(KEY_V74_MIGRATED, false)
+        val rawWeek = prefs.getInt(KEY_CYCLE, 1)
+        return ProgramUiState(
+            initialized = prefs.getBoolean(KEY_INITIALIZED, false),
+            currentWeek = if (v74Applied) rawWeek.coerceAtLeast(1) else rawWeek.coerceIn(1, 32),
+            currentDay = prefs.getInt(KEY_DAY, 1).coerceIn(1, 7),
+            restTimerSeconds = prefs.getInt(KEY_REST, 0).takeIf { it > 0 },
+            utilityRestTimerEndEpochMillis = prefs.getLong(KEY_TIMER_END, 0L).takeIf { it > 0L },
+            authority = runCatching {
+                ProgramAuthority.valueOf(prefs.getString(KEY_AUTHORITY, ProgramAuthority.V72.name).orEmpty())
+            }.getOrDefault(ProgramAuthority.V72),
+            retainedV71Week = prefs.getInt(KEY_RETAINED_V71_WEEK, 0).takeIf { it in 1..32 },
+            v72ActivationProven = prefs.getBoolean(KEY_V72_ACTIVATION_PROVEN, false),
+            v73MigrationApplied = prefs.getBoolean(KEY_V73_MIGRATED, false),
+            v73ActivationWeek = prefs.getInt(KEY_V73_ACTIVATION_WEEK, 0).takeIf { it in 1..32 },
+            historicalAuthorities = prefs.getStringSet(KEY_HISTORY, emptySet()).mapNotNull { entry ->
+                val parts = entry.split(':')
+                val rawHistoryWeek = parts.firstOrNull()?.toIntOrNull()
+                val week = rawHistoryWeek?.takeIf { if (v74Applied) it >= 1 else it in 1..32 }
+                val authority = parts.getOrNull(1)?.let { runCatching { ProgramAuthority.valueOf(it) }.getOrNull() }
+                if (week != null && authority != null) week to authority else null
+            }.toMap(),
+            v74MigrationApplied = v74Applied,
+            v74ActivationWeek = prefs.getInt(KEY_V74_ACTIVATION_WEEK, 0).takeIf { v74Applied && it >= 1 },
+            v74Block = prefs.getInt(KEY_V74_BLOCK, 0).takeIf { v74Applied && it in 1..4 },
+            v74BlockWeek = prefs.getInt(KEY_V74_BLOCK_WEEK, 0).takeIf { v74Applied && it in 1..8 },
+            v74Loop = prefs.getInt(KEY_V74_LOOP, 0).takeIf { v74Applied && it >= 1 },
+        )
+    }
 
     private fun encodeSubstitutions(v: Map<String, String>) = v.mapTo(linkedSetOf()) { (k, x) -> k + SEP + x }
     private fun decodeSubstitutions(v: Set<String>) = v.mapNotNull { x ->
@@ -433,6 +649,11 @@ class ProgramStateStore internal constructor(
         private const val KEY_AUTHORITY = "authorityVersion"
         private const val KEY_V73_MIGRATED = "v73MigrationApplied"
         private const val KEY_V73_ACTIVATION_WEEK = "v73ActivationWeek"
+        private const val KEY_V74_MIGRATED = "v74MigrationApplied"
+        private const val KEY_V74_ACTIVATION_WEEK = "v74ActivationWeek"
+        private const val KEY_V74_BLOCK = "v74Block"
+        private const val KEY_V74_BLOCK_WEEK = "v74BlockWeek"
+        private const val KEY_V74_LOOP = "v74Loop"
         private const val KEY_HISTORY = "historicalWeekAuthorities"
         private const val KEY_WORKOUT_AUTHORITY = "workoutAuthority"
         private const val KEY_RETAINED_V71_WEEK = "retainedV71Week"

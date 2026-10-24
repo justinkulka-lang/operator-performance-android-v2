@@ -62,11 +62,13 @@ import androidx.compose.ui.unit.dp
 import com.jk.operatorperformance.R
 import com.jk.operatorperformance.program.ProgramV73
 import com.jk.operatorperformance.program.ProgramV72
+import com.jk.operatorperformance.program.ProgramV74
 import com.jk.operatorperformance.program.ProgramAuthority
 import com.jk.operatorperformance.program.SessionReference
 import com.jk.operatorperformance.program.SessionResolver
 import com.jk.operatorperformance.program.SessionRow
 import com.jk.operatorperformance.program.SessionRowKind
+import com.jk.operatorperformance.program.V74Pointer
 import com.jk.operatorperformance.state.ActiveWorkoutState
 import com.jk.operatorperformance.state.ProgramStateStore
 import com.jk.operatorperformance.state.ProgramUiState
@@ -90,6 +92,7 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
     var referenceSession by remember { mutableStateOf<SessionReference?>(null) }
     var referenceCanSetCurrent by remember { mutableStateOf(false) }
     var pendingPointer by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+    var showStartPosition by rememberSaveable { mutableStateOf(false) }
 
     fun persist(next: ProgramUiState) {
         state = next
@@ -116,15 +119,31 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
                     BrandHeader()
                     Text("LEGEND", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(12.dp))
-                    Text("The approved program uses 32 seven-day weeks with six training days and one rest day each week.")
+                    Text(V74Pointer.CONTINUOUS_LINE)
                     Spacer(Modifier.height(12.dp))
                     Text("Starting begins at Week 1, Day 1. Existing progress is preserved. Engaged historical weeks keep their authority; LEGEND v7.3 starts at the next positively unstarted Day 1.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(24.dp))
                     Button(
-                        onClick = { clearWorkout(); stateStore.clearSessionStatus(); persist(state.startV73()); selectedProgramWeek = 1 },
+                        onClick = { clearWorkout(); stateStore.clearSessionStatus(); persist(state.startV74()); selectedProgramWeek = 1 },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("start_v72"),
                     ) { Text("START WEEK 1 • DAY 1", fontWeight = FontWeight.Bold) }
+                    Button(
+                        onClick = { showStartPosition = true },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("start_at_position"),
+                    ) { Text("START AT A POSITION", fontWeight = FontWeight.Bold) }
                 }
+            }
+            if (showStartPosition) {
+                StartPositionFlow(
+                    onDismiss = { showStartPosition = false },
+                    onConfirm = { block, blockWeek, day ->
+                        clearWorkout()
+                        stateStore.clearSessionStatus()
+                        persist(state.startAtPosition(block, blockWeek, day))
+                        selectedProgramWeek = V74Pointer.absoluteWeek(block, blockWeek)
+                        showStartPosition = false
+                    },
+                )
             }
             return@MaterialTheme
         }
@@ -134,6 +153,7 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
                 workoutMode = false
             } else {
                 WorkoutModeScreen(
+                    state = state,
                     progress = progress,
                     authority = progress.authority ?: state.authorityForWeek(progress.week),
                     onProgress = ::persistWorkout,
@@ -216,6 +236,16 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
                         },
                         onProgress = ::persistWorkout,
                         onResetWorkout = ::clearWorkout,
+                        canConsolidate = state.canConsolidate(
+                            workoutActive = activeWorkout != null,
+                            evidence = stateStore.evidenceForWeek(state.currentWeek),
+                        ),
+                        onConsolidate = {
+                            persist(state.consolidateNow(
+                                workoutActive = activeWorkout != null,
+                                evidence = stateStore.evidenceForWeek(state.currentWeek),
+                            ))
+                        },
                         onAdvance = {
                             val engaged = stateStore.markSessionEngaged(state.currentWeek, state.currentDay)
                             clearWorkout()
@@ -267,7 +297,12 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
             AlertDialog(
                 onDismissRequest = { pendingPointer = null },
                 title = { Text("Change current program day?") },
-                text = { Text("Set the current pointer to Week $week, Day $day? This clears the current session status, substitutions and workout timer. It preserves the utility timer, recorded engagement and each week’s authority; it does not mark any new movement complete.") },
+                text = {
+                    Text(
+                        if (state.v74MigrationApplied) "Set the current day to Day $day? The block, block week, loop, and absolute week stay. This clears the current session status, substitutions and workout timer. It preserves the utility timer and recorded engagement."
+                        else "Set the current pointer to Week $week, Day $day? This clears the current session status, substitutions and workout timer. It preserves the utility timer, recorded engagement and each week’s authority; it does not mark any new movement complete.",
+                    )
+                },
                 confirmButton = {
                     TextButton(
                         onClick = {
@@ -344,17 +379,20 @@ private fun TodayScreen(
     onStartWorkout: () -> Unit,
     onProgress: (ActiveWorkoutState) -> Unit,
     onResetWorkout: () -> Unit,
+    canConsolidate: Boolean,
+    onConsolidate: () -> Unit,
     onAdvance: () -> Unit,
 ) {
     val session = resolveSession(state.currentWeek, state.currentDay, state)
     val progress = activeWorkout?.let { WorkoutProgress.normalize(it, session) }
     val sessionStatus = WorkoutProgress.status(progress, showingWorkout = false)
-    val atEnd = state.currentWeek == 32 && state.currentDay == 7
+    val atEnd = state.atProgramEnd()
     val isRest = session.rows.all { it.kind == SessionRowKind.REST }
     val executionGuidance = sessionExecutionGuidance(session)
     val foundationReference = foundationReferenceLabel(session, state)
     var confirmAdvance by rememberSaveable(state.currentWeek, state.currentDay) { mutableStateOf(false) }
     var confirmReset by rememberSaveable(state.currentWeek, state.currentDay) { mutableStateOf(false) }
+    var confirmConsolidate by rememberSaveable(state.currentWeek, state.currentDay, state.v74BlockWeek) { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize()) {
     LazyColumn(
@@ -366,13 +404,17 @@ private fun TodayScreen(
             BrandHeader()
             PhaseIdentityLine(session.phase, Modifier.testTag("today_phase"))
             Text(
-                "v${session.authority.versionLabel} • WEEK ${session.week} • DAY ${session.day}",
+                if (session.authority == ProgramAuthority.V74 && state.v74Block != null && state.v74BlockWeek != null) {
+                    V74Pointer.header(state.currentWeek, state.v74Block, state.v74BlockWeek)
+                } else {
+                    "v${session.authority.versionLabel} • WEEK ${session.week} • DAY ${session.day}"
+                },
                 style = technicalStyle(MaterialTheme.typography.labelLarge),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.testTag("today_header"),
             )
             Text(session.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            if (session.authority != ProgramAuthority.V73 && state.v73MigrationApplied) {
+            if ((session.authority == ProgramAuthority.V71 || session.authority == ProgramAuthority.V72) && state.v73MigrationApplied) {
                 Text("RETAINED WEEK • v${session.authority.versionLabel}", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
             }
             if (!isRest) Text(
@@ -427,6 +469,12 @@ private fun TodayScreen(
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("reset_today_workout"),
                 ) { Text("RESET TODAY'S WORKOUT") }
             }
+            if (canConsolidate) {
+                Button(
+                    onClick = { confirmConsolidate = true },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("consolidate_now"),
+                ) { Text("CONSOLIDATE NOW") }
+            }
             if (atEnd) {
                 Card(Modifier.fillMaxWidth()) {
                     Text("LEGEND • 32-WEEK / 224-DAY PROGRAM COMPLETE", Modifier.padding(16.dp), fontWeight = FontWeight.Bold)
@@ -462,6 +510,21 @@ private fun TodayScreen(
                 ) { Text("ADVANCE") }
             },
             dismissButton = { TextButton(onClick = { confirmAdvance = false }, modifier = Modifier.heightIn(min = 48.dp)) { Text("CANCEL") } },
+        )
+    }
+
+    if (confirmConsolidate) {
+        AlertDialog(
+            onDismissRequest = { confirmConsolidate = false },
+            title = { Text("Consolidate this block week?") },
+            text = { Text("This block week becomes the consolidation week. ${ProgramV74.CONSOLIDATION_LABEL}") },
+            confirmButton = {
+                TextButton(
+                    onClick = { confirmConsolidate = false; onConsolidate() },
+                    modifier = Modifier.heightIn(min = 48.dp).testTag("confirm_consolidate"),
+                ) { Text("CONSOLIDATE") }
+            },
+            dismissButton = { TextButton(onClick = { confirmConsolidate = false }, modifier = Modifier.heightIn(min = 48.dp)) { Text("CANCEL") } },
         )
     }
 
@@ -532,13 +595,14 @@ private fun WorkoutRowCard(
 
 @Composable
 private fun WorkoutModeScreen(
+    state: ProgramUiState,
     progress: ActiveWorkoutState,
     authority: ProgramAuthority,
     onProgress: (ActiveWorkoutState) -> Unit,
     onReturnToToday: () -> Unit,
     onMarkComplete: () -> Unit,
 ) {
-    val session = SessionResolver.resolve(progress.week, progress.day, authority)
+    val session = resolveSession(progress.week, progress.day, state)
     val normalized = WorkoutProgress.normalize(progress, session)
     val latestProgress by rememberUpdatedState(normalized)
     val latestOnProgress by rememberUpdatedState(onProgress)
@@ -729,19 +793,157 @@ private fun WeekScreen(state: ProgramUiState, onOpenDay: (SessionReference) -> U
 }
 
 @Composable
+private fun V74ProgramScreen(
+    state: ProgramUiState,
+    onOpenDay: (SessionReference) -> Unit,
+) {
+    var selectedBlock by rememberSaveable(state.v74Block) { mutableIntStateOf(state.v74Block ?: 1) }
+    var selectedBlockWeek by rememberSaveable(state.v74BlockWeek) { mutableIntStateOf(state.v74BlockWeek ?: 1) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    val searchHits = remember(
+        searchQuery,
+        state.v74ActivationWeek,
+        state.v74MigrationApplied,
+        state.historicalAuthorities,
+    ) { searchProgram(searchQuery, state) }
+    val preview = state.copy(currentDay = 7).advanceDay()
+    val selectedSplit = (1..7).map { day ->
+        V74Pointer.reference(V74Pointer.absoluteWeek(selectedBlock, selectedBlockWeek), selectedBlock, selectedBlockWeek, day)
+    }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().testTag("program_screen"),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        item {
+            BrandHeader()
+            Text(V74Pointer.CONTINUOUS_LINE, style = technicalStyle(MaterialTheme.typography.headlineSmall))
+            Text(
+                "Loop ${state.v74Loop}",
+                style = technicalStyle(MaterialTheme.typography.labelSmall),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.testTag("program_loop"),
+            )
+            state.v74Block?.let { block ->
+                Text(
+                    "${V74Pointer.roman(block)} · ${V74Pointer.phaseName(block)}",
+                    modifier = Modifier.testTag("current_phase"),
+                )
+                Text(V74Pointer.phase(block).purpose)
+            }
+        }
+        item {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                label = { Text("SEARCH / JUMP") },
+                supportingText = { Text("Examples: block, squat, threshold") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("program_search"),
+            )
+            if (searchHits.isNotEmpty()) {
+                TextButton(
+                    onClick = { onOpenDay(searchHits.first().session) },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("program_search_open_first"),
+                ) { Text("OPEN FIRST MATCH") }
+            }
+        }
+        if (searchQuery.isNotBlank()) {
+            item {
+                Text(
+                    if (searchHits.isEmpty()) "No matching approved sessions." else "${searchHits.size} matching session${if (searchHits.size == 1) "" else "s"} shown.",
+                    modifier = Modifier.testTag("program_search_status"),
+                )
+                TextButton(
+                    onClick = { searchQuery = "" },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("program_search_clear"),
+                ) { Text("CLEAR SEARCH") }
+            }
+            items(searchHits, key = { "search_${it.session.authority}_${it.session.week}_${it.session.day}" }) { hit ->
+                Card(
+                    onClick = { onOpenDay(hit.session) },
+                    modifier = Modifier.fillMaxWidth().testTag("program_search_result_${hit.session.week}_${hit.session.day}"),
+                ) {
+                    Column(Modifier.padding(14.dp)) {
+                        Text(hit.matchLabel, fontWeight = FontWeight.Bold)
+                        Text(hit.matchSnippet, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+        }
+        item {
+            Text("BLOCKS", fontWeight = FontWeight.Bold)
+            (1..4).forEach { block ->
+                val phase = V74Pointer.phase(block)
+                Text("${V74Pointer.roman(block)} ${phase.name}. ${phase.purpose}", modifier = Modifier.testTag("v74_block_$block"))
+            }
+        }
+        item {
+            Text("BROWSE BLOCK", fontWeight = FontWeight.Bold)
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items((1..4).toList()) { block ->
+                    FilterChip(
+                        selected = selectedBlock == block,
+                        onClick = { selectedBlock = block },
+                        label = { Text(V74Pointer.roman(block)) },
+                        modifier = Modifier.heightIn(min = 48.dp).testTag("program_block_$block"),
+                    )
+                }
+            }
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items((1..8).toList()) { week ->
+                    FilterChip(
+                        selected = selectedBlockWeek == week,
+                        onClick = { selectedBlockWeek = week },
+                        label = { Text("W$week") },
+                        modifier = Modifier.heightIn(min = 48.dp).testTag("program_block_week_$week"),
+                    )
+                }
+            }
+        }
+        items(selectedSplit, key = { "b${selectedBlock}_w${selectedBlockWeek}_d${it.day}" }) { session ->
+            val current = selectedBlock == state.v74Block && selectedBlockWeek == state.v74BlockWeek && session.day == state.currentDay
+            Card(
+                onClick = { onOpenDay(session) },
+                modifier = Modifier.fillMaxWidth().testTag("program_day_${session.week}_${session.day}"),
+            ) {
+                SessionDayCardContent(
+                    session = session,
+                    isCurrentDay = current,
+                    showRowCount = true,
+                    referenceLabel = foundationReferenceLabel(session, state),
+                )
+            }
+        }
+        item {
+            HorizontalDivider()
+            Text("NEXT WEEK • WEEK ${preview.currentWeek}", fontWeight = FontWeight.Bold, modifier = Modifier.testTag("next_week"))
+            Text("${V74Pointer.roman(preview.v74Block ?: 1)} · Week ${preview.v74BlockWeek} of 8 · Loop ${preview.v74Loop}")
+            splitForWeek(preview.currentWeek, preview).forEach { session ->
+                Text("DAY ${session.day} • ${session.title}")
+            }
+        }
+    }
+}
+
+@Composable
 private fun ProgramScreen(
     state: ProgramUiState,
     selectedWeek: Int,
     onSelectWeek: (Int) -> Unit,
     onOpenDay: (SessionReference) -> Unit,
 ) {
+    if (state.authorityForWeek(state.currentWeek) == ProgramAuthority.V74) {
+        V74ProgramScreen(state, onOpenDay)
+        return
+    }
     val currentPhase = blockFor(state, state.currentWeek)
     val selectedPhase = blockFor(state, selectedWeek)
     val selectedSplit = splitForWeek(selectedWeek, state)
     val nextWeek = (state.currentWeek + 1).takeIf { it <= 32 }
     val nextPhase = (if (state.authorityForWeek(state.currentWeek) == ProgramAuthority.V73) ProgramV73.blocks else ProgramV72.blocks).firstOrNull { it.startWeek > currentPhase.endWeek }
     var searchQuery by rememberSaveable { mutableStateOf("") }
-    val searchHits = remember(searchQuery, state.retainedV71Week, state.authority, state.v73ActivationWeek, state.historicalAuthorities) { searchProgram(searchQuery, state) }
+    val searchHits = remember(searchQuery, state.retainedV71Week, state.authority, state.v73ActivationWeek, state.v74ActivationWeek, state.v74MigrationApplied, state.historicalAuthorities) { searchProgram(searchQuery, state) }
     val jumpWeeks = remember(state.currentWeek) { listOf(state.currentWeek, 1, 9, 17, 25, 32).distinct() }
 
     LazyColumn(
@@ -819,7 +1021,7 @@ private fun ProgramScreen(
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("program_search_clear"),
                 ) { Text("CLEAR SEARCH") }
             }
-            items(searchHits, key = { "search_${it.session.week}_${it.session.day}" }) { hit ->
+            items(searchHits, key = { "search_${it.session.authority}_${it.session.week}_${it.session.day}" }) { hit ->
                 Card(
                     onClick = {
                         onSelectWeek(hit.session.week)
@@ -1024,15 +1226,33 @@ private fun BrandHeader() {
 
 private fun newWorkout(state: ProgramUiState) = WorkoutProgress.start(state)
 
-private fun resolveSession(week: Int, day: Int, state: ProgramUiState): SessionReference =
-    SessionResolver.resolve(week, day, state.authorityForWeek(week))
+private fun resolveSession(week: Int, day: Int, state: ProgramUiState): SessionReference {
+    val authority = state.authorityForWeek(week)
+    if (authority != ProgramAuthority.V74) return SessionResolver.resolve(week, day, authority)
+    val block: Int
+    val blockWeek: Int
+    if (week == state.currentWeek && state.v74Block != null && state.v74BlockWeek != null) {
+        block = state.v74Block
+        blockWeek = state.v74BlockWeek
+    } else {
+        val position = com.jk.operatorperformance.program.ProgramV74.position(week)
+        block = position.first
+        blockWeek = position.second
+    }
+    return V74Pointer.reference(week, block, blockWeek, day)
+}
 
 private fun splitForWeek(week: Int, state: ProgramUiState): List<SessionReference> =
-    SessionResolver.splitForWeek(week, state.authorityForWeek(week))
+    (1..7).map { resolveSession(week, it, state) }
 
-private fun blockFor(state: ProgramUiState, week: Int) =
-    if (state.authorityForWeek(week) == ProgramAuthority.V71) com.jk.operatorperformance.program.ProgramV71.blockForWeek(week)
-    else if (state.authorityForWeek(week) == ProgramAuthority.V73) ProgramV73.blockForWeek(week)
-    else ProgramV72.blockForWeek(week)
+private fun blockFor(state: ProgramUiState, week: Int) = when (state.authorityForWeek(week)) {
+    ProgramAuthority.V71 -> com.jk.operatorperformance.program.ProgramV71.blockForWeek(week)
+    ProgramAuthority.V73 -> ProgramV73.blockForWeek(week)
+    ProgramAuthority.V72 -> ProgramV72.blockForWeek(week)
+    ProgramAuthority.V74 -> V74Pointer.phase(
+        if (week == state.currentWeek && state.v74Block != null) state.v74Block
+        else com.jk.operatorperformance.program.ProgramV74.position(week).first,
+    )
+}
 
 private fun formatRest(seconds: Int): String = "%d:%02d".format(seconds / 60, seconds % 60)
