@@ -155,7 +155,10 @@ path.write_text("""<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
 """)
 PY
 seed_b64="$(base64 -w0 "$out/v73-seed.xml")"
-"$adb" -s "$serial" shell run-as com.jk.operatorperformance sh -c "echo $seed_b64 | base64 -d > shared_prefs/ares_v71_reference_state.xml"
+# Keep the remote sh -c script quoted. A locally consumed quote makes the
+# device shell apply `>` as the shell user, outside run-as, where shared_prefs
+# does not exist.
+"$adb" -s "$serial" shell "run-as com.jk.operatorperformance sh -c 'mkdir -p shared_prefs && printf %s $seed_b64 | base64 -d > shared_prefs/ares_v71_reference_state.xml'"
 snapshot v73-before-upgrade
 "$adb" -s "$serial" install -r "$candidate"
 snapshot v73-after-install
