@@ -1,103 +1,52 @@
 package com.jk.operatorperformance.state
 
 import com.jk.operatorperformance.program.ProgramAuthority
+import com.jk.operatorperformance.program.SessionResolver
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 /**
- * Week authority recorded at engagement must survive a later save of an older in-memory state.
- * Today must not apply a saved session or pointer that names a different authority.
+ * Engaged week authority must be adopted from the state [ProgramStateStore] returns.
+ * Today drops a saved workout whose authority is not the authority of that week.
  */
 class WeekAuthorityHistoryTest {
-    @Test fun recordedWeekAuthoritySurvivesLaterSaveThatOmitsIt() {
-        val (prefs, store) = store()
-        val frozen = ProgramUiState(
-            initialized = true,
-            currentWeek = 12,
-            currentDay = 4,
-            authority = ProgramAuthority.V72,
-            v72ActivationProven = true,
-            v73MigrationApplied = true,
-            v73ActivationWeek = 10,
-            historicalAuthorities = mapOf(12 to ProgramAuthority.V72),
-        )
-        store.save(frozen, replaceHistoricalAuthorities = true)
-        val stale = frozen.copy(historicalAuthorities = emptyMap(), restTimerSeconds = 90)
-        store.save(stale)
-
-        val loaded = store.load()
-        assertEquals(ProgramAuthority.V72, loaded.historicalAuthorities[12])
-        assertEquals(ProgramAuthority.V72, loaded.authorityForWeek(12))
-        assertEquals(90, loaded.restTimerSeconds)
-        assertEquals(ProgramAuthority.V73, loaded.authorityForWeek(10))
-    }
-
-    @Test fun engagementThenStaleAdvanceKeepsTheWeekJustRecorded() {
+    @Test fun engageThenAdvanceWithReturnedStateKeepsThatWeekInHistory() {
         val (_, store) = store()
-        val start = ProgramUiState().startV73().withCurrentPointer(17, 7)
-        store.save(start, replaceHistoricalAuthorities = true)
-        val memory = store.load()
-        assertTrue(17 !in memory.historicalAuthorities)
-
+        store.save(ProgramUiState().startV73().withCurrentPointer(17, 7))
         val engaged = store.markSessionEngaged(17, 7)
-        assertEquals(ProgramAuthority.V73, engaged.historicalAuthorities[17])
-        store.save(memory.advanceDay())
-
+        store.save(engaged.advanceDay())
         val loaded = store.load()
+        assertEquals(ProgramAuthority.V73, loaded.historicalAuthorities[17])
         assertEquals(18, loaded.currentWeek)
         assertEquals(1, loaded.currentDay)
-        assertEquals(ProgramAuthority.V73, loaded.historicalAuthorities[17])
-        assertEquals(ProgramAuthority.V73, loaded.authorityForWeek(17))
-        assertEquals(ProgramAuthority.V73, loaded.authority)
     }
 
-    @Test fun explicitResetReplacesHistoricalAuthorities() {
+    @Test fun saveWorkoutReturnsStateWhoseHistoryIncludesTheEngagedWeek() {
         val (_, store) = store()
-        store.save(
-            ProgramUiState(
-                initialized = true,
-                currentWeek = 12,
-                currentDay = 4,
-                authority = ProgramAuthority.V72,
-                v72ActivationProven = true,
-                v73MigrationApplied = true,
-                v73ActivationWeek = 10,
-                historicalAuthorities = mapOf(12 to ProgramAuthority.V72),
-                restTimerSeconds = 90,
-                utilityRestTimerEndEpochMillis = 123456L,
-            ),
-            replaceHistoricalAuthorities = true,
-        )
-        store.save(store.load().resetToV73Start(), replaceHistoricalAuthorities = true)
-        val reset = store.load()
-        assertTrue(reset.historicalAuthorities.isEmpty())
-        assertEquals(1, reset.currentWeek)
-        assertEquals(ProgramAuthority.V73, reset.authorityForWeek(12))
-        assertEquals(90, reset.restTimerSeconds)
-        assertEquals(123456L, reset.utilityRestTimerEndEpochMillis)
+        val state = ProgramUiState().startV73().withCurrentPointer(17, 4)
+        store.save(state)
+        val returned = store.saveWorkout(WorkoutProgress.start(store.load()))
+        assertEquals(ProgramAuthority.V73, returned.historicalAuthorities[17])
+        assertEquals(ProgramAuthority.V73, store.load().historicalAuthorities[17])
     }
 
-    @Test fun todayGuardDetectsSavedSessionAndPointerMismatchesOnly() {
-        val week = ProgramUiState().startV73().withCurrentPointer(17, 2)
-        val matching = WorkoutProgress.start(week)
-        assertNull(todayAuthorityMismatch(week, matching))
-        assertNull(todayAuthorityMismatch(week, null))
-
-        val saved = todayAuthorityMismatch(week, matching.copy(authority = ProgramAuthority.V72))
-        assertEquals(ProgramAuthority.V73, saved?.weekAuthority)
-        assertEquals(ProgramAuthority.V72, saved?.savedAuthority)
-        assertNull(saved?.pointerAuthority)
-
-        val otherDay = todayAuthorityMismatch(week, matching.copy(day = 3, authority = ProgramAuthority.V72))
-        assertNull(otherDay)
-
-        val pointer = week.copy(authority = ProgramAuthority.V72)
-        val pointerMismatch = todayAuthorityMismatch(pointer, null)
-        assertEquals(ProgramAuthority.V72, pointerMismatch?.pointerAuthority)
-        assertEquals(ProgramAuthority.V73, pointerMismatch?.weekAuthority)
-        assertNull(pointerMismatch?.savedAuthority)
+    @Test fun mismatchedSavedWorkoutIsExcludedFromTodayAndClearedFromStorage() {
+        val (_, store) = store()
+        val state = ProgramUiState().startV73().withCurrentPointer(17, 2)
+        store.save(state)
+        val mismatched = WorkoutProgress.start(state).copy(authority = ProgramAuthority.V72)
+        store.saveWorkout(mismatched)
+        val loaded = store.load()
+        val saved = store.loadWorkout()
+        assertEquals(ProgramAuthority.V72, saved?.authority)
+        assertNull(workoutForToday(loaded, saved))
+        if (saved != null && workoutForToday(loaded, saved) == null) store.clearWorkout()
+        assertNull(store.loadWorkout())
+        assertThrows(IllegalArgumentException::class.java) {
+            WorkoutProgress.normalize(mismatched, SessionResolver.resolve(17, 2, ProgramAuthority.V73))
+        }
     }
 
     private fun store(): Pair<MemoryPrefs, ProgramStateStore> {

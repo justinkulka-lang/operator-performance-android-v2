@@ -369,7 +369,7 @@ private fun DataControlsCard() {
                     onClick = {
                         stateStore.clearWorkout()
                         stateStore.clearSessionStatus()
-                        stateStore.save(stateStore.load().resetToV73Start(), replaceHistoricalAuthorities = true)
+                        stateStore.save(stateStore.load().resetToV73Start())
                         confirmReset = false
                         context.findActivity()?.recreate()
                     },
