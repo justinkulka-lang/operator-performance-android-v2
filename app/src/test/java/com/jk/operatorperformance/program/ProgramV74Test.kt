@@ -268,6 +268,32 @@ class ProgramV74Test {
         assertTrue(homes.any { it.contains("anchored high on the rack") })
     }
 
+    @Test fun resolvedSessionDumpCoversEveryBlockWeekAndDay() {
+        val text = buildString {
+            for (block in 1..4) for (blockWeek in 1..8) for (day in 1..7) {
+                for (row in SessionResolverV74.resolve(block, blockWeek, day).rows) {
+                    append(listOf(block, blockWeek, day, row.id, row.title, row.prescription, row.alternatives, row.note)
+                        .joinToString("\t", transform = ::encodeDumpField))
+                    append('\n')
+                }
+            }
+        }
+        val dir = File("build/reports/legend-v74")
+        dir.mkdirs()
+        val file = File(dir, "resolved-sessions.tsv")
+        file.writeText(text)
+        val lines = text.lineSequence().filter { it.isNotEmpty() }.toList()
+        assertEquals(lines, file.readLines())
+        val sessions = lines.map { line -> line.split('\t').take(3).joinToString("\t") }.toSet()
+        val expected = (1..4).flatMap { block -> (1..8).flatMap { blockWeek -> (1..7).map { day -> "$block\t$blockWeek\t$day" } } }.toSet()
+        assertEquals(224, sessions.size)
+        assertEquals(expected, sessions)
+        assertTrue(lines.all { it.split('\t').size == 8 })
+    }
+
+    private fun encodeDumpField(value: Any?): String = value?.toString()
+        ?.replace("\\", "\\\\")?.replace("\t", "\\t")?.replace("\n", "\\n") ?: "<null>"
+
     private fun effortForEngine(blockWeek: Int) = when (blockWeek) {
         1, 3, 5 -> ProgramV74.EFFORT_THRESHOLD
         2, 4, 6 -> ProgramV74.EFFORT_CONTROLLED
