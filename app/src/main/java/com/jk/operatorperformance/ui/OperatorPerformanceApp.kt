@@ -427,6 +427,12 @@ private fun TodayScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.testTag("today_progress"),
             )
+            if (canConsolidate) {
+                Button(
+                    onClick = { confirmConsolidate = true },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("consolidate_now"),
+                ) { Text("CONSOLIDATE NOW") }
+            }
         }
         if (sessionStatus == SessionStatus.RESUMABLE) {
             item {
@@ -481,23 +487,13 @@ private fun TodayScreen(
             }
         }
     }
-    if (canConsolidate || (!isRest && sessionStatus != SessionStatus.COMPLETED)) {
+    if (!isRest && sessionStatus != SessionStatus.COMPLETED) {
         Surface(color = MaterialTheme.colorScheme.surface) {
-            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (canConsolidate) {
-                    Button(
-                        onClick = { confirmConsolidate = true },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("consolidate_now"),
-                    ) { Text("CONSOLIDATE NOW") }
-                }
-                if (!isRest && sessionStatus != SessionStatus.COMPLETED) {
-                    Button(
-                        onClick = onStartWorkout,
-                        colors = legendButtonColors(),
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("start_resume_workout"),
-                    ) { Text(if (sessionStatus == SessionStatus.NOT_STARTED) "START WORKOUT" else "RESUME WORKOUT", fontWeight = FontWeight.Bold) }
-                }
-            }
+            Button(
+                onClick = onStartWorkout,
+                colors = legendButtonColors(),
+                modifier = Modifier.fillMaxWidth().padding(12.dp).heightIn(min = 56.dp).testTag("start_resume_workout"),
+            ) { Text(if (sessionStatus == SessionStatus.NOT_STARTED) "START WORKOUT" else "RESUME WORKOUT", fontWeight = FontWeight.Bold) }
         }
     }
     }
