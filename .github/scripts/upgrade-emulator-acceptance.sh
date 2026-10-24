@@ -106,8 +106,25 @@ snapshot after-reboot
 cmp "$out/before-reboot.xml" "$out/after-reboot.xml"
 # Complete a normal launch before attaching instrumentation to the rebooted runtime.
 # Keep the pre-launch byte comparison above: launch may legitimately expire a timer.
-"$adb" -s "$serial" shell am start -W -n com.jk.operatorperformance/.MainActivity > "$out/reboot-launch.txt"
-grep -F 'Status: ok' "$out/reboot-launch.txt"
+# sys.boot_completed becomes 1 while user 0 is still RUNNING_LOCKED. On run
+# 40136816736, am start then returned error type 3, 36 ms before reconcileAppsData
+# finished. Wait until the user is unlocked, then retry the launch.
+launched=0
+for attempt in {1..30}; do
+  if [[ "$("$adb" -s "$serial" shell cmd user is-user-unlocked 0 2>/dev/null | tr -d '\r')" == "true" ]] \
+      && "$adb" -s "$serial" shell am start -W -n com.jk.operatorperformance/.MainActivity > "$out/reboot-launch.txt" 2>&1 \
+      && grep -F 'Status: ok' "$out/reboot-launch.txt"; then
+    launched=1
+    break
+  fi
+  "$adb" -s "$serial" shell input keyevent 82 >/dev/null 2>&1 || true
+  sleep 2
+done
+if [[ "$launched" != 1 ]]; then
+  cat "$out/reboot-launch.txt" >&2
+  echo 'Post-reboot launch failed before the activity resolved' >&2
+  exit 1
+fi
 instrument verify timerAndPointerSurviveProcessDeath reboot-verification
 
 # Second scenario: install 0.40.0 (main 7cd35a5), seed Week 12 Day 3 with a workout
