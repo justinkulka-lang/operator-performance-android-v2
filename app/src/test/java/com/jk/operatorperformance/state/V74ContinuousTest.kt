@@ -287,10 +287,33 @@ class V74ContinuousTest {
         val retained = ProgramStateStore(prefs, MemoryPrefs()).load()
         assertEquals(32, retained.currentWeek)
         assertEquals(1, retained.currentDay)
+        assertEquals(ProgramAuthority.V72, retained.authority)
         assertEquals(ProgramAuthority.V72, retained.authorityForWeek(32))
+        assertEquals(ProgramAuthority.V74, retained.authorityForWeek(33))
+        assertEquals((1..32).associateWith { ProgramAuthority.V72 }, retained.historicalAuthorities)
+        assertTrue(retained.v73MigrationApplied)
+        assertNull(retained.v73ActivationWeek)
         assertEquals(33, retained.v74ActivationWeek)
         assertNull(retained.v74Block)
         assertFalse(retained.canConsolidate(false, WeekStartEvidence.NOT_STARTED))
+        val open = searchProgram("week 32 day 2", retained).first()
+        assertEquals(ProgramAuthority.V72, open.session.authority)
+        assertEquals("w32_d2", open.session.rows.single().id)
+        assertTrue(open.session.rows.single().prescription.contains("very easy bike"))
+        assertTrue(searchProgram("week 33", retained).isEmpty())
+        val notStarted = V73AuthorityMigration.apply(
+            retained.copy(v73MigrationApplied = false),
+            false,
+            WeekStartEvidence.NOT_STARTED,
+        )
+        assertEquals(retained.historicalAuthorities, notStarted.historicalAuthorities)
+        assertEquals(32, notStarted.currentWeek)
+        assertEquals(1, notStarted.currentDay)
+        assertEquals(ProgramAuthority.V72, notStarted.authority)
+        assertEquals(ProgramAuthority.V72, notStarted.authorityForWeek(32))
+        assertTrue(notStarted.v73MigrationApplied)
+        assertEquals(33, notStarted.v74ActivationWeek)
+        assertNull(notStarted.v74Block)
 
         val consolidate = MemoryPrefs()
         consolidate.edit {

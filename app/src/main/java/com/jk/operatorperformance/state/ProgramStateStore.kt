@@ -306,6 +306,9 @@ object AuthorityMigration {
 object V73AuthorityMigration {
     fun apply(state: ProgramUiState, workoutActive: Boolean, evidence: WeekStartEvidence, latestEngagedWeek: Int? = null): ProgramUiState {
         if (state.v73MigrationApplied) return state
+        // V74 already kept this pointer and history. The v7.3 rules must not run again:
+        // a positively unstarted Day 1 would reclassify the current week.
+        if (state.v74MigrationApplied) return state.copy(v73MigrationApplied = true)
         if (!state.initialized) return state.copy(authority = ProgramAuthority.V73,
             currentWeek = 1, currentDay = 1, v73ActivationWeek = 1,
             v73MigrationApplied = true, historicalAuthorities = emptyMap())

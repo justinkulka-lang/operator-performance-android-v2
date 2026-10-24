@@ -293,6 +293,7 @@ class V72ReferenceUiTest {
             .putBoolean("v72MigrationApplied", true)
             .putInt("v72MigrationRevision", 2)
             .putBoolean("v72ActivationProven", true)
+            .putBoolean("v73MigrationApplied", true)
             .putBoolean("v74MigrationApplied", true)
             .putInt("v74ActivationWeek", 33)
             .putStringSet("historicalWeekAuthorities", (1..32).map { "$it:V72" }.toSet())
