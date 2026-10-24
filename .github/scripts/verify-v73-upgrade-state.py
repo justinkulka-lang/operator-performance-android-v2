@@ -1,14 +1,27 @@
 """Compare allowed upgrade migration against untouched session/timer state."""
+import re
 import sys
 import xml.etree.ElementTree as ET
 
+# SharedPreferences stores the substitution separator as U+001F. XML 1.0 rejects
+# that character, so the seed writes &#x1f; and Android rewrites it as &#31;.
+# Expat refuses both. A private-use stand-in survives parsing and is restored
+# before the substitution is compared.
+_UNIT_SEPARATOR_REF = re.compile(r"&#(?:0*31|x0*1[fF]);")
+_UNIT_SEPARATOR_STANDIN = "\ue000"
+
 def prefs(path):
+    text = _UNIT_SEPARATOR_REF.sub("&#xE000;", open(path, encoding="utf-8").read())
     out = {}
-    for node in ET.parse(path).getroot():
-        if node.tag == "set": value = tuple(sorted(x.text or "" for x in node))
-        else: value = node.get("value", node.text)
+    for node in ET.fromstring(text):
+        if node.tag == "set": value = tuple(sorted(restore(x.text or "") for x in node))
+        else: value = restore(node.get("value", node.text))
         out[node.get("name")] = value
     return out
+
+def restore(value):
+    if value is None: return None
+    return value.replace(_UNIT_SEPARATOR_STANDIN, "\u001f")
 before, after = map(prefs, sys.argv[1:3])
 mode = sys.argv[3] if len(sys.argv) > 3 else "from-v72"
 if mode == "from-v73":
