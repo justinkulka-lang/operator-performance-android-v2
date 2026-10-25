@@ -1,6 +1,8 @@
 package com.jk.operatorperformance.state
 
 import com.jk.operatorperformance.program.SessionReference
+import com.jk.operatorperformance.program.SessionRow
+import java.util.Locale
 
 /**
  * A saved workout whose authority is not the authority of its week is not shown on Today.
@@ -22,10 +24,40 @@ enum class SessionStatus {
 }
 
 /**
- * Session status only. Set and effort taps are not stored.
- * Authorized local fields are the pointer, substitutions, and a manual rest timer.
+ * Ticks are local completion marks for the active workout. An id is "<row.id>#<n>".
+ * They record that a set was marked done, never a load, rep count, RIR, time, or result.
+ * Ticks clear only when the workout is cleared.
  */
 object WorkoutProgress {
+    fun effortId(rowId: String, index: Int): String = "$rowId#$index"
+
+    fun effortWord(label: String): String =
+        label.lowercase(Locale.US).replaceFirstChar { it.titlecase(Locale.US) }
+
+    fun toggleEffort(progress: ActiveWorkoutState, row: SessionRow, index: Int): ActiveWorkoutState {
+        require(index in 1..row.effortCount) { "Effort $index is outside 1..${row.effortCount} for ${row.id}." }
+        val id = effortId(row.id, index)
+        val next = if (id in progress.completedEffortIds) progress.completedEffortIds - id else progress.completedEffortIds + id
+        return progress.copy(completedEffortIds = next)
+    }
+
+    fun completedEffortCount(progress: ActiveWorkoutState, row: SessionRow): Int =
+        (1..row.effortCount).count { effortId(row.id, it) in progress.completedEffortIds }
+
+    fun isRowComplete(progress: ActiveWorkoutState, row: SessionRow): Boolean =
+        completedEffortCount(progress, row) == row.effortCount
+
+    fun retainedEffortIds(ids: Set<String>, session: SessionReference): Set<String> {
+        val rows = session.rows.associateBy { it.id }
+        return ids.mapNotNullTo(linkedSetOf()) { id ->
+            val split = id.lastIndexOf('#')
+            if (split <= 0 || split == id.lastIndex) return@mapNotNullTo null
+            val row = rows[id.substring(0, split)] ?: return@mapNotNullTo null
+            val n = id.substring(split + 1).toIntOrNull() ?: return@mapNotNullTo null
+            if (n in 1..row.effortCount) effortId(row.id, n) else null
+        }
+    }
+
     fun start(state: ProgramUiState): ActiveWorkoutState = ActiveWorkoutState(
         week = state.currentWeek,
         day = state.currentDay,
@@ -50,7 +82,7 @@ object WorkoutProgress {
             movementIndex = 0,
             effortIndex = 1,
             selectedSubstitutions = validSubstitutions,
-            completedEffortIds = emptySet(),
+            completedEffortIds = retainedEffortIds(progress.completedEffortIds, session),
             undoMovementIndex = null,
             undoEffortIndex = null,
             undoComplete = null,
@@ -60,7 +92,7 @@ object WorkoutProgress {
     }
 
     fun markSessionComplete(progress: ActiveWorkoutState): ActiveWorkoutState =
-        progress.copy(complete = true, completedEffortIds = emptySet(), restTimerEndEpochMillis = null)
+        progress.copy(complete = true, restTimerEndEpochMillis = null)
 
     fun selectSubstitution(
         progress: ActiveWorkoutState,
@@ -74,24 +106,21 @@ object WorkoutProgress {
         }
         val next = progress.selectedSubstitutions.toMutableMap()
         if (alternative == null) next.remove(rowId) else next[rowId] = alternative
-        return progress.copy(selectedSubstitutions = next.toMap(), completedEffortIds = emptySet())
+        return progress.copy(selectedSubstitutions = next.toMap())
     }
 
     fun startManualRest(progress: ActiveWorkoutState, seconds: Int, nowMillis: Long): ActiveWorkoutState {
         require(seconds in 30..600)
-        return progress.copy(
-            restTimerEndEpochMillis = nowMillis + seconds.toLong() * 1_000L,
-            completedEffortIds = emptySet(),
-        )
+        return progress.copy(restTimerEndEpochMillis = nowMillis + seconds.toLong() * 1_000L)
     }
 
     fun skipRest(progress: ActiveWorkoutState): ActiveWorkoutState =
-        progress.copy(restTimerEndEpochMillis = null, completedEffortIds = emptySet())
+        progress.copy(restTimerEndEpochMillis = null)
 
     fun addRestSeconds(progress: ActiveWorkoutState, seconds: Int): ActiveWorkoutState {
         require(seconds > 0)
         val end = progress.restTimerEndEpochMillis ?: return progress
-        return progress.copy(restTimerEndEpochMillis = end + seconds.toLong() * 1_000L, completedEffortIds = emptySet())
+        return progress.copy(restTimerEndEpochMillis = end + seconds.toLong() * 1_000L)
     }
 
     fun clearExpiredRest(progress: ActiveWorkoutState, nowMillis: Long): ActiveWorkoutState {

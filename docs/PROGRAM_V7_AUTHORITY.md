@@ -50,6 +50,8 @@ A new install starts at Week 1 Day 1 under v7.4. An initialized historical week 
 
 The app may persist the current week/day pointer, the active authority, the per-week authority history, completion marks, substitutions, timers, and local utility settings. It must not collect or persist bodyweight, calories, readiness, sleep, heart rate or HRV, pace or test results, load, reps, RIR, photos, Health Connect data, analytics, cloud-sync data, or automatic program adjustments.
 
+Ticks and seals are local completion marks only (a set or a day was marked done), not a load, rep count, RIR, time, or result.
+
 Today resolves the authority recorded for the current week. A saved session or pointer that names a different authority is not applied to that reference.
 
 Audit notes for earlier candidates remain in `docs/archive/v7.2-candidate-376925a/`. v7.3 implementation evidence is in `docs/legend-v73/`.

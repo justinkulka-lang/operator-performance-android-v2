@@ -1,6 +1,9 @@
 package com.jk.operatorperformance.ui
 
+import android.animation.ValueAnimator
 import androidx.annotation.DrawableRes
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,10 +22,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
@@ -30,6 +36,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import com.jk.operatorperformance.R
 import com.jk.operatorperformance.program.ProgramV72
 import com.jk.operatorperformance.program.ProgramBlock
@@ -245,6 +253,9 @@ internal fun SessionDayCardContent(
     showRowCount: Boolean,
     padding: Dp = 14.dp,
     referenceLabel: String? = null,
+    sealedDayNumber: Int? = null,
+    animateSeal: Boolean = false,
+    onSealAnimationFinished: () -> Unit = {},
 ) {
     Column(Modifier.fillMaxWidth()) {
         if (isCurrentDay) CigarBand(session.title)
@@ -277,8 +288,49 @@ internal fun SessionDayCardContent(
                     )
                 }
             }
+            if (sealedDayNumber != null && !isCurrentDay) {
+                WaxSealMark(
+                    day = sealedDayNumber,
+                    animateIn = animateSeal,
+                    onFinished = onSealAnimationFinished,
+                )
+            }
         }
     }
+}
+
+@Composable
+private fun WaxSealMark(day: Int, animateIn: Boolean, onFinished: () -> Unit) {
+    val animatorsEnabled = remember { ValueAnimator.areAnimatorsEnabled() }
+    val play = animateIn && animatorsEnabled
+    val scale = remember { Animatable(if (play) 1.15f else 1f) }
+    val fade = remember { Animatable(if (play) 0f else 1f) }
+    LaunchedEffect(animateIn) {
+        if (!animateIn) return@LaunchedEffect
+        if (animatorsEnabled) {
+            coroutineScope {
+                launch { scale.animateTo(1f, tween(durationMillis = 300)) }
+                launch { fade.animateTo(1f, tween(durationMillis = 300)) }
+            }
+        }
+        onFinished()
+    }
+    Icon(
+        painter = painterResource(R.drawable.ic_wax_seal),
+        contentDescription = "Day $day sealed",
+        tint = Color.Unspecified,
+        modifier = Modifier
+            .size(48.dp)
+            .graphicsLayer {
+                scaleX = scale.value
+                scaleY = scale.value
+                alpha = fade.value
+            }
+            // The day card is clickable and already tagged week_day_<n>. Without its own merge
+            // boundary this seal is folded into that card and week_seal_<day> is dropped.
+            .semantics(mergeDescendants = true) {}
+            .testTag("week_seal_$day"),
+    )
 }
 
 @Composable
