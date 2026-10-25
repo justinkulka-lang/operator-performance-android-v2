@@ -63,6 +63,7 @@ class LegendVisualIdentityTest {
             LegendPalette.Brass to LegendPalette.SurfaceVariant,
             LegendPalette.Olive to LegendPalette.Background,
             LegendPalette.Olive to LegendPalette.Surface,
+            LegendPalette.Brass to LegendPalette.Oxblood,
         )
         controlPairs.forEach { (foreground, background) ->
             assertTrue(
@@ -88,11 +89,21 @@ class LegendVisualIdentityTest {
 
     @Test fun brassTextOnSelectedTabIs4_7To1() = assertTextRatio(LegendPalette.Brass, LegendPalette.SurfaceVariant, "4.7:1")
 
+    @Test fun brassTextOnSurfaceContainerHighestIs4_6To1() = assertTextRatio(LegendPalette.Brass, LegendPalette.SurfaceContainerHighest, "4.6:1")
+
     @Test fun darkButtonTextOnBrassIs6_1To1() = assertTextRatio(LegendPalette.OnBrass, LegendPalette.Brass, "6.1:1")
 
     @Test fun oliveOnBackgroundIs3_8To1NonText() = assertNonTextRatio(LegendPalette.Olive, LegendPalette.Background, "3.8:1")
 
     @Test fun oliveOnSurfaceIs3_4To1NonText() = assertNonTextRatio(LegendPalette.Olive, LegendPalette.Surface, "3.4:1")
+
+    @Test fun brassRuleOnOxbloodIs3_5To1NonText() {
+        val ratio = contrast(LegendPalette.Brass, LegendPalette.Oxblood)
+        assertTrue(
+            "non-text brass on oxblood is ${"%.3f".format(Locale.US, ratio)}:1; the band rules need 3.0:1",
+            ratio >= 3.0 && "%.1f:1".format(Locale.US, ratio) == "3.5:1",
+        )
+    }
 
     @Test fun bundledSerifIsEbGaramondUnderOfl() {
         val font = repoFile("src/main/res/font/eb_garamond.ttf")
@@ -145,10 +156,12 @@ private fun textPairs() = listOf(
     LegendPalette.Brass to LegendPalette.Surface,
     LegendPalette.Brass to LegendPalette.SurfaceVariant,
     LegendPalette.Brass to LegendPalette.SurfaceContainerHigh,
+    LegendPalette.Brass to LegendPalette.SurfaceContainerHighest,
     LegendPalette.OnBrass to LegendPalette.Brass,
     LegendPalette.OnBrassContainer to LegendPalette.BrassContainer,
     LegendPalette.Warning to LegendPalette.Background,
     LegendPalette.Warning to LegendPalette.Surface,
+    LegendPalette.Warning to LegendPalette.SurfaceContainerHighest,
     LegendPalette.OnWarning to LegendPalette.Warning,
     LegendPalette.OnErrorContainer to LegendPalette.ErrorContainer,
     LegendPalette.DisabledContent to LegendPalette.DisabledContainer,

@@ -16,7 +16,7 @@ internal object LegendPalette {
     const val SurfaceContainerLow = 0xFF1A1510L
     const val SurfaceContainer = 0xFF211A14L
     const val SurfaceContainerHigh = 0xFF2C241CL
-    const val SurfaceContainerHighest = 0xFF3A2F24L
+    const val SurfaceContainerHighest = 0xFF34281FL
     const val OnSurface = 0xFFE8DFCEL
     const val OnSurfaceVariant = 0xFFB5A892L
     const val Brass = 0xFFB08D57L
