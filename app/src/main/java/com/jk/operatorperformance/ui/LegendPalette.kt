@@ -9,28 +9,32 @@ internal fun phaseFieldLabel(phase: ProgramBlock): String {
 }
 
 internal object LegendPalette {
-    const val Background = 0xFF12110EL
-    const val Surface = 0xFF1C1A17L
-    const val SurfaceVariant = 0xFF2A2723L
-    const val SurfaceContainerLowest = 0xFF0E0D0BL
-    const val SurfaceContainerLow = 0xFF161410L
-    const val SurfaceContainer = 0xFF1C1A17L
-    const val SurfaceContainerHigh = 0xFF24211DL
-    const val SurfaceContainerHighest = 0xFF2E2A26L
-    const val OnSurface = 0xFFE8E2D6L
-    const val OnSurfaceVariant = 0xFFC2BAA8L
-    const val Brass = 0xFFC4A574L
-    const val OnBrass = 0xFF1A140CL
-    const val BrassContainer = 0xFF3A3228L
-    const val OnBrassContainer = 0xFFE8DCC8L
+    const val Background = 0xFF15110DL
+    const val Surface = 0xFF211A14L
+    const val SurfaceVariant = 0xFF32281FL
+    const val SurfaceContainerLowest = 0xFF100C0AL
+    const val SurfaceContainerLow = 0xFF1A1510L
+    const val SurfaceContainer = 0xFF211A14L
+    const val SurfaceContainerHigh = 0xFF2C241CL
+    const val SurfaceContainerHighest = 0xFF3A2F24L
+    const val OnSurface = 0xFFE8DFCEL
+    const val OnSurfaceVariant = 0xFFB5A892L
+    const val Brass = 0xFFB08D57L
+    const val OnBrass = 0xFF15110DL
+    const val BrassContainer = 0xFF2C241CL
+    const val OnBrassContainer = 0xFFE8DFCEL
+    /** Current-day band and current phase-marker fill only. */
+    const val Oxblood = 0xFF6E2424L
+    /** Non-text marks only. */
+    const val Olive = 0xFF6F7250L
     const val Warning = 0xFFE7B2A8L
     const val OnWarning = 0xFF2A1210L
     const val ErrorContainer = 0xFF3A2422L
     const val OnErrorContainer = 0xFFF0D4CEL
     const val DisabledContainer = 0xFF3F382FL
-    const val DisabledContent = 0xFFE8E2D6L
-    const val Outline = 0xFFA89880L
-    const val OutlineVariant = 0xFF8C7E6AL
-    const val InverseSurface = 0xFFE8E2D6L
-    const val InverseOnSurface = 0xFF1A140CL
+    const val DisabledContent = 0xFFE8DFCEL
+    const val Outline = 0xFFB08D57L
+    const val OutlineVariant = 0xFFB08D57L
+    const val InverseSurface = 0xFFE8DFCEL
+    const val InverseOnSurface = 0xFF15110DL
 }

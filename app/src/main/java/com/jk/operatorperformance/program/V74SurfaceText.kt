@@ -2,6 +2,7 @@ package com.jk.operatorperformance.program
 
 /** Copy shown on V74 screens, dialogs, and the start gate. Retained-week branches keep the previous sentences. */
 internal object V74SurfaceText {
+    const val FONT_LICENSE_LINE = "EB Garamond, SIL Open Font License 1.1."
     const val START_WEEK_ONE = "START WEEK 1 • DAY 1"
     const val START_AT_POSITION = "START AT A POSITION"
 
@@ -88,6 +89,7 @@ internal object V74SurfaceText {
         "SET CURRENT",
         "CLOSE",
         "TOOLS",
+        FONT_LICENSE_LINE,
         "INDEPENDENT REST TIMER",
         "Utility only. Resistance rest guidance is approximate and set quality takes precedence.",
         "STOP TIMER",

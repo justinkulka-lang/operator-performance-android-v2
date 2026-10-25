@@ -1,16 +1,20 @@
 package com.jk.operatorperformance.ui
 
-import android.graphics.Typeface
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import com.jk.operatorperformance.R
 import com.jk.operatorperformance.program.ProgramBlock
 
 internal val LegendAccent = Color(LegendPalette.Brass)
@@ -53,38 +57,66 @@ internal val LegendColors = darkColorScheme(
     surfaceContainerHighest = Color(LegendPalette.SurfaceContainerHighest),
 )
 
-private val LegendCondensed = FontFamily(
-    androidx.compose.ui.text.font.Typeface(
-        Typeface.create("sans-serif-condensed", Typeface.NORMAL),
-    ),
+@OptIn(ExperimentalTextApi::class)
+private fun garamond(weight: FontWeight, style: FontStyle = FontStyle.Normal) = Font(
+    resId = if (style == FontStyle.Italic) R.font.eb_garamond_italic else R.font.eb_garamond,
+    weight = weight,
+    style = style,
+    variationSettings = FontVariation.Settings(FontVariation.weight(weight.weight)),
 )
+
+/** EB Garamond, bundled offline. Titles, day names, and small-cap labels. */
+internal val LegendSerif = FontFamily(
+    garamond(FontWeight.Normal),
+    garamond(FontWeight.Medium),
+    garamond(FontWeight.SemiBold),
+    garamond(FontWeight.Bold),
+    garamond(FontWeight.Normal, FontStyle.Italic),
+    garamond(FontWeight.Medium, FontStyle.Italic),
+    garamond(FontWeight.SemiBold, FontStyle.Italic),
+    garamond(FontWeight.Bold, FontStyle.Italic),
+)
+
+internal const val LegendSmallCaps = "smcp, c2sc"
 
 internal fun legendTypography(): Typography {
     val base = Typography()
-    fun TextStyle.condensed(weight: FontWeight = FontWeight.Medium) = copy(
-        fontFamily = LegendCondensed,
+    fun TextStyle.serif(weight: FontWeight = FontWeight.Normal) = copy(
+        fontFamily = LegendSerif,
         fontWeight = weight,
-        letterSpacing = 0.2.sp,
+        letterSpacing = 0.sp,
+        fontFeatureSettings = null,
+    )
+    fun TextStyle.smallCaps() = copy(
+        fontFamily = LegendSerif,
+        fontWeight = FontWeight.Normal,
+        letterSpacing = 0.4.sp,
+        fontFeatureSettings = LegendSmallCaps,
     )
     return base.copy(
-        displayLarge = base.displayLarge.condensed(FontWeight.Medium),
-        displayMedium = base.displayMedium.condensed(FontWeight.Medium),
-        displaySmall = base.displaySmall.condensed(FontWeight.Medium),
-        headlineLarge = base.headlineLarge.condensed(FontWeight.Medium),
-        headlineMedium = base.headlineMedium.condensed(FontWeight.Medium),
-        headlineSmall = base.headlineSmall.condensed(FontWeight.Medium),
-        titleLarge = base.titleLarge.condensed(FontWeight.Medium),
-        titleMedium = base.titleMedium.condensed(FontWeight.Medium),
-        titleSmall = base.titleSmall.condensed(FontWeight.Medium),
-        labelLarge = base.labelLarge.condensed(FontWeight.Medium),
-        labelMedium = base.labelMedium.condensed(FontWeight.Medium),
-        labelSmall = base.labelSmall.condensed(FontWeight.Medium),
+        displayLarge = base.displayLarge.serif(),
+        displayMedium = base.displayMedium.serif(),
+        displaySmall = base.displaySmall.serif(),
+        headlineLarge = base.headlineLarge.serif(),
+        headlineMedium = base.headlineMedium.serif(),
+        headlineSmall = base.headlineSmall.serif(),
+        titleLarge = base.titleLarge.serif(),
+        titleMedium = base.titleMedium.serif(),
+        titleSmall = base.titleSmall.serif(),
+        labelLarge = base.labelLarge.smallCaps(),
+        labelMedium = base.labelMedium.smallCaps(),
+        labelSmall = base.labelSmall.smallCaps(),
     )
 }
 
 @Composable
 internal fun technicalStyle(style: TextStyle = MaterialTheme.typography.bodyLarge): TextStyle =
-    style.copy(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Normal, letterSpacing = 0.sp)
+    style.copy(
+        fontFamily = FontFamily.Monospace,
+        fontWeight = FontWeight.Normal,
+        letterSpacing = 0.sp,
+        fontFeatureSettings = null,
+    )
 
 @Composable
 internal fun legendButtonColors() = ButtonDefaults.buttonColors(

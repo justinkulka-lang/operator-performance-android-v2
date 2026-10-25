@@ -26,7 +26,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -422,7 +421,7 @@ private fun TodayScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.testTag("today_header"),
             )
-            Text(session.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            CigarBand(session.title)
             V74GlobalLine(session.authority == ProgramAuthority.V74)
             if ((session.authority == ProgramAuthority.V71 || session.authority == ProgramAuthority.V72) && state.v73MigrationApplied) {
                 Text("RETAINED WEEK • v${session.authority.versionLabel}", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
@@ -787,9 +786,7 @@ private fun WeekScreen(state: ProgramUiState, onOpenDay: (SessionReference) -> U
         items(split, key = { it.day }) { session ->
             Card(
                 modifier = Modifier.fillMaxWidth().testTag("week_day_${session.day}"),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (session.day == state.currentDay) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surface,
-                ),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 onClick = { onOpenDay(session) },
             ) {
                 SessionDayCardContent(
@@ -918,6 +915,7 @@ private fun V74ProgramScreen(
             val current = selectedBlock == state.v74Block && selectedBlockWeek == state.v74BlockWeek && session.day == state.currentDay
             Card(
                 onClick = { onOpenDay(session) },
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 modifier = Modifier.fillMaxWidth().testTag("program_day_${session.week}_${session.day}"),
             ) {
                 SessionDayCardContent(
@@ -929,7 +927,7 @@ private fun V74ProgramScreen(
             }
         }
         item {
-            HorizontalDivider()
+            LegendDivider()
             Text("NEXT WEEK • WEEK ${preview.currentWeek}", fontWeight = FontWeight.Bold, modifier = Modifier.testTag("next_week"))
             Text("${V74Pointer.roman(preview.v74Block ?: 1)} · Week ${preview.v74BlockWeek} of 8 · Loop ${preview.v74Loop}")
             splitForWeek(preview.currentWeek, preview).forEach { session ->
@@ -1022,7 +1020,7 @@ private fun ProgramScreen(
         }
         if (searchQuery.isNotBlank()) {
             item {
-                HorizontalDivider()
+                LegendDivider()
                 Text("SEARCH RESULTS", fontWeight = FontWeight.Bold)
                 Text(
                     V74SurfaceText.searchStatus(searchHits.size),
@@ -1060,7 +1058,7 @@ private fun ProgramScreen(
             }
         }
         item {
-            HorizontalDivider()
+            LegendDivider()
             Text("BROWSE WEEK", fontWeight = FontWeight.Bold)
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items((1..32).toList()) { week ->
@@ -1078,7 +1076,11 @@ private fun ProgramScreen(
             )
         }
         items(selectedSplit, key = { it.day }) { session ->
-            Card(onClick = { onOpenDay(session) }, modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).testTag("program_day_${session.week}_${session.day}")) {
+            Card(
+                onClick = { onOpenDay(session) },
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).testTag("program_day_${session.week}_${session.day}"),
+            ) {
                 SessionDayCardContent(
                     session = session,
                     isCurrentDay = session.week == state.currentWeek && session.day == state.currentDay,
@@ -1089,7 +1091,7 @@ private fun ProgramScreen(
         }
         if (nextWeek != null) {
             item {
-                HorizontalDivider()
+                LegendDivider()
                 Text("NEXT WEEK • WEEK $nextWeek", fontWeight = FontWeight.Bold, modifier = Modifier.testTag("next_week"))
                 val phase = blockFor(state, nextWeek)
                 PhaseIdentityLine(phase, active = phase.startWeek == currentPhase.startWeek)
@@ -1129,7 +1131,16 @@ private fun ToolsScreen(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        item { BrandHeader(); Text("TOOLS", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }
+        item {
+            BrandHeader()
+            Text("TOOLS", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text(
+                V74SurfaceText.FONT_LICENSE_LINE,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.testTag("font_licenses"),
+            )
+        }
         item { BuildIntegrityCard(state.authorityForWeek(state.currentWeek)) }
         item {
             Column(Modifier.fillMaxWidth().testTag("rest_timer_tool"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
