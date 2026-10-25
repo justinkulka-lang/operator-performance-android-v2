@@ -326,6 +326,9 @@ private fun WaxSealMark(day: Int, animateIn: Boolean, onFinished: () -> Unit) {
                 scaleY = scale.value
                 alpha = fade.value
             }
+            // The day card is clickable and already tagged week_day_<n>. Without its own merge
+            // boundary this seal is folded into that card and week_seal_<day> is dropped.
+            .semantics(mergeDescendants = true) {}
             .testTag("week_seal_$day"),
     )
 }

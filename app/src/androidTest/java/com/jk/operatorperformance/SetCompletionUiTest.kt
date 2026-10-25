@@ -9,6 +9,7 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
@@ -64,24 +65,18 @@ class SetCompletionUiTest {
         lifecycle.withActivity { density = it.resources.displayMetrics.density }
         assertTrue(chip.boundsInRoot.width / density >= 48f)
         assertTrue(chip.boundsInRoot.height / density >= 48f)
-        showEffort(1)
-        rule.onNodeWithContentDescription("Set 1 of 4, done").assertIsDisplayed()
-        showEffort(2)
-        rule.onNodeWithContentDescription("Set 2 of 4, done").assertIsDisplayed()
-        showEffort(3)
-        rule.onNodeWithContentDescription("Set 3 of 4, not done").assertIsDisplayed()
+        assertEffort(1, done = true)
+        assertEffort(2, done = true)
+        assertEffort(3, done = false)
         lifecycle.recreate("workout_mode")
         val reloaded = ProgramStateStore(context).loadWorkout()
         assertEquals(setOf("${squat.id}#1", "${squat.id}#2"), reloaded!!.completedEffortIds)
         assertNull(reloaded.restTimerEndEpochMillis)
         assertEquals(1, ProgramStateStore(context).load().currentWeek)
         assertEquals(2, ProgramStateStore(context).load().currentDay)
-        showEffort(1)
-        rule.onNodeWithContentDescription("Set 1 of 4, done").assertIsDisplayed()
-        showEffort(2)
-        rule.onNodeWithContentDescription("Set 2 of 4, done").assertIsDisplayed()
-        showEffort(4)
-        rule.onNodeWithContentDescription("Set 4 of 4, not done").assertIsDisplayed()
+        assertEffort(1, done = true)
+        assertEffort(2, done = true)
+        assertEffort(4, done = false)
         rule.onNodeWithTag("workout_mode").performScrollToNode(hasTestTag("return_today"))
         rule.onNodeWithTag("return_today").performClick()
         lifecycle.screen("today_screen")
@@ -98,8 +93,7 @@ class SetCompletionUiTest {
         tapEffort(3)
         rule.onAllNodesWithTag("workout_row_complete_${squat.id}").assertCountEquals(0)
         tapEffort(4)
-        showEffort(4)
-        rule.onNodeWithContentDescription("Set 4 of 4, done").assertIsDisplayed()
+        assertEffort(4, done = true)
         rule.onNodeWithTag("workout_mode").performScrollToNode(hasTestTag("workout_row_complete_${squat.id}"))
         rule.onNodeWithTag("workout_row_complete_${squat.id}").assertTextContains("COMPLETE")
     }
@@ -130,8 +124,7 @@ class SetCompletionUiTest {
             lifecycle.screen("workout_mode")
             tapEffort(1)
             tapEffort(2)
-            rule.onNodeWithTag("workout_mode").performScrollToNode(hasTestTag("effort_${squat.id}_2"))
-            rule.onNodeWithContentDescription("Set 2 of 4, done").assertIsDisplayed()
+            assertEffort(2, done = true)
             capture("workout-row-mid-$suffix")
             tapEffort(3)
             tapEffort(4)
@@ -163,6 +156,13 @@ class SetCompletionUiTest {
     private fun showEffort(index: Int) {
         val tag = "effort_${squat.id}_$index"
         rule.onNodeWithTag("workout_mode").performScrollToNode(hasTestTag(tag))
+    }
+
+    private fun assertEffort(index: Int, done: Boolean) {
+        val description = "Set $index of ${squat.effortCount}, ${if (done) "done" else "not done"}"
+        showEffort(index)
+        rule.onNode(hasTestTag("effort_${squat.id}_$index") and hasContentDescription(description))
+            .assertIsDisplayed()
     }
 
     private fun tapEffort(index: Int) {
