@@ -1,8 +1,5 @@
 package com.jk.operatorperformance.ui
 
-import android.app.Activity
-import android.content.Context
-import android.content.ContextWrapper
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -38,6 +35,7 @@ import com.jk.operatorperformance.program.ProgramNotesV72
 import com.jk.operatorperformance.program.V74SurfaceText
 import com.jk.operatorperformance.state.LegacyDataManager
 import com.jk.operatorperformance.state.ProgramStateStore
+import com.jk.operatorperformance.state.ProgramUiState
 import com.jk.operatorperformance.state.ToolsDataState
 import com.jk.operatorperformance.state.ToolsDataStore
 import com.jk.operatorperformance.tools.PlateInventoryItem
@@ -62,11 +60,14 @@ private data class PlateCalculationState(
 )
 
 @Composable
-internal fun AdditionalToolsCards(authority: ProgramAuthority = ProgramAuthority.V73) {
+internal fun AdditionalToolsCards(
+    authority: ProgramAuthority = ProgramAuthority.V73,
+    onProgramReset: (ProgramUiState) -> Unit,
+) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         PlateCalculatorCard()
         ProgramNotesCard(authority)
-        DataControlsCard()
+        DataControlsCard(onProgramReset)
     }
 }
 
@@ -309,7 +310,7 @@ private fun NotesSection(title: String, rows: List<String>) {
 }
 
 @Composable
-private fun DataControlsCard() {
+private fun DataControlsCard(onProgramReset: (ProgramUiState) -> Unit) {
     val context = LocalContext.current
     val appContext = context.applicationContext
     val legacy = remember(appContext) { LegacyDataManager(appContext) }
@@ -394,9 +395,10 @@ private fun DataControlsCard() {
                     onClick = {
                         stateStore.clearWorkout()
                         stateStore.clearSessionStatus()
-                        stateStore.save(stateStore.load().resetToV74Start())
+                        val next = stateStore.load().resetToV74Start()
+                        stateStore.save(next)
                         confirmWeekOne = false
-                        context.findActivity()?.recreate()
+                        onProgramReset(next)
                     },
                     modifier = Modifier.heightIn(min = 48.dp).testTag("confirm_reset_pointer"),
                 ) { Text("RESET") }
@@ -410,9 +412,10 @@ private fun DataControlsCard() {
             onConfirm = { block, blockWeek, day ->
                 stateStore.clearWorkout()
                 stateStore.clearSessionStatus()
-                stateStore.save(stateStore.load().startAtPosition(block, blockWeek, day))
+                val next = stateStore.load().startAtPosition(block, blockWeek, day)
+                stateStore.save(next)
                 showStartPosition = false
-                context.findActivity()?.recreate()
+                onProgramReset(next)
             },
         )
     }
@@ -450,9 +453,3 @@ private fun numericDecimal(value: String): String {
 
 private fun formatWeight(value: Double): String = if (value % 1.0 == 0.0) value.toInt().toString()
 else value.toString().trimEnd('0').trimEnd('.')
-
-private tailrec fun Context.findActivity(): Activity? = when (this) {
-    is Activity -> this
-    is ContextWrapper -> baseContext.findActivity()
-    else -> null
-}

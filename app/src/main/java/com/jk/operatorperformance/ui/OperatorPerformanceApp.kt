@@ -276,6 +276,16 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
                             state = state,
                             onStateChanged = ::persist,
                             onOpenKey = { showKey = true },
+                            onProgramReset = { next ->
+                                activeWorkout = null
+                                workoutMode = false
+                                showKey = false
+                                referenceSession = null
+                                pendingPointer = null
+                                persist(next)
+                                selectedProgramWeek = next.currentWeek
+                                destinationName = Destination.TODAY.name
+                            },
                         )
                     }
                 }
@@ -1090,7 +1100,12 @@ private fun ProgramScreen(
 }
 
 @Composable
-private fun ToolsScreen(state: ProgramUiState, onStateChanged: (ProgramUiState) -> Unit, onOpenKey: () -> Unit) {
+private fun ToolsScreen(
+    state: ProgramUiState,
+    onStateChanged: (ProgramUiState) -> Unit,
+    onOpenKey: () -> Unit,
+    onProgramReset: (ProgramUiState) -> Unit,
+) {
     val haptic = LocalHapticFeedback.current
     val latestState by rememberUpdatedState(state)
     val latestOnStateChanged by rememberUpdatedState(onStateChanged)
@@ -1170,7 +1185,7 @@ private fun ToolsScreen(state: ProgramUiState, onStateChanged: (ProgramUiState) 
                 modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("open_key"),
             ) { Text("OPEN KEY") }
         }
-        item { AdditionalToolsCards(state.authorityForWeek(state.currentWeek)) }
+        item { AdditionalToolsCards(state.authorityForWeek(state.currentWeek), onProgramReset) }
     }
 }
 
