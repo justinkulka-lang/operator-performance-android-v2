@@ -148,6 +148,14 @@ class SetCompletionUiTest {
     }
 
     private fun seedDay(day: Int) {
+        // Recreation restores the last tab. From Week, today_header is not composed until Today is selected.
+        if (rule.onAllNodesWithTag("nav_TODAY").fetchSemanticsNodes().any {
+                it.boundsInRoot.width > 8f && it.boundsInRoot.height > 8f
+            }
+        ) {
+            rule.onNodeWithTag("nav_TODAY").performClick()
+            lifecycle.screen("today_header")
+        }
         prefs.edit().clear().commit()
         ProgramStateStore(context).save(ProgramUiState().startV74().copy(currentDay = day))
         lifecycle.recreate("today_header")
