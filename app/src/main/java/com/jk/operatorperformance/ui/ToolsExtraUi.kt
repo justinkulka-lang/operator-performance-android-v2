@@ -395,6 +395,7 @@ private fun DataControlsCard(onProgramReset: (ProgramUiState) -> Unit) {
                     onClick = {
                         stateStore.clearWorkout()
                         stateStore.clearSessionStatus()
+                        stateStore.clearSealedDays()
                         val next = stateStore.load().resetToV74Start()
                         stateStore.save(next)
                         confirmWeekOne = false
@@ -412,6 +413,7 @@ private fun DataControlsCard(onProgramReset: (ProgramUiState) -> Unit) {
             onConfirm = { block, blockWeek, day ->
                 stateStore.clearWorkout()
                 stateStore.clearSessionStatus()
+                stateStore.clearSealedDays()
                 val next = stateStore.load().startAtPosition(block, blockWeek, day)
                 stateStore.save(next)
                 showStartPosition = false

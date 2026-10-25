@@ -207,12 +207,13 @@ class ProgramStateStorePersistenceTest {
         store.saveWorkout(WorkoutProgress.markSessionComplete(dirty))
         val loaded = store.loadWorkout()
         assertEquals(true, loaded?.complete)
-        assertTrue(loaded!!.completedEffortIds.isEmpty())
+        assertEquals(setOf("d1_bench:1"), loaded!!.completedEffortIds)
         assertNull(loaded.restTimerEndEpochMillis)
         assertFalse(loaded.canUndo)
         val keys = prefs.snapshot().keys
+        assertTrue(keys.contains("completedEfforts"))
         listOf(
-            "completedEfforts", "workoutTimerEnd", "undoCompleted", "undoMovement",
+            "workoutTimerEnd", "undoCompleted", "undoMovement",
             "bodyweight", "calories", "rirActual", "paceResult", "reps", "load",
         ).forEach { prohibited ->
             assertFalse(prohibited, keys.contains(prohibited))

@@ -55,3 +55,7 @@ C-10. The Task 3 serif is EB Garamond (SIL OFL 1.1), bundled offline.
 ## C-11
 
 C-11. C-9 applies to the V74 rows only, by substitution, never by editing a frozen file. The V74 jump prescription is ProgramV72.plyometrics with exactly one change: "Stop for pain or declining landing quality." → "Stop when landing quality declines." The V74 throws note is the v7.3 throws note with exactly one change: "Stop for pain or degraded mechanics." → "Stop when mechanics degrade." For §5, "the existing v7.2 plyometrics row" and "the existing v7.3 throws row" mean that row's text after this substitution. ProgramV72.kt, SessionResolverV72.kt and SessionResolverV73.kt stay byte-identical, so the retained v7.2 and v7.3 text does not change.
+
+## C-12
+
+C-12. The owner authorizes per-set completion ticks and day seals. Both are local completion marks only. They record that a set or a day was marked done, never a load, rep count, RIR, time or result. Ticks belong to the active workout and clear when it clears. A day seal is earned only by COMPLETE DAY / NEXT DAY.

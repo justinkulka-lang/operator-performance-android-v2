@@ -3,6 +3,10 @@ package com.jk.operatorperformance.program
 /** Copy shown on V74 screens, dialogs, and the start gate. Retained-week branches keep the previous sentences. */
 internal object V74SurfaceText {
     const val FONT_LICENSE_LINE = "EB Garamond, SIL Open Font License 1.1."
+    const val PAUSED_SESSION = "The prescription stays on screen. Set ticks stay with this workout."
+    const val PAUSED_SESSION_DESCRIPTION = "Session paused. Resume shows the same reference and the same set ticks."
+    const val WORKOUT_TICK_NOTE =
+        "Read the whole session while training. Tick an effort when it is done. A tick only marks it done. It does not record a load, rep count, RIR, time, or result, and it does not start, stop, or change a timer."
     const val START_WEEK_ONE = "START WEEK 1 • DAY 1"
     const val START_AT_POSITION = "START AT A POSITION"
 
@@ -47,7 +51,8 @@ internal object V74SurfaceText {
         "SESSION COMPLETE",
         "CONSOLIDATE NOW",
         "SESSION PAUSED",
-        "The prescription stays on screen. Resume does not ask you to mark sets, intervals, or repetitions.",
+        PAUSED_SESSION,
+        PAUSED_SESSION_DESCRIPTION,
         "RESET TODAY'S WORKOUT",
         "COMPLETE DAY / NEXT DAY",
         "START WORKOUT",
@@ -67,7 +72,8 @@ internal object V74SurfaceText {
         "COACHING",
         "ALTERNATIVES",
         "SESSION ACTIVE • FULL REFERENCE",
-        "Read the whole session while training. Nothing here asks for loads, reps, or a tap on every set.",
+        WORKOUT_TICK_NOTE,
+        "COMPLETE",
         "SKIP REST",
         "+30 SEC",
         "REST TIMER",

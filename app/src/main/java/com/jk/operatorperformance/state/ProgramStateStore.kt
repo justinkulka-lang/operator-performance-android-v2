@@ -550,7 +550,7 @@ class ProgramStateStore internal constructor(
             effortIndex = prefs.getInt(KEY_EFFORT, 1).coerceAtLeast(1),
             complete = prefs.getBoolean(KEY_COMPLETE, false),
             selectedSubstitutions = decodeSubstitutions(prefs.getStringSet(KEY_SUBSTITUTIONS, emptySet())),
-            completedEffortIds = emptySet(),
+            completedEffortIds = prefs.getStringSet(KEY_COMPLETED, emptySet()).filter { it.isNotBlank() }.toSet(),
             restTimerEndEpochMillis = prefs.getLong(KEY_WORKOUT_TIMER, 0L).takeIf { it > 0L },
             undoMovementIndex = if (hasUndo) prefs.getInt(KEY_UNDO_MOVEMENT, 0) else null,
             undoEffortIndex = if (hasUndo) prefs.getInt(KEY_UNDO_EFFORT, 1) else null,
@@ -592,7 +592,7 @@ class ProgramStateStore internal constructor(
             putInt(KEY_EFFORT, 1)
             putBoolean(KEY_COMPLETE, s.complete)
             putStringSet(KEY_SUBSTITUTIONS, encodeSubstitutions(s.selectedSubstitutions))
-            remove(KEY_COMPLETED)
+            if (s.completedEffortIds.isEmpty()) remove(KEY_COMPLETED) else putStringSet(KEY_COMPLETED, s.completedEffortIds)
             putBoolean(KEY_HAS_UNDO, false)
             if (s.restTimerEndEpochMillis != null) putLong(KEY_WORKOUT_TIMER, s.restTimerEndEpochMillis) else remove(KEY_WORKOUT_TIMER)
             listOf(KEY_UNDO_MOVEMENT, KEY_UNDO_EFFORT, KEY_UNDO_COMPLETE, KEY_UNDO_COMPLETED, KEY_UNDO_TIMER).forEach(::remove)
@@ -604,6 +604,42 @@ class ProgramStateStore internal constructor(
         prefs.edit {
             WORKOUT_KEYS.forEach(::remove)
         }
+    }
+
+    fun sealedDays(): Set<String> = prefs.getStringSet(KEY_SEALED_DAYS, emptySet()).toSet()
+
+    /** A day seal records that this absolute week and day was marked done. It is not a result. */
+    fun recordDaySeal(week: Int, day: Int) {
+        require(week >= 1)
+        require(day in 1..7)
+        val kept = sealedDays().filterTo(linkedSetOf()) { it.substringBefore(':') == week.toString() }
+        kept += "$week:$day"
+        prefs.edit { putStringSet(KEY_SEALED_DAYS, kept) }
+    }
+
+    fun pruneSealedDays(currentWeek: Int) {
+        val kept = sealedDays().filterTo(linkedSetOf()) { it.substringBefore(':') == currentWeek.toString() }
+        prefs.edit {
+            if (kept.isEmpty()) remove(KEY_SEALED_DAYS) else putStringSet(KEY_SEALED_DAYS, kept)
+        }
+    }
+
+    fun clearSealedDays() {
+        prefs.edit { remove(KEY_SEALED_DAYS) }
+    }
+
+    /**
+     * COMPLETE DAY / NEXT DAY. Records one seal for the day being left, clears the workout,
+     * advances the pointer, then keeps seals only for the week now current.
+     */
+    fun completeDay(state: ProgramUiState): ProgramUiState {
+        recordDaySeal(state.currentWeek, state.currentDay)
+        val engaged = markSessionEngaged(state.currentWeek, state.currentDay)
+        clearWorkout()
+        val next = engaged.advanceDay()
+        pruneSealedDays(next.currentWeek)
+        save(next)
+        return next
     }
 
     private fun readState(): ProgramUiState {
@@ -676,6 +712,7 @@ class ProgramStateStore internal constructor(
         private const val KEY_COMPLETE = "complete"
         private const val KEY_SUBSTITUTIONS = "substitutions"
         private const val KEY_COMPLETED = "completedEfforts"
+        private const val KEY_SEALED_DAYS = "sealedDays"
         private const val KEY_WORKOUT_TIMER = "workoutTimerEnd"
         private const val KEY_HAS_UNDO = "hasUndo"
         private const val KEY_UNDO_MOVEMENT = "undoMovement"

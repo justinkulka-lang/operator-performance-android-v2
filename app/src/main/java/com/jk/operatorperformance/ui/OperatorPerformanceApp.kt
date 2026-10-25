@@ -1,9 +1,25 @@
 package com.jk.operatorperformance.ui
 
+import android.os.Build
+import android.view.HapticFeedbackConstants
+import android.view.View
 import androidx.activity.compose.BackHandler
 import androidx.compose.ui.platform.LocalConfiguration
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBars
@@ -47,6 +63,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
@@ -93,6 +110,9 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
     var referenceCanSetCurrent by remember { mutableStateOf(false) }
     var pendingPointer by remember { mutableStateOf<Pair<Int, Int>?>(null) }
     var showStartPosition by rememberSaveable { mutableStateOf(false) }
+    var sealedDays by remember { mutableStateOf(stateStore.sealedDays()) }
+    var pendingSeal by rememberSaveable { mutableStateOf<String?>(null) }
+    val view = LocalView.current
 
     fun persist(next: ProgramUiState) {
         state = next
@@ -122,7 +142,15 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
                     Text(V74Pointer.CONTINUOUS_LINE)
                     Spacer(Modifier.height(24.dp))
                     Button(
-                        onClick = { clearWorkout(); stateStore.clearSessionStatus(); persist(state.startV74()); selectedProgramWeek = 1 },
+                        onClick = {
+                            clearWorkout()
+                            stateStore.clearSessionStatus()
+                            stateStore.clearSealedDays()
+                            sealedDays = emptySet()
+                            pendingSeal = null
+                            persist(state.startV74())
+                            selectedProgramWeek = 1
+                        },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("start_v72"),
                     ) { Text(V74SurfaceText.START_WEEK_ONE, fontWeight = FontWeight.Bold) }
                     Button(
@@ -137,6 +165,9 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
                     onConfirm = { block, blockWeek, day ->
                         clearWorkout()
                         stateStore.clearSessionStatus()
+                        stateStore.clearSealedDays()
+                        sealedDays = emptySet()
+                        pendingSeal = null
                         persist(state.startAtPosition(block, blockWeek, day))
                         selectedProgramWeek = V74Pointer.absoluteWeek(block, blockWeek)
                         showStartPosition = false
@@ -245,15 +276,23 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
                             ))
                         },
                         onAdvance = {
-                            val engaged = stateStore.markSessionEngaged(state.currentWeek, state.currentDay)
-                            clearWorkout()
-                            val next = engaged.advanceDay()
-                            persist(next)
+                            view.performDayConfirmHaptic()
+                            val sealedWeek = state.currentWeek
+                            val sealedDay = state.currentDay
+                            pendingSeal = "$sealedWeek:$sealedDay"
+                            val next = stateStore.completeDay(state)
+                            activeWorkout = null
+                            state = next
+                            sealedDays = stateStore.sealedDays()
+                            if (pendingSeal !in sealedDays) pendingSeal = null
                             selectedProgramWeek = next.currentWeek
                         },
                     )
                     Destination.WEEK -> WeekScreen(
                         state = state,
+                        sealedDays = sealedDays,
+                        pendingSeal = pendingSeal,
+                        onSealAnimationFinished = { pendingSeal = null },
                         onOpenDay = {
                             referenceCanSetCurrent = false
                             referenceSession = it
@@ -281,6 +320,8 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
                                 showKey = false
                                 referenceSession = null
                                 pendingPointer = null
+                                pendingSeal = null
+                                sealedDays = stateStore.sealedDays()
                                 persist(next)
                                 selectedProgramWeek = next.currentWeek
                                 destinationName = Destination.TODAY.name
@@ -449,12 +490,12 @@ private fun TodayScreen(
                     Modifier
                         .fillMaxWidth()
                         .testTag("saved_workout_status")
-                        .semantics { contentDescription = "Session paused. Resume shows the same reference. Set completion is not stored." },
+                        .semantics { contentDescription = V74SurfaceText.PAUSED_SESSION_DESCRIPTION },
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 ) {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text("SESSION PAUSED", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                        Text("The prescription stays on screen. Resume does not ask you to mark sets, intervals, or repetitions.", style = MaterialTheme.typography.bodySmall)
+                        Text(V74SurfaceText.PAUSED_SESSION, style = MaterialTheme.typography.bodySmall)
                     }
                 }
             }
@@ -574,6 +615,9 @@ private fun WorkoutRowCard(
             if (selected != null) Text("ALTERNATIVE FOR ${row.title}", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
             Text(row.prescription, style = technicalStyle(), modifier = Modifier.testTag("prescription_${row.id}"))
             if (row.optional) Text("OPTIONAL", color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
+            if (progress != null) {
+                EffortProgressReadout(progress, row)
+            }
             if (hasDetails) {
                 val detailLabel = when {
                     row.note != null && row.alternatives.isNotEmpty() -> "COACHING / ALTERNATIVES"
@@ -616,6 +660,7 @@ private fun WorkoutModeScreen(
     val latestProgress by rememberUpdatedState(normalized)
     val latestOnProgress by rememberUpdatedState(onProgress)
     val haptic = LocalHapticFeedback.current
+    val tickView = LocalView.current
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     val restSeconds = WorkoutProgress.remainingRestSeconds(normalized, now)
 
@@ -678,7 +723,7 @@ private fun WorkoutModeScreen(
                 )
                 V74GlobalLine(session.authority == ProgramAuthority.V74)
                 Text(
-                    "Read the whole session while training. Nothing here asks for loads, reps, or a tap on every set.",
+                    V74SurfaceText.WORKOUT_TICK_NOTE,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -737,6 +782,34 @@ private fun WorkoutModeScreen(
                         Text(row.prescription, style = technicalStyle(), modifier = Modifier.testTag("workout_prescription_${row.id}"))
                         row.note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                         if (row.optional) Text("OPTIONAL", color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
+                        EffortTickRow(
+                            row = row,
+                            done = normalized.completedEffortIds,
+                            onToggle = { index ->
+                                performTickHaptic(haptic, tickView)
+                                onProgress(WorkoutProgress.toggleEffort(normalized, row, index))
+                            },
+                        )
+                        if (WorkoutProgress.isRowComplete(normalized, row)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                Icon(
+                                    Icons.Filled.Check,
+                                    contentDescription = null,
+                                    tint = Color(LegendPalette.Brass),
+                                    modifier = Modifier.size(28.dp),
+                                )
+                                Text(
+                                    "COMPLETE",
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    modifier = Modifier.testTag("workout_row_complete_${row.id}"),
+                                )
+                            }
+                        }
                         row.alternatives.forEachIndexed { index, alternative ->
                             FilterChip(
                                 selected = selected == alternative,
@@ -766,7 +839,13 @@ private fun WorkoutModeScreen(
 }
 
 @Composable
-private fun WeekScreen(state: ProgramUiState, onOpenDay: (SessionReference) -> Unit) {
+private fun WeekScreen(
+    state: ProgramUiState,
+    sealedDays: Set<String>,
+    pendingSeal: String?,
+    onSealAnimationFinished: () -> Unit,
+    onOpenDay: (SessionReference) -> Unit,
+) {
     val split = splitForWeek(state.currentWeek, state)
     LazyColumn(
         modifier = Modifier.fillMaxSize().testTag("week_screen"),
@@ -789,12 +868,16 @@ private fun WeekScreen(state: ProgramUiState, onOpenDay: (SessionReference) -> U
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 onClick = { onOpenDay(session) },
             ) {
+                val sealKey = "${state.currentWeek}:${session.day}"
                 SessionDayCardContent(
                     session = session,
                     isCurrentDay = session.day == state.currentDay,
                     showRowCount = true,
                     padding = 16.dp,
                     referenceLabel = foundationReferenceLabel(session, state),
+                    sealedDayNumber = session.day.takeIf { sealKey in sealedDays && session.day != state.currentDay },
+                    animateSeal = pendingSeal == sealKey && session.day != state.currentDay,
+                    onSealAnimationFinished = onSealAnimationFinished,
                 )
             }
         }
@@ -1291,4 +1374,77 @@ private fun formatRest(seconds: Int): String = "%d:%02d".format(seconds / 60, se
 private fun V74GlobalLine(show: Boolean) {
     if (!show) return
     Text(ProgramV74.GLOBAL_LINE, style = MaterialTheme.typography.bodyMedium)
+}
+
+@Composable
+private fun EffortProgressReadout(progress: ActiveWorkoutState, row: SessionRow) {
+    val done = WorkoutProgress.completedEffortCount(progress, row)
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            "$done/${row.effortCount}",
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.testTag("today_effort_progress_${row.id}"),
+        )
+        if (WorkoutProgress.isRowComplete(progress, row)) {
+            Icon(
+                Icons.Filled.Check,
+                contentDescription = "Complete",
+                tint = Color(LegendPalette.Brass),
+                modifier = Modifier.size(28.dp).testTag("today_effort_check_${row.id}"),
+            )
+        }
+    }
+}
+
+@Composable
+private fun EffortTickRow(row: SessionRow, done: Set<String>, onToggle: (Int) -> Unit) {
+    val word = WorkoutProgress.effortWord(row.effortLabel)
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        for (index in 1..row.effortCount) {
+            val id = WorkoutProgress.effortId(row.id, index)
+            val marked = id in done
+            Surface(
+                onClick = { onToggle(index) },
+                shape = RoundedCornerShape(4.dp),
+                color = if (marked) Color(LegendPalette.BrassContainer) else Color.Transparent,
+                border = BorderStroke(if (marked) 2.dp else 1.dp, Color(LegendPalette.Brass)),
+                modifier = Modifier
+                    .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                    .widthIn(min = 48.dp)
+                    .heightIn(min = 48.dp)
+                    .testTag("effort_${row.id}_$index")
+                    .semantics(mergeDescendants = true) {
+                        contentDescription = "$word $index of ${row.effortCount}, ${if (marked) "done" else "not done"}"
+                    },
+            ) {
+                Box(Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp), contentAlignment = Alignment.Center) {
+                    Text(
+                        "$index",
+                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = if (marked) FontWeight.Bold else FontWeight.Normal,
+                        modifier = Modifier.clearAndSetSemantics {},
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun performTickHaptic(haptic: HapticFeedback, view: View) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        haptic.performHapticFeedback(HapticFeedbackType.SegmentTick)
+    } else {
+        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+    }
+}
+
+private fun View.performDayConfirmHaptic() {
+    val constant = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        HapticFeedbackConstants.CONFIRM
+    } else {
+        HapticFeedbackConstants.LONG_PRESS
+    }
+    performHapticFeedback(constant)
 }
