@@ -7,7 +7,10 @@ import com.jk.operatorperformance.program.SessionReference
  * A null authority is kept; [WorkoutProgress.normalize] still rejects a real mismatch.
  */
 fun workoutForToday(state: ProgramUiState, workout: ActiveWorkoutState?): ActiveWorkoutState? {
-    val savedAuthority = workout?.authority ?: return workout
+    if (workout == null) return null
+    val savedAuthority = workout.authority
+    if (savedAuthority == com.jk.operatorperformance.program.ProgramAuthority.V74 && workout.week != state.currentWeek) return null
+    if (savedAuthority == null) return workout
     return if (savedAuthority == state.authorityForWeek(workout.week)) workout else null
 }
 

@@ -15,6 +15,7 @@ import com.jk.operatorperformance.BuildConfig
 import com.jk.operatorperformance.program.ProgramAuthority
 import com.jk.operatorperformance.program.ProgramV73
 import com.jk.operatorperformance.program.ProgramV72
+import com.jk.operatorperformance.program.V74Pointer
 
 @Composable
 internal fun BuildIntegrityCard(authority: ProgramAuthority = ProgramAuthority.V73) {
@@ -45,6 +46,13 @@ internal fun BuildIntegrityCard(authority: ProgramAuthority = ProgramAuthority.V
                 modifier = Modifier.testTag("authority_sha"),
             )
             Text("v7.3 AUTHORITY SHA-256 • ${ProgramV73.AUTHORITY_SHA256}", style = MaterialTheme.typography.bodySmall)
+            if (authority == ProgramAuthority.V74) {
+                Text(
+                    "v7.4 AUTHORITY SHA-256 • ${V74Pointer.AUTHORITY_SHA256}",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.testTag("v74_authority_sha"),
+                )
+            }
             Text(
                 if (ProgramV72.DOCX_SHA256_VERIFIED) "DOCX digest recomputed from the approved file."
                 else "DOCX file was not in this workspace, so this digest was not recomputed.",

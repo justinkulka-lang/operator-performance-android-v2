@@ -62,7 +62,7 @@ class V72ReferenceUiTest {
 
     @Test fun destinationsLongestSessionRestAndWeek32() {
         rule.onNodeWithTag("start_v72").performScrollTo().performClick()
-        rule.onNodeWithTag("today_header").assertTextContains("v7.3", substring = true)
+        rule.onNodeWithTag("today_header").assertTextContains("Week 1 · I · Draft · Week 1 of 8", substring = true)
         rule.onNodeWithTag("start_resume_workout").assertIsDisplayed()
         assertPrimaryAction("start_resume_workout")
         rule.onNodeWithTag("today_screen").performTouchInput {
@@ -107,6 +107,8 @@ class V72ReferenceUiTest {
         rule.onNodeWithText("CLOSE").performClick()
         rule.onNodeWithTag("program_search_clear").performScrollTo().performClick()
 
+        seedRetainedWeek32()
+        rule.onNodeWithTag("nav_PROGRAM").performClick()
         rule.onNodeWithTag("program_jump_week_32").performScrollTo().performClick()
         revealOnScreen("program_screen", "program_day_32_7")
         rule.onNodeWithTag("program_day_32_7").performClick()
@@ -220,6 +222,8 @@ class V72ReferenceUiTest {
         rule.waitUntil(8_000) {
             rule.onAllNodesWithTag("program_search_open_first").fetchSemanticsNodes().isEmpty()
         }
+        seedRetainedWeek32()
+        rule.onNodeWithTag("nav_PROGRAM").performClick()
         rule.onNodeWithTag("program_search").performTextReplacement("week 32 day 2")
         hideIme()
         rule.waitUntil(8_000) {
@@ -240,13 +244,18 @@ class V72ReferenceUiTest {
         rule.onNodeWithTag("nav_TOOLS").performClick()
         revealOnScreen("tools_screen", "program_notes_toggle")
         rule.onNodeWithTag("program_notes_toggle").performClick()
-        rule.onNodeWithText("RIR means", substring = true).performScrollTo().assertIsDisplayed()
-        rule.onNodeWithText("Two consecutive unattained", substring = true).performScrollTo().assertIsDisplayed()
-        revealOnScreen("tools_screen", "sprint_reference_150")
-        rule.onNodeWithText("23.0 s").assertIsDisplayed()
-        revealOnScreen("tools_screen", "sprint_reference_300")
-        rule.onNodeWithText("46.0 s").assertIsDisplayed()
-        rule.onNodeWithText("These 300 m entries", substring = true).performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Week structure").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("D1: Engine alone", substring = true).performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Use double progression", substring = true).performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Default increases are about 5 lb", substring = true).performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Compounds: 1–2 RIR", substring = true).performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Autoregulation").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("every block week 8 is a consolidation week", substring = true).performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Running effort guide").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("RPE 2–3, conversational", substring = true).performScrollTo().assertIsDisplayed()
+        rule.onAllNodesWithTag("sprint_reference_150").assertCountEquals(0)
+        rule.onAllNodesWithText("These 300 m entries", substring = true).assertCountEquals(0)
+        rule.onAllNodesWithText("RIR means", substring = true).assertCountEquals(0)
         revealOnScreen("tools_screen", "legacy_export_scope")
         rule.onNodeWithTag("legacy_export_scope").assertTextContains("Excludes current program authority, pointer, session status, substitutions, and timers.", substring = true)
         revealOnScreen("tools_screen", "export_data")
@@ -277,8 +286,30 @@ class V72ReferenceUiTest {
         }
     }
 
+    private fun seedRetainedWeek32() {
+        ApplicationProvider.getApplicationContext<Context>()
+            .getSharedPreferences("ares_v71_reference_state", Context.MODE_PRIVATE)
+            .edit()
+            .clear()
+            .putBoolean("v71Initialized", true)
+            .putInt("currentWeek", 32)
+            .putInt("currentDay", 1)
+            .putString("authorityVersion", "V72")
+            .putBoolean("v72MigrationApplied", true)
+            .putInt("v72MigrationRevision", 2)
+            .putBoolean("v72ActivationProven", true)
+            .putBoolean("v73MigrationApplied", true)
+            .putBoolean("v74MigrationApplied", true)
+            .putInt("v74ActivationWeek", 33)
+            .putStringSet("historicalWeekAuthorities", (1..32).map { "$it:V72" }.toSet())
+            .commit()
+        // Recreation restores the Program destination. Today is not composed, so the
+        // retained-week browser is the screen this seed is about to use.
+        lifecycle.recreate("program_screen")
+    }
+
     private fun longestSession() = (1..32).flatMap { week ->
-        (1..7).map { day -> SessionResolver.resolve(week, day, ProgramAuthority.V73) }
+        (1..7).map { day -> SessionResolver.resolve(week, day, ProgramAuthority.V74) }
     }.maxBy { session ->
         session.rows.sumOf { row ->
             row.title.length + row.prescription.length + (row.note?.length ?: 0) + row.alternatives.sumOf { it.length }

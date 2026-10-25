@@ -10,6 +10,7 @@ out="$PWD/app/build/reports/upgrade-persistence"
 candidate="$PWD/app/build/outputs/apk/debug/app-debug.apk"
 tests="$PWD/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
 mkdir -p "$out"
+exec > >(tee -a "$out/step.log") 2>&1
 baseline_dir="$(mktemp -d "${RUNNER_TEMP:-/tmp}/legend-upgrade-source.XXXXXX")"
 git worktree add --detach "$baseline_dir" "$baseline"
 GITHUB_SHA="$baseline" gradle -p "$baseline_dir" :app:assembleDebug --stacktrace
@@ -72,6 +73,30 @@ wait_boot() {
   echo 'Owned emulator boot timeout' >&2
   exit 1
 }
+user_is_unlocked() {
+  if "$adb" -s "$serial" shell dumpsys activity | tr -d '\r' | grep -q 'User #0: state=RUNNING_UNLOCKED'; then
+    return 0
+  fi
+  "$adb" -s "$serial" logcat -d -b main -b system | tr -d '\r' | grep -q 'android.intent.action.USER_UNLOCKED'
+}
+launch_when_unlocked() {
+  local dest="$1"
+  : > "$dest"
+  local attempt
+  for attempt in {1..30}; do
+    if user_is_unlocked \
+        && "$adb" -s "$serial" shell am start -W -n com.jk.operatorperformance/.MainActivity > "$dest" 2>&1 \
+        && grep -F 'Status: ok' "$dest"; then
+      return 0
+    fi
+    "$adb" -s "$serial" shell input keyevent 82 >/dev/null 2>&1 || true
+    sleep 2
+  done
+  echo 'Launch failed before the activity resolved' >&2
+  if [[ -s "$dest" ]]; then cat "$dest" >&2; else echo 'am start produced no output' >&2; fi
+  "$adb" -s "$serial" shell dumpsys activity | tr -d '\r' | grep -F 'User #0:' >&2 || true
+  return 1
+}
 snapshot() {
   "$adb" -s "$serial" exec-out run-as com.jk.operatorperformance cat shared_prefs/ares_v71_reference_state.xml > "$out/$1.xml"
 }
@@ -106,7 +131,10 @@ snapshot after-reboot
 cmp "$out/before-reboot.xml" "$out/after-reboot.xml"
 # Complete a normal launch before attaching instrumentation to the rebooted runtime.
 # Keep the pre-launch byte comparison above: launch may legitimately expire a timer.
-"$adb" -s "$serial" shell am start -W -n com.jk.operatorperformance/.MainActivity > "$out/reboot-launch.txt"
-grep -F 'Status: ok' "$out/reboot-launch.txt"
+# sys.boot_completed becomes 1 while user 0 is still RUNNING_LOCKED. API 35 has no
+# `cmd user is-user-unlocked` subcommand. Wait for the user-unlocked broadcast or
+# dumpsys state, then retry am start. On run 40138558520 the missing command made
+# this loop exit without ever creating reboot-launch.txt.
+launch_when_unlocked "$out/reboot-launch.txt"
 instrument verify timerAndPointerSurviveProcessDeath reboot-verification
 printf 'sourceCommit=%s\nbaselineCommit=%s\nprofileUpgrade=PASS\nforceStop=PASS\nreboot=PASS\nphysicalDevice=NOT_RUN\nphoneCertificateCompatibility=NOT_PROVEN\n' "$source_sha" "$baseline" > "$out/RESULT.txt"
