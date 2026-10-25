@@ -2,13 +2,14 @@ package com.jk.operatorperformance.program
 
 /** Copy shown on V74 screens, dialogs, and the start gate. Retained-week branches keep the previous sentences. */
 internal object V74SurfaceText {
+    const val FONT_LICENSE_LINE = "EB Garamond, SIL Open Font License 1.1."
     const val START_WEEK_ONE = "START WEEK 1 • DAY 1"
     const val START_AT_POSITION = "START AT A POSITION"
 
     const val RESET_CHOOSER = "Choose Week 1 or a block, block week, and day. ${V74Pointer.CONTINUOUS_LINE}"
 
     const val RESET_WEEK_ONE_CONFIRMATION =
-        "This starts Week 1, Day 1. ${V74Pointer.CONTINUOUS_LINE} It clears current session status, substitutions, workout timer, engagement evidence and historical week-authority assignments. Program content, retained legacy data and utility settings remain."
+        "This starts Week 1, Day 1. Continuous program: four 8-week blocks, repeated. Your current place, today's session and saved alternatives are cleared. Utility settings stay."
 
     fun advanceConfirmation(v74: Boolean): String = if (v74) {
         "Move the program pointer to the next day? This clears the active session."
@@ -23,7 +24,7 @@ internal object V74SurfaceText {
     }
 
     fun setCurrentDay(day: Int): String =
-        "Set the current day to Day $day? The block, block week, loop, and absolute week stay. This clears the current session status, substitutions and workout timer. It preserves the utility timer and recorded engagement."
+        "Set today to Day $day of this week? Today's session, alternatives and rest timer are cleared. The week and block stay."
 
     fun consolidateConfirmation(): String =
         "This block week becomes the consolidation week. ${ProgramV74.CONSOLIDATION_LABEL}"
@@ -88,6 +89,7 @@ internal object V74SurfaceText {
         "SET CURRENT",
         "CLOSE",
         "TOOLS",
+        FONT_LICENSE_LINE,
         "INDEPENDENT REST TIMER",
         "Utility only. Resistance rest guidance is approximate and set quality takes precedence.",
         "STOP TIMER",

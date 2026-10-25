@@ -17,6 +17,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
@@ -41,12 +42,12 @@ internal fun KeyScreen(onBack: () -> Unit) {
         item { KeyHeading("MARK") }
         item { KeyIconRow(R.drawable.ic_legend_mark, "LEGEND mark", "The map key. It names the program.") }
         item { KeyHeading("DAYS") }
-        item { KeyIconRow(R.drawable.ic_day_engine, "Engine", "Contour rings. Aerobic and engine work.") }
-        item { KeyIconRow(R.drawable.ic_day_lower, "Lower", "Solid survey point. Lower-body work.") }
-        item { KeyIconRow(R.drawable.ic_day_upper_a, "Upper A", "Open station. Names the Upper A day, which mixes pressing and pulling.") }
-        item { KeyIconRow(R.drawable.ic_day_speed, "Speed", "Route line with ticks. Speed work.") }
-        item { KeyIconRow(R.drawable.ic_day_upper_b, "Upper B", "Station with a traverse. Names the Upper B day, which mixes pressing and pulling. Easy aerobic follows when that week prescribes it.") }
-        item { KeyIconRow(R.drawable.ic_day_rest, "Rest", "Open circle. Rest.") }
+        item { KeyIconRow(R.drawable.ic_day_engine, "Engine", "Contour rings. Aerobic and engine work.", Color(LegendPalette.Olive)) }
+        item { KeyIconRow(R.drawable.ic_day_lower, "Lower", "Solid survey point. Lower-body work.", Color(LegendPalette.Olive)) }
+        item { KeyIconRow(R.drawable.ic_day_upper_a, "Upper A", "Open station. Names the Upper A day, which mixes pressing and pulling.", Color(LegendPalette.Olive)) }
+        item { KeyIconRow(R.drawable.ic_day_speed, "Speed", "Route line with ticks. Speed work.", Color(LegendPalette.Olive)) }
+        item { KeyIconRow(R.drawable.ic_day_upper_b, "Upper B", "Station with a traverse. Names the Upper B day, which mixes pressing and pulling. Easy aerobic follows when that week prescribes it.", Color(LegendPalette.Olive)) }
+        item { KeyIconRow(R.drawable.ic_day_rest, "Rest", "Open circle. Rest.", Color(LegendPalette.Olive)) }
         item { KeyHeading("PHASES") }
         item { KeyIconRow(R.drawable.ic_phase_draft, "Draft", "One stake. Phase 1.") }
         item { KeyIconRow(R.drawable.ic_phase_build, "Build", "Two stakes. Phase 2.") }
@@ -94,7 +95,7 @@ private fun KeyHeading(title: String) {
 }
 
 @Composable
-private fun KeyIconRow(icon: Int, name: String, meaning: String) {
+private fun KeyIconRow(icon: Int, name: String, meaning: String, tint: Color = Color.Unspecified) {
     Row(
         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -103,7 +104,7 @@ private fun KeyIconRow(icon: Int, name: String, meaning: String) {
         Icon(
             painter = painterResource(icon),
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurface,
+            tint = if (tint == Color.Unspecified) MaterialTheme.colorScheme.onSurface else tint,
             modifier = Modifier.size(28.dp),
         )
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {

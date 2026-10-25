@@ -47,6 +47,32 @@ class V72VisualEvidenceUiTest {
         lifecycle.orientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT, Configuration.ORIENTATION_PORTRAIT)
     }
 
+    @Test fun todayWeekWorkoutAndProgramAtFontOneAndFontTwo() {
+        rule.onNodeWithTag("start_v72").performScrollTo().performClick()
+        for (scale in listOf(1f, 2f)) {
+            lifecycle.fontScale(scale)
+            val suffix = if (scale == 1f) "font1" else "font2"
+            rule.onNodeWithTag("nav_TODAY").performClick()
+            lifecycle.screen("today_screen")
+            rule.onNodeWithTag("today_screen").performScrollToNode(hasTestTag("cigar_band"))
+            rule.onNodeWithTag("cigar_band").assertIsDisplayed()
+            capture("today-$suffix")
+            rule.onNodeWithTag("nav_WEEK").performClick()
+            lifecycle.screen("week_screen")
+            capture("week-$suffix")
+            rule.onNodeWithTag("nav_PROGRAM").performClick()
+            lifecycle.screen("program_screen")
+            capture("program-$suffix")
+            rule.onNodeWithTag("nav_TODAY").performClick()
+            rule.onNodeWithTag("start_resume_workout").performClick()
+            lifecycle.screen("workout_mode")
+            capture("workout-$suffix")
+            rule.onNodeWithTag("workout_mode").performScrollToNode(hasTestTag("return_today"))
+            rule.onNodeWithTag("return_today").performClick()
+            lifecycle.screen("today_screen")
+        }
+    }
+
     @Test fun darkFontTwoPortraitAndLandscapeScreensAndStaticKey() {
         lifecycle.fontScale(2f)
         rule.onNodeWithTag("start_v72").performScrollTo().performClick()

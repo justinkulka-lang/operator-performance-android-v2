@@ -35,7 +35,7 @@ object ProgramNotesV74 {
 
     val autoregulation = listOf(
         "1. Backstop: every block week 8 is a consolidation week.",
-        "2. Consolidate now (new control). The owner can turn the current week into that block's consolidation week, at an unstarted Day 1 only, after a confirmation step.",
+        "2. Consolidate now (new control). You can turn the current week into that block's consolidation week, at an unstarted Day 1 only, after a confirmation step.",
         "The following week starts the next block at Week 1.",
         "The running cycle follows to its week 8.",
         "3. Set removal (existing rule): if a movement declines more than 5% on two consecutive exposures, remove one set from it at the next exposure. Restore the set when performance returns. The app does not do this automatically.",
