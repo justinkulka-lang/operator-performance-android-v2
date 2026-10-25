@@ -4,13 +4,13 @@ LEGEND is an offline Android reference for the approved program. It keeps the we
 
 ## Controlling authority
 
-v7.3 controls a new install and every week at or after its recorded activation week. The record of that rule is `docs/PROGRAM_V7_AUTHORITY.md`. The issued text is `docs/legend-v73/ARES_Performance_Unified_Master_Authority_v7.3_PROPOSED.md`. The allocation packet and the issued hashes are in `docs/legend-v73/`, checked by `docs/legend-v73/SHA256SUMS.txt`. Owner approval of that proposal is `docs/legend-v73/OWNER_APPROVAL.md`. The runtime tables are `app/src/main/java/com/jk/operatorperformance/program/ProgramV73.kt`.
+LEGEND v7.4 Continuous controls new installs, resets, and every week at or after the recorded v7.4 activation week. The record of that rule is `docs/PROGRAM_V7_AUTHORITY.md`. Its text is `docs/legend-v74/LEGEND_v7.4_Continuous.md` (SHA-256 `f083d0a9fa694034f996c774e02d706a4d65e6b8ecd9d7f0705fef26e3d9e988`). Clarifications C-1 to C-11 are in `docs/legend-v74/CLARIFICATIONS.md`. Owner approval is `docs/legend-v74/OWNER_APPROVAL.md`.
 
 ## Frozen authorities and the CI freeze
 
-v7.2 resolves retained historical weeks from `docs/ARES_Performance_Unified_Master_Authority_v7.2_APPROVED.docx`. v7.1 remains the legacy file `docs/ARES_Performance_Unified_Master_Authority_v7.1_APPROVED.docx`.
+v7.3, v7.2, and v7.1 are frozen and resolve retained historical weeks only. v7.3 remains `docs/legend-v73/ARES_Performance_Unified_Master_Authority_v7.3_PROPOSED.md`, approved in `docs/legend-v73/OWNER_APPROVAL.md`, with issued hashes in `docs/legend-v73/SHA256SUMS.txt`. v7.2 resolves retained historical weeks from `docs/ARES_Performance_Unified_Master_Authority_v7.2_APPROVED.docx`. v7.1 remains the legacy file `docs/ARES_Performance_Unified_Master_Authority_v7.1_APPROVED.docx`.
 
-`.github/workflows/android-ci.yml` checks the v7.2 DOCX digest and checks `docs/legend-v73/SHA256SUMS.txt` on every run. It also requires these files to match commit `28944300f1e73015c70b8e342bcc90173022cd25`:
+`.github/workflows/android-ci.yml` checks the v7.2 DOCX digest and checks `docs/legend-v73/SHA256SUMS.txt` on every run. The CI freeze is two `git diff --exit-code` checks. The v7.2 files must match commit `28944300` (`28944300f1e73015c70b8e342bcc90173022cd25`):
 
 - `app/src/main/java/com/jk/operatorperformance/program/ProgramV56.kt`
 - `app/src/main/java/com/jk/operatorperformance/program/ProgramV70.kt`
@@ -20,6 +20,12 @@ v7.2 resolves retained historical weeks from `docs/ARES_Performance_Unified_Mast
 - `app/src/main/java/com/jk/operatorperformance/program/ProgramNotesV71.kt`
 - `app/src/main/java/com/jk/operatorperformance/program/ProgramNotesV72.kt`
 - `app/src/test/resources/program-baseline.tsv`
+
+The v7.3 sources must match commit `7cd35a5` (`7cd35a5a8a47d52acb8cc84b472067604c269d69`):
+
+- `app/src/main/java/com/jk/operatorperformance/program/ProgramV73.kt`
+- `app/src/main/java/com/jk/operatorperformance/program/SessionResolverV73.kt`
+- `app/src/main/java/com/jk/operatorperformance/program/ProgramNotesV73.kt`
 
 ## How CI builds and where the APK is published
 

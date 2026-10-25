@@ -25,7 +25,7 @@ if grep -E '\b(FBI|CIA|SEAL|SWAT|HealthConnect|firebase|google-analytics|rucking
   echo 'Review prohibited built-artifact strings; candidate packaging halted.' >&2
   exit 1
 fi
-cp "$apk" "$out/legend-v7.3-$label-debug.apk"
+cp "$apk" "$out/legend-v7.4-$label-debug.apk"
 printf 'sourceCommit=%s\nembeddedLabel=%s\nkind=debug\nrelease=NO\n' "$source_sha" "$label" > "$out/BUILD.txt"
-(cd "$out" && sha256sum "legend-v7.3-$label-debug.apk" > SHA256SUMS && zip -q "legend-v7.3-$label-debug.zip" "legend-v7.3-$label-debug.apk" SHA256SUMS BUILD.txt signature.txt)
-sha256sum "$out/legend-v7.3-$label-debug.apk" "$out/legend-v7.3-$label-debug.zip"
+(cd "$out" && sha256sum "legend-v7.4-$label-debug.apk" > SHA256SUMS && zip -q "legend-v7.4-$label-debug.zip" "legend-v7.4-$label-debug.apk" SHA256SUMS BUILD.txt signature.txt)
+sha256sum "$out/legend-v7.4-$label-debug.apk" "$out/legend-v7.4-$label-debug.zip"
