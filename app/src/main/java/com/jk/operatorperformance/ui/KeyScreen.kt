@@ -57,7 +57,7 @@ internal fun KeyScreen(onBack: () -> Unit) {
         item { KeyIconRow(R.drawable.ic_nav_today, "Today", "Marked point. The current day.") }
         item { KeyIconRow(R.drawable.ic_nav_week, "Week", "Even stakes. The current week.") }
         item { KeyIconRow(R.drawable.ic_nav_program, "Program", "Map sheet. The 32-week program.") }
-        item { KeyIconRow(R.drawable.ic_nav_tools, "Tools", "Scale bar. Tools.") }
+        item { KeyIconRow(R.drawable.ic_nav_tools, "Dossier", "Scale bar. Dossier.") }
         item { KeyHeading("STATE") }
         item {
             Text(
@@ -84,7 +84,7 @@ internal fun KeyScreen(onBack: () -> Unit) {
             TextButton(
                 onClick = onBack,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("key_back"),
-            ) { Text("RETURN TO TOOLS") }
+            ) { Text("RETURN TO DOSSIER") }
         }
     }
 }

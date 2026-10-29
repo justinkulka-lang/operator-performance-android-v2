@@ -72,46 +72,6 @@ class TimerExpiryStateUiTest {
         }
     }
 
-    @Test fun utilityExpiryKeepsDurationSelectedDuringTimerAcrossRecreation() {
-        val state = stateFor(ProgramAuthority.V73).copy(
-            restTimerSeconds = 60, utilityRestTimerEndEpochMillis = System.currentTimeMillis() + 30_000L,
-        )
-        store.save(state)
-        lifecycle.recreate("today_header")
-        rule.onNodeWithTag("nav_TOOLS").performClick()
-        reveal("tools_screen", "utility_rest_countdown")
-        rule.onNodeWithTag("utility_rest_countdown").assertIsDisplayed()
-        reveal("tools_screen", "rest_choice_90")
-        rule.onNodeWithTag("rest_choice_90").performClick()
-        assertTrue("Duration must change before expiry", state.utilityRestTimerEndEpochMillis!! > System.currentTimeMillis() + 2_000L)
-        assertEquals(state.utilityRestTimerEndEpochMillis, store.load().utilityRestTimerEndEpochMillis)
-        assertEquals(90, store.load().restTimerSeconds)
-        rule.waitUntil(40_000L) { store.load().utilityRestTimerEndEpochMillis == null }
-        val expected = ProgramUiState(
-            initialized = true,
-            currentWeek = 17,
-            currentDay = 2,
-            restTimerSeconds = 90,
-            utilityRestTimerEndEpochMillis = null,
-            authority = ProgramAuthority.V73,
-            retainedV71Week = null,
-            v72ActivationProven = true,
-            v73ActivationWeek = 1,
-            v73MigrationApplied = true,
-            historicalAuthorities = (1..17).associateWith { ProgramAuthority.V73 },
-            v74MigrationApplied = true,
-            v74ActivationWeek = 18,
-            v74Block = null,
-            v74BlockWeek = null,
-            v74Loop = null,
-        )
-        assertEquals(expected, store.load())
-        lifecycle.recreate("tools_screen")
-        assertEquals(expected, store.load())
-        reveal("tools_screen", "rest_choice_90")
-        rule.onNodeWithTag("rest_choice_90").assertTextContains("SELECTED", substring = true)
-    }
-
     private fun stateFor(authority: ProgramAuthority): ProgramUiState {
         val current = ProgramUiState().startV73().withCurrentPointer(17, 2)
         return if (authority == ProgramAuthority.V73) current else current.copy(

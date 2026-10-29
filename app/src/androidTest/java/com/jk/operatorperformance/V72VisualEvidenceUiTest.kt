@@ -104,8 +104,8 @@ class V72VisualEvidenceUiTest {
             capture("workout-font2-$name")
             rule.onNodeWithTag("workout_mode").performScrollToNode(hasTestTag("return_today"))
             rule.onNodeWithTag("return_today").performClick()
-            rule.onNodeWithTag("nav_TOOLS").performClick()
-            rule.onNodeWithTag("tools_screen").performScrollToNode(hasTestTag("open_key"))
+            rule.onNodeWithTag("nav_DOSSIER").performClick()
+            rule.onNodeWithTag("dossier_screen").performScrollToNode(hasTestTag("open_key"))
             val beforeKey = prefs.all.toMap()
             rule.onNodeWithTag("open_key").performClick()
             lifecycle.screen("key_screen")
@@ -114,7 +114,7 @@ class V72VisualEvidenceUiTest {
             rule.onNodeWithTag("key_back").assertIsDisplayed()
             capture("key-end-font2-$name")
             lifecycle.back()
-            lifecycle.screen("tools_screen")
+            lifecycle.screen("dossier_screen")
             assertEquals("Key and back must not persist any state", beforeKey, prefs.all.toMap())
         }
     }
