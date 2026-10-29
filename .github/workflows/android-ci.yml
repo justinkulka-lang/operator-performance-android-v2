@@ -94,6 +94,27 @@ jobs:
         run: |
           set -euo pipefail
           bash .github/scripts/package-debug-candidate.sh "$SOURCE_COMMIT"
+      - name: Signed release APK
+        if: >-
+          github.event_name == 'push' ||
+          (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+        env:
+          LEGEND_RELEASE_KEYSTORE_B64: ${{ secrets.LEGEND_RELEASE_KEYSTORE_B64 }}
+          LEGEND_RELEASE_STORE_PASSWORD: ${{ secrets.LEGEND_RELEASE_STORE_PASSWORD }}
+          LEGEND_RELEASE_KEY_ALIAS: ${{ secrets.LEGEND_RELEASE_KEY_ALIAS }}
+          LEGEND_RELEASE_KEY_PASSWORD: ${{ secrets.LEGEND_RELEASE_KEY_PASSWORD }}
+        shell: bash
+        run: bash .github/scripts/package-signed-release.sh "$SOURCE_COMMIT"
+      - name: Downloadable signed release APK
+        if: >-
+          github.event_name == 'push' ||
+          (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: legend-release-${{ env.SOURCE_COMMIT }}-attempt-${{ github.run_attempt }}
+          path: app/build/distribution-release/
+          if-no-files-found: error
+          retention-days: 90
       - name: Downloadable debug APK and ZIP
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
