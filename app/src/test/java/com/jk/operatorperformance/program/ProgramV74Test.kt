@@ -28,6 +28,14 @@ class ProgramV74Test {
         assertTrue(clarifications.contains("## C-11"))
         assertTrue(clarifications.contains("\"Stop for pain or declining landing quality.\" → \"Stop when landing quality declines.\""))
         assertTrue(clarifications.contains("\"Stop for pain or degraded mechanics.\" → \"Stop when mechanics degrade.\""))
+        assertTrue(clarifications.contains("## C-13"))
+        assertTrue(clarifications.contains("## C-17"))
+        assertTrue(clarifications.contains("6 × 8 s all-out on an air bike. 90–120 s easy spinning between."))
+        assertTrue(clarifications.contains("3 × 3 per side, as fast as possible."))
+        val amendment = repoFile("docs/legend-v74/AMENDMENT_01.md").readText()
+        assertTrue(amendment.contains("Approved. (owner, 10/29/2026)"))
+        assertTrue(amendment.contains("C-13. Day 4 explosive primer."))
+        assertTrue(amendment.contains("C-17. Release signing."))
     }
 
     @Test fun computedConsolidationMatchesTheTableForEverySlot() {
@@ -179,69 +187,85 @@ class ProgramV74Test {
             assertEquals(ProgramV74.EFFORT_SPEED, speed.note)
             assertEquals(ProgramV74.EFFORT_EASY, easy.note)
             val speedRows = SessionResolverV74.resolve(block, blockWeek, 4).rows
-            val warmup = speedRows.indexOfFirst { it.title == "Speed warm-up" }
-            val jumps = speedRows.indexOfFirst { it.title == "Low-dose plyometrics" }
-            val throws = speedRows.indexOfFirst { it.title == "Hip-driven medicine-ball throws" }
+            val airBike = speedRows.indexOfFirst { it.title == "Air-bike sprints" }
+            val pushPress = speedRows.indexOfFirst { it.title == "Landmine push press" }
             val sprint = speedRows.indexOfFirst { it.title == "Speed" }
             val cooldown = speedRows.indexOfFirst { it.title == "Cooldown" }
-            assertEquals(blockWeek in 3..7, jumps >= 0)
-            assertEquals(blockWeek in setOf(3, 4, 6), throws >= 0)
-            if (jumps >= 0) assertEquals(warmup + 1, jumps)
-            if (throws >= 0) assertEquals(jumps + 1, throws)
-            assertTrue(sprint > warmup && cooldown > sprint)
-            assertTrue(speedRows.indexOfFirst { it.id.endsWith("d4_resistance_warmup") } > cooldown)
+            val upper = speedRows.indexOfFirst { it.kind == SessionRowKind.RESISTANCE }
+            assertEquals(blockWeek in 3..7, airBike >= 0)
+            assertEquals(blockWeek in setOf(3, 4, 6), pushPress >= 0)
+            if (airBike >= 0) assertEquals(0, airBike)
+            if (pushPress >= 0) assertEquals(airBike + 1, pushPress)
+            val beforeSprint = when {
+                pushPress >= 0 -> pushPress
+                airBike >= 0 -> airBike
+                else -> -1
+            }
+            assertTrue(sprint == beforeSprint + 1 && cooldown == sprint + 1 && upper == cooldown + 1)
         }
     }
 
-    @Test fun jumpsAndThrowsReuseTheExistingRowsAndWarmupsDropRemovedSentences() {
+    @Test fun dayFourExplosiveRowsAndRemovedWarmupsMatchC13ToC15() {
         val landingBefore = "Stop for pain or declining landing quality."
-        val landingAfter = "Stop when landing quality declines."
-        val mechanicsBefore = "Stop for pain or degraded mechanics."
-        val mechanicsAfter = "Stop when mechanics degrade."
         val v72Source = repoFile("app/src/main/java/com/jk/operatorperformance/program/ProgramV72.kt").readText()
         val v73Source = repoFile("app/src/main/java/com/jk/operatorperformance/program/SessionResolverV73.kt").readText()
         assertTrue(v72Source.contains(landingBefore))
-        assertFalse(v72Source.contains(landingAfter))
-        assertTrue(v73Source.contains(mechanicsBefore))
-        assertFalse(v73Source.contains(mechanicsAfter))
-        assertTrue(ProgramV72.plyometrics.contains(landingBefore))
-        val v72Jumps = SessionResolver.resolve(3, 4, ProgramAuthority.V72).rows.single { it.id.endsWith("plyometrics") }
-        val v74Jumps = SessionResolverV74.resolve(1, 3, 4).rows.single { it.title == "Low-dose plyometrics" }
-        assertEquals(v72Jumps.title, v74Jumps.title)
-        assertEquals(1, Regex.fromLiteral(landingBefore).findAll(ProgramV72.plyometrics).count())
-        assertEquals(ProgramV72.plyometrics.replace(landingBefore, landingAfter), v74Jumps.prescription)
-        assertEquals(v72Jumps.prescription, ProgramV72.plyometrics)
-        assertFalse(v74Jumps.prescription.contains("pain"))
-        assertEquals(v72Jumps.note, v74Jumps.note)
-        assertEquals(v72Jumps.effortCount, v74Jumps.effortCount)
-        assertEquals(v72Jumps.effortLabel, v74Jumps.effortLabel)
-        val v73Throws = SessionResolver.resolve(3, 4, ProgramAuthority.V73).rows.single { it.title == "Hip-driven medicine-ball throws" }
-        val v74Throws = SessionResolverV74.resolve(2, 4, 4).rows.single { it.title == v73Throws.title }
-        val v73Note = requireNotNull(v73Throws.note)
-        assertEquals(v73Throws.prescription, v74Throws.prescription)
-        assertEquals(1, Regex.fromLiteral(mechanicsBefore).findAll(v73Note).count())
-        assertEquals(v73Note.replace(mechanicsBefore, mechanicsAfter), v74Throws.note)
-        assertFalse(v74Throws.note.orEmpty().contains("pain"))
-        assertEquals(v73Throws.effortCount, v74Throws.effortCount)
-        assertEquals(v73Throws.effortLabel, v74Throws.effortLabel)
-        val legacyQuality = SessionResolver.resolve(2, 1, ProgramAuthority.V72).rows.single { it.title == "Engine warm-up" }
-        val quality = SessionResolverV74.resolve(1, 1, 1).rows.single { it.title == "Engine warm-up" }
-        val cut = "Complete before threshold conditioning, intervals, goal-pace, or timed work."
-        assertEquals(cut, legacyQuality.note)
-        assertEquals(legacyQuality.prescription, quality.prescription)
-        assertNull(quality.note)
-        val legacyEasy = SessionResolver.resolve(8, 1, ProgramAuthority.V72).rows.single { it.title == "Easy-run opening" }
-        val easy = SessionResolverV74.resolve(3, 8, 1).rows.single { it.title == "Easy-run opening" }
-        assertEquals(legacyEasy.prescription, easy.prescription)
-        assertEquals(legacyEasy.note, easy.note)
-        val speed = SessionResolverV74.resolve(1, 1, 4).rows.single { it.title == "Speed warm-up" }
-        assertEquals(ProgramV72.speedWarmup, speed.prescription)
-        assertFalse(speed.prescription.contains(ProgramV72.speedTestBuildup))
-        assertEquals(ProgramV72.cooldown, SessionResolverV74.resolve(1, 1, 1).rows.single { it.title == "Cooldown" }.prescription)
-        assertEquals(ProgramV72.cooldown, SessionResolverV74.resolve(1, 4, 4).rows.single { it.title == "Cooldown" }.prescription)
-        val resistance = SessionResolverV74.resolve(1, 2, 2).rows.single { it.title == "Resistance warm-up" }
-        assertEquals(ProgramV72.resistanceWarmup, resistance.prescription)
-        assertNull(resistance.note)
+        assertTrue(v73Source.contains("Stop for pain or degraded mechanics."))
+        assertEquals(ProgramV72.plyometrics, SessionResolver.resolve(3, 4, ProgramAuthority.V72).rows.single { it.id.endsWith("plyometrics") }.prescription)
+        val warmups = setOf("Engine warm-up", "Easy-run opening", "Speed warm-up", "Resistance warm-up")
+        for (block in 1..4) for (blockWeek in 1..8) for (day in 1..7) {
+            val rows = SessionResolverV74.resolve(block, blockWeek, day).rows
+            assertTrue(rows.none { it.title in warmups || it.effortLabel == "WARM-UP" })
+            assertTrue(rows.none { it.title == "Low-dose plyometrics" || it.title == "Hip-driven medicine-ball throws" })
+            if (day == 1 || day == 4) {
+                assertEquals(ProgramV72.cooldown, rows.single { it.title == "Cooldown" }.prescription)
+            }
+        }
+        val weekEightEngine = SessionResolverV74.resolve(1, 8, 1).rows.single { it.title == "Engine" }
+        assertEquals("Easy run 25 min; easy-only warm-up", weekEightEngine.prescription)
+        assertEquals(ProgramV74.EFFORT_EASY, weekEightEngine.note)
+        for (block in 1..4) for (blockWeek in 1..8) {
+            val rows = SessionResolverV74.resolve(block, blockWeek, 4).rows
+            val air = rows.filter { it.id == "v74_b${block}_w${blockWeek}_airbike" }
+            val press = rows.filter { it.id == "v74_b${block}_w${blockWeek}_landmine_push_press" }
+            if (blockWeek in 3..7) {
+                assertEquals(1, air.size)
+                val row = air.single()
+                assertEquals("Air-bike sprints", row.title)
+                assertEquals("6 × 8 s all-out on an air bike. 90–120 s easy spinning between.", row.prescription)
+                assertEquals("Before the sprints. Stop when power drops. Zero qualifying sprint meters.", row.note)
+                assertEquals(
+                    listOf(
+                        "Uphill or stair acceleration: 4 × 10–15 m, walk back down",
+                        "Home: DB jump squat: 4 × 3, 10–20 lb each hand, soft landing",
+                    ),
+                    row.alternatives,
+                )
+                assertEquals(6, row.effortCount)
+                assertEquals("REP", row.effortLabel)
+            } else assertTrue(air.isEmpty())
+            if (blockWeek in setOf(3, 4, 6)) {
+                assertEquals(1, press.size)
+                val row = press.single()
+                assertEquals("Landmine push press", row.title)
+                assertEquals("3 × 3 per side, as fast as possible.", row.prescription)
+                assertEquals("After the air bike, before the sprints. Stop when bar speed drops.", row.note)
+                assertEquals(listOf("Home: Single-arm DB push press: 3 × 3 per side"), row.alternatives)
+                assertEquals(3, row.effortCount)
+                assertEquals("SET", row.effortLabel)
+                assertEquals(
+                    listOf("Air-bike sprints", "Landmine push press", "Speed", "Cooldown"),
+                    rows.take(4).map { it.title },
+                )
+                assertEquals(SessionRowKind.RESISTANCE, rows[4].kind)
+            } else assertTrue(press.isEmpty())
+        }
+        val weekFive = SessionResolverV74.resolve(2, 5, 4).rows
+        assertEquals(listOf("Air-bike sprints", "Speed", "Cooldown"), weekFive.take(3).map { it.title })
+        assertEquals(SessionRowKind.RESISTANCE, weekFive[3].kind)
+        val weekOne = SessionResolverV74.resolve(3, 1, 4).rows
+        assertEquals(listOf("Speed", "Cooldown"), weekOne.take(2).map { it.title })
+        assertEquals(SessionRowKind.RESISTANCE, weekOne[2].kind)
     }
 
     @Test fun dayOrderDisplayAndBlocklist() {
@@ -345,11 +369,12 @@ class ProgramV74Test {
         val sessions = lines.map { line -> line.split('\t').take(3).joinToString("\t") }.toSet()
         val expected = (1..4).flatMap { block -> (1..8).flatMap { blockWeek -> (1..7).map { day -> "$block\t$blockWeek\t$day" } } }.toSet()
         assertEquals(224, sessions.size)
+        assertEquals(1504, lines.size)
         assertEquals(expected, sessions)
         assertTrue(lines.all { it.split('\t').size == 8 })
         val digest = java.security.MessageDigest.getInstance("SHA-256").digest(file.readBytes())
         assertEquals(
-            "af562e6e0ccde91abd84777956e1adefabf60952b5a6ecd92090303bcc61c7fa",
+            "04df9097cf23b11ab308c3b1df6c649dc528992af378bc40846d84c7303cbf1d",
             digest.joinToString("") { "%02x".format(it) },
         )
     }

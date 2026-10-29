@@ -4,7 +4,7 @@ LEGEND is an offline Android reference for the approved program. It keeps the we
 
 ## Controlling authority
 
-LEGEND v7.4 Continuous controls new installs, resets, and every week at or after the recorded v7.4 activation week. The record of that rule is `docs/PROGRAM_V7_AUTHORITY.md`. Its text is `docs/legend-v74/LEGEND_v7.4_Continuous.md` (SHA-256 `f083d0a9fa694034f996c774e02d706a4d65e6b8ecd9d7f0705fef26e3d9e988`). Clarifications C-1 to C-11 are in `docs/legend-v74/CLARIFICATIONS.md`. Owner approval is `docs/legend-v74/OWNER_APPROVAL.md`.
+LEGEND v7.4 Continuous controls new installs, resets, and every week at or after the recorded v7.4 activation week. The record of that rule is `docs/PROGRAM_V7_AUTHORITY.md`. Its text is `docs/legend-v74/LEGEND_v7.4_Continuous.md` (SHA-256 `f083d0a9fa694034f996c774e02d706a4d65e6b8ecd9d7f0705fef26e3d9e988`). Clarifications C-1 to C-17 are in `docs/legend-v74/CLARIFICATIONS.md`. Amendment 01, approved by the owner on 10/29/2026, is `docs/legend-v74/AMENDMENT_01.md`. Owner approval of the continuous program is `docs/legend-v74/OWNER_APPROVAL.md`.
 
 ## Frozen authorities and the CI freeze
 
@@ -31,9 +31,11 @@ The v7.3 sources must match commit `7cd35a5` (`7cd35a5a8a47d52acb8cc84b472067604
 
 The workflow `LEGEND versioned candidate` runs on push to `main`, `construction/**`, `cursor/**`, and `codex/**`, on pull requests, and on `workflow_dispatch`. The job uses Java 17, Gradle 9.6.0, compile SDK 36, and build-tools 36.0.0. It runs `:app:testDebugUnitTest`, `:app:lintDebug`, `:app:assembleDebug`, and `:app:assembleDebugAndroidTest`, then the Pixel 2 API 35 emulator suite, five passes of `V72KeyUiTest`, and `.github/scripts/upgrade-emulator-acceptance.sh`.
 
-`assembleRelease` and `bundleRelease` must fail with `RELEASE_SIGNING_REQUIRED` when the owner signing values are absent.
+The debug APK is for testing. `.github/scripts/package-debug-candidate.sh` copies it into `app/build/distribution/`. The workflow uploads that directory as `legend-debug-<commit>-attempt-<n>` and keeps it for 90 days.
 
-`.github/scripts/package-debug-candidate.sh` copies the debug APK into `app/build/distribution/`. The workflow uploads that directory as `legend-debug-<commit>-attempt-<n>` and keeps it for 90 days.
+`assembleRelease` and `bundleRelease` must fail with `RELEASE_SIGNING_REQUIRED` when the owner signing values are absent. That check runs with those values unset.
+
+On a push to this repository, and on a pull request whose head repository is this repository, the signed release step runs only when all four `LEGEND_RELEASE_*` Actions secrets are set. Fork pull requests do not run it. When the secrets are absent, that step is skipped and the debug APK is still published. When they are present, `.github/scripts/package-signed-release.sh` builds the signed release APK for the owner's phone. The script checks the release signer's certificate SHA-256 against `docs/signing/RELEASE_CERT_SHA256.txt`, checks that the release version matches the debug APK, installs the release APK on an emulator, and requires `Status: ok`. The workflow uploads `legend-v7.4-<sha12>-release.apk` and `SHA256SUMS` as `legend-release-<commit>-attempt-<n>` and keeps that artifact for 90 days. The keystore is not uploaded.
 
 ## Verification evidence
 

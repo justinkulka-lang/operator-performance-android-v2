@@ -75,6 +75,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.jk.operatorperformance.BuildConfig
 import com.jk.operatorperformance.R
 import com.jk.operatorperformance.program.ProgramV73
 import com.jk.operatorperformance.program.ProgramV72
@@ -95,7 +96,7 @@ import com.jk.operatorperformance.state.workoutForToday
 import kotlinx.coroutines.delay
 
 private enum class Destination(val label: String) {
-    TODAY("TODAY"), WEEK("WEEK"), PROGRAM("PROGRAM"), TOOLS("TOOLS")
+    TODAY("TODAY"), WEEK("WEEK"), PROGRAM("PROGRAM"), DOSSIER("DOSSIER")
 }
 
 @Composable
@@ -202,8 +203,8 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
             (navigationConfiguration.fontScale >= 1.5f && navigationConfiguration.screenWidthDp < 360)
         val shortProgramLabel = navigationConfiguration.fontScale >= 1.5f &&
             navigationConfiguration.screenWidthDp < 480
-        // Key is a Tools subpage, not a separate activity or persisted destination.
-        BackHandler(enabled = destination == Destination.TOOLS && showKey) {
+        // Key is a Dossier subpage, not a separate activity or persisted destination.
+        BackHandler(enabled = destination == Destination.DOSSIER && showKey) {
             showKey = false
         }
         Scaffold(
@@ -307,12 +308,11 @@ fun OperatorPerformanceApp(stateStore: ProgramStateStore) {
                             referenceSession = it
                         },
                     )
-                    Destination.TOOLS -> if (showKey) {
+                    Destination.DOSSIER -> if (showKey) {
                         KeyScreen(onBack = { showKey = false })
                     } else {
-                        ToolsScreen(
+                        DossierScreen(
                             state = state,
-                            onStateChanged = ::persist,
                             onOpenKey = { showKey = true },
                             onProgramReset = { next ->
                                 activeWorkout = null
@@ -392,7 +392,7 @@ private fun LegendNavigationRow(
                                             Destination.TODAY -> R.drawable.ic_nav_today
                                             Destination.WEEK -> R.drawable.ic_nav_week
                                             Destination.PROGRAM -> R.drawable.ic_nav_program
-                                            Destination.TOOLS -> R.drawable.ic_nav_tools
+                                            Destination.DOSSIER -> R.drawable.ic_nav_tools
                                         },
                                     ),
                                     contentDescription = null,
@@ -453,11 +453,7 @@ private fun TodayScreen(
             BrandHeader()
             PhaseIdentityLine(session.phase, Modifier.testTag("today_phase"))
             Text(
-                if (session.authority == ProgramAuthority.V74 && state.v74Block != null && state.v74BlockWeek != null) {
-                    V74Pointer.header(state.currentWeek, state.v74Block, state.v74BlockWeek)
-                } else {
-                    "v${session.authority.versionLabel} • WEEK ${session.week} • DAY ${session.day}"
-                },
+                positionHeader(state),
                 style = technicalStyle(MaterialTheme.typography.labelLarge),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.testTag("today_header"),
@@ -1185,38 +1181,47 @@ private fun ProgramScreen(
 }
 
 @Composable
-private fun ToolsScreen(
+private fun DossierScreen(
     state: ProgramUiState,
-    onStateChanged: (ProgramUiState) -> Unit,
     onOpenKey: () -> Unit,
     onProgramReset: (ProgramUiState) -> Unit,
 ) {
-    val haptic = LocalHapticFeedback.current
-    val latestState by rememberUpdatedState(state)
-    val latestOnStateChanged by rememberUpdatedState(onStateChanged)
-    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(state.utilityRestTimerEndEpochMillis) {
-        val end = state.utilityRestTimerEndEpochMillis
-        now = System.currentTimeMillis()
-        while (end != null && end > System.currentTimeMillis()) {
-            delay(1_000)
-            now = System.currentTimeMillis()
-        }
-        if (end != null && end == latestState.utilityRestTimerEndEpochMillis && end <= System.currentTimeMillis()) {
-            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-            latestOnStateChanged(latestState.copy(utilityRestTimerEndEpochMillis = null))
-        }
-    }
-    val timerRemaining = state.utilityRestTimerEndEpochMillis?.let { ((it - now).coerceAtLeast(0L) / 1_000L).toInt() } ?: 0
-
     LazyColumn(
-        modifier = Modifier.fillMaxSize().testTag("tools_screen"),
+        modifier = Modifier.fillMaxSize().testTag("dossier_screen"),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item {
             BrandHeader()
-            Text("TOOLS", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text("DOSSIER", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        }
+        item {
+            Text("Position", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(
+                positionHeader(state),
+                style = technicalStyle(MaterialTheme.typography.labelLarge),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.testTag("dossier_position_header"),
+            )
+            DossierPositionControls(onProgramReset)
+        }
+        item {
+            Text("Notes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            DossierNotes(state.authorityForWeek(state.currentWeek))
+        }
+        item {
+            Text("Key", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            TextButton(
+                onClick = onOpenKey,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("open_key"),
+            ) { Text("OPEN KEY") }
+        }
+        item {
+            Text("About", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(
+                "LEGEND ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
+                modifier = Modifier.testTag("dossier_about_version"),
+            )
             Text(
                 V74SurfaceText.FONT_LICENSE_LINE,
                 style = MaterialTheme.typography.bodySmall,
@@ -1224,62 +1229,6 @@ private fun ToolsScreen(
                 modifier = Modifier.testTag("font_licenses"),
             )
         }
-        item { BuildIntegrityCard(state.authorityForWeek(state.currentWeek)) }
-        item {
-            Column(Modifier.fillMaxWidth().testTag("rest_timer_tool"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("INDEPENDENT REST TIMER", fontWeight = FontWeight.Bold)
-                Text(
-                    "Utility only. Resistance rest guidance is approximate and set quality takes precedence.",
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-        }
-        items(listOf(60, 90, 120, 180)) { seconds ->
-            val chosen = state.restTimerSeconds == seconds
-            Button(
-                onClick = { onStateChanged(state.copy(restTimerSeconds = seconds)) },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("rest_choice_$seconds"),
-            ) { Text(if (chosen) "${formatRest(seconds)} SELECTED" else formatRest(seconds)) }
-        }
-        item {
-            val running = state.utilityRestTimerEndEpochMillis != null
-            if (running) {
-                Text(
-                    "RUNNING • ${formatRest(timerRemaining)}",
-                    style = technicalStyle(MaterialTheme.typography.titleLarge),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 48.dp)
-                        .testTag("utility_rest_countdown")
-                        .semantics {
-                            contentDescription = "Rest timer countdown"
-                            stateDescription = "Rest timer remaining ${formatRest(timerRemaining)}"
-                            liveRegion = LiveRegionMode.Polite
-                        },
-                )
-                TextButton(
-                    onClick = { onStateChanged(state.copy(utilityRestTimerEndEpochMillis = null)) },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("rest_timer_cancel"),
-                ) { Text("STOP TIMER", color = MaterialTheme.colorScheme.error) }
-            } else {
-                Button(
-                    enabled = state.restTimerSeconds != null,
-                    colors = legendButtonColors(),
-                    onClick = {
-                        val seconds = state.restTimerSeconds ?: return@Button
-                        onStateChanged(state.copy(utilityRestTimerEndEpochMillis = System.currentTimeMillis() + seconds * 1_000L))
-                    },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("rest_timer_start"),
-                ) { Text("START TIMER") }
-            }
-        }
-        item {
-            TextButton(
-                onClick = onOpenKey,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("open_key"),
-            ) { Text("OPEN KEY") }
-        }
-        item { AdditionalToolsCards(state.authorityForWeek(state.currentWeek), onProgramReset) }
     }
 }
 
@@ -1338,6 +1287,15 @@ private fun BrandHeader() {
 }
 
 private fun newWorkout(state: ProgramUiState) = WorkoutProgress.start(state)
+
+private fun positionHeader(state: ProgramUiState): String {
+    val session = resolveSession(state.currentWeek, state.currentDay, state)
+    return if (session.authority == ProgramAuthority.V74 && state.v74Block != null && state.v74BlockWeek != null) {
+        V74Pointer.header(state.currentWeek, state.v74Block, state.v74BlockWeek)
+    } else {
+        "v${session.authority.versionLabel} • WEEK ${session.week} • DAY ${session.day}"
+    }
+}
 
 private fun resolveSession(week: Int, day: Int, state: ProgramUiState): SessionReference {
     val authority = state.authorityForWeek(week)

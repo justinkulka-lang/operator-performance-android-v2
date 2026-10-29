@@ -231,16 +231,16 @@ class SetCompletionTest {
     @Test fun normalizeDropsOnlyInvalidIds() {
         val (state, session) = dayTwo()
         val squat = squat(session)
-        val warmUp = session.rows.first { it.effortLabel == "WARM-UP" }
+        val curl = session.rows.single { it.title == "Seated leg curl" }
         val kept = setOf(
             WorkoutProgress.effortId(squat.id, 1),
             WorkoutProgress.effortId(squat.id, 2),
-            WorkoutProgress.effortId(warmUp.id, 1),
+            WorkoutProgress.effortId(curl.id, 1),
         )
         val progress = WorkoutProgress.start(state).copy(
             completedEffortIds = kept + setOf(
                 WorkoutProgress.effortId(squat.id, squat.effortCount + 1),
-                WorkoutProgress.effortId(warmUp.id, warmUp.effortCount + 1),
+                WorkoutProgress.effortId(curl.id, curl.effortCount + 1),
                 "missing-row#1",
                 "d3_bench:1",
                 "${squat.id}#0",

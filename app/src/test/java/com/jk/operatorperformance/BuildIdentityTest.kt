@@ -7,8 +7,8 @@ import java.io.File
 
 class BuildIdentityTest {
     @Test fun buildConfigAndManifestPackageMatchTheCandidate() {
-        assertEquals("0.43.0", BuildConfig.VERSION_NAME)
-        assertEquals(52, BuildConfig.VERSION_CODE)
+        assertEquals("0.44.0", BuildConfig.VERSION_NAME)
+        assertEquals(53, BuildConfig.VERSION_CODE)
         val manifest = listOf(
             File("build/intermediates/merged_manifests/debug/processDebugManifest/AndroidManifest.xml"),
             File("app/build/intermediates/merged_manifests/debug/processDebugManifest/AndroidManifest.xml"),

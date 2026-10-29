@@ -78,7 +78,7 @@ class V72KeyUiTest {
         revealText("Names the Upper B day, which mixes pressing and pulling.")
         returnButton()
         assertTools()
-        rule.onNodeWithTag("tools_screen").performScrollToNode(hasTestTag("open_key"))
+        rule.onNodeWithTag("dossier_screen").performScrollToNode(hasTestTag("open_key"))
         rule.onNodeWithTag("open_key").performClick()
         lifecycle.screen("key_screen")
         lifecycle.back()
@@ -87,9 +87,9 @@ class V72KeyUiTest {
 
     private fun openKey() {
         rule.onNodeWithTag("start_v72").performScrollTo().performClick()
-        rule.onNodeWithTag("nav_TOOLS").performClick()
+        rule.onNodeWithTag("nav_DOSSIER").performClick()
         assertTools()
-        rule.onNodeWithTag("tools_screen").performScrollToNode(hasTestTag("open_key"))
+        rule.onNodeWithTag("dossier_screen").performScrollToNode(hasTestTag("open_key"))
         rule.onNodeWithTag("open_key").performClick()
         lifecycle.screen("key_screen")
     }
@@ -105,7 +105,7 @@ class V72KeyUiTest {
     }
 
     private fun assertTools() {
-        lifecycle.screen("tools_screen")
-        rule.onNodeWithTag("tools_screen").assertIsDisplayed()
+        lifecycle.screen("dossier_screen")
+        rule.onNodeWithTag("dossier_screen").assertIsDisplayed()
     }
 }

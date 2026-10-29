@@ -90,10 +90,11 @@ private fun isSpeedWork(row: SessionRow): Boolean {
         title.contains("Speed", ignoreCase = true)
 }
 
-/** Stable resolver identities distinguish jump/throw preparation from aerobic work. */
+/** Stable resolver identities distinguish explosive preparation from aerobic work. */
 private fun isSpeedPreparation(row: SessionRow): Boolean =
     row.kind == SessionRowKind.CONDITIONING &&
-        (row.id.endsWith("_plyometrics") || row.id.endsWith("_throws") || row.id.matches(Regex("v73_w\\d+_throws")))
+        (row.id.endsWith("_plyometrics") || row.id.endsWith("_throws") || row.id.matches(Regex("v73_w\\d+_throws")) ||
+            row.id.endsWith("_airbike") || row.id.endsWith("_landmine_push_press"))
 
 private fun isRecoveryWork(row: SessionRow): Boolean {
     if (row.kind != SessionRowKind.CONDITIONING || isSupportRow(row)) return false

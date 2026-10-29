@@ -10,10 +10,13 @@ data class V74Session(
 )
 
 object SessionResolverV74 {
-    private const val LANDING_STOP_BEFORE = "Stop for pain or declining landing quality."
-    private const val LANDING_STOP_AFTER = "Stop when landing quality declines."
-    private const val MECHANICS_STOP_BEFORE = "Stop for pain or degraded mechanics."
-    private const val MECHANICS_STOP_AFTER = "Stop when mechanics degrade."
+    private const val AIR_BIKE_PRESCRIPTION = "6 × 8 s all-out on an air bike. 90–120 s easy spinning between."
+    private const val AIR_BIKE_NOTE = "Before the sprints. Stop when power drops. Zero qualifying sprint meters."
+    private const val AIR_BIKE_RANKED = "Uphill or stair acceleration: 4 × 10–15 m, walk back down"
+    private const val AIR_BIKE_HOME = "DB jump squat: 4 × 3, 10–20 lb each hand, soft landing"
+    private const val LANDMINE_PRESCRIPTION = "3 × 3 per side, as fast as possible."
+    private const val LANDMINE_NOTE = "After the air bike, before the sprints. Stop when bar speed drops."
+    private const val LANDMINE_HOME = "Single-arm DB push press: 3 × 3 per side"
 
     fun resolve(block: Int, blockWeek: Int, day: Int): V74Session {
         require(block in 1..4) { "Block must be 1–4." }
@@ -31,20 +34,8 @@ object SessionResolverV74 {
     }
 
     private fun engineDay(block: Int, blockWeek: Int): List<SessionRow> {
-        val easyOnly = blockWeek == 8
         val run = ProgramV74.runWeek(blockWeek)
         return listOf(
-            SessionRow(
-                id = id(block, blockWeek, "d1_warmup"),
-                title = if (easyOnly) "Easy-run opening" else "Engine warm-up",
-                prescription = if (easyOnly) ProgramV72.engineEasyWarmup else ProgramV72.engineQualityWarmup,
-                kind = SessionRowKind.CONDITIONING,
-                // The v7.3 quality-warm-up note is the single sentence
-                // "Complete before threshold conditioning, intervals, goal-pace, or timed work."
-                // That sentence is removed. The easy-run note has no removed item and stays.
-                note = if (easyOnly) "Included in the listed easy run. No strides. The 8–10 min cooldown still follows the run." else null,
-                effortLabel = "WARM-UP",
-            ),
             SessionRow(
                 id = id(block, blockWeek, "d1_engine"),
                 title = "Engine",
@@ -61,16 +52,9 @@ object SessionResolverV74 {
     private fun speedDay(block: Int, blockWeek: Int): List<SessionRow> {
         val run = ProgramV74.runWeek(blockWeek)
         return buildList {
-            add(SessionRow(
-                id = id(block, blockWeek, "d4_speed_warmup"),
-                title = "Speed warm-up",
-                prescription = ProgramV72.speedWarmup,
-                kind = SessionRowKind.CONDITIONING,
-                note = "Build-ups do not count toward quality-sprint volume.",
-                effortLabel = "WARM-UP",
-            ))
-            if (run.jumps) add(jumps(block, blockWeek))
-            if (run.medicineBallThrows) add(throwsRow(block, blockWeek))
+            // C-13 and C-14 replace the jump and throw rows. C-15 removes the speed warm-up.
+            if (run.jumps) add(airBike(block, blockWeek))
+            if (run.medicineBallThrows) add(landminePushPress(block, blockWeek))
             add(SessionRow(
                 id = id(block, blockWeek, "d4_speed"),
                 title = "Speed",
@@ -84,26 +68,24 @@ object SessionResolverV74 {
         }
     }
 
-    private fun jumps(block: Int, blockWeek: Int) = SessionRow(
-        id = id(block, blockWeek, "plyometrics"),
-        title = "Low-dose plyometrics",
-        prescription = substitute(ProgramV72.plyometrics, LANDING_STOP_BEFORE, LANDING_STOP_AFTER),
+    private fun airBike(block: Int, blockWeek: Int) = SessionRow(
+        id = id(block, blockWeek, "airbike"),
+        title = "Air-bike sprints",
+        prescription = AIR_BIKE_PRESCRIPTION,
         kind = SessionRowKind.CONDITIONING,
-        note = "After the running warm-up and before the sprint repetitions.",
+        alternatives = listOf(AIR_BIKE_RANKED, "Home: $AIR_BIKE_HOME"),
+        note = AIR_BIKE_NOTE,
         effortCount = 6,
-        effortLabel = "SET",
+        effortLabel = "REP",
     )
 
-    private fun throwsRow(block: Int, blockWeek: Int) = SessionRow(
-        id = id(block, blockWeek, "throws"),
-        title = "Hip-driven medicine-ball throws",
-        prescription = "3 × 3 hip-driven scoop OR rotational medicine-ball throws. Nine total throws, both sides combined. Alternate sides and the starting side between exposures. No chest passes.",
+    private fun landminePushPress(block: Int, blockWeek: Int) = SessionRow(
+        id = id(block, blockWeek, "landmine_push_press"),
+        title = "Landmine push press",
+        prescription = LANDMINE_PRESCRIPTION,
         kind = SessionRowKind.CONDITIONING,
-        note = substitute(
-            "After jumps, before sprints. Zero qualifying sprint meters. Stop for pain or degraded mechanics.",
-            MECHANICS_STOP_BEFORE,
-            MECHANICS_STOP_AFTER,
-        ),
+        alternatives = listOf("Home: $LANDMINE_HOME"),
+        note = LANDMINE_NOTE,
         effortCount = 3,
         effortLabel = "SET",
     )
@@ -123,13 +105,6 @@ object SessionResolverV74 {
     private fun resistanceDay(block: Int, blockWeek: Int, day: Int): List<SessionRow> = buildList {
         val daySlots = ProgramV74.slots.filter { it.day == day }
         if (daySlots.isEmpty()) return@buildList
-        add(SessionRow(
-            id = id(block, blockWeek, "d${day}_resistance_warmup"),
-            title = "Resistance warm-up",
-            prescription = ProgramV72.resistanceWarmup,
-            kind = SessionRowKind.CONDITIONING,
-            effortLabel = "WARM-UP",
-        ))
         daySlots.forEach { slot ->
             val sets = ProgramV74.plannedSets(block, blockWeek, slot)
             val note = listOfNotNull(
@@ -173,12 +148,4 @@ object SessionResolverV74 {
 
     private fun effortLabel(prescription: String): String =
         if (effortCount(prescription) > 1) "REP" else "BLOCK"
-
-    private fun substitute(source: String, old: String, new: String): String {
-        require(old in source) { "Missing sentence: $old" }
-        val updated = source.replace(old, new)
-        check(updated != source) { "Replacement did not change the source." }
-        check(old !in updated) { "Old sentence remained after replacement." }
-        return updated
-    }
 }

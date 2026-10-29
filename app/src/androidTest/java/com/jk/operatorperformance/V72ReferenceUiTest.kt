@@ -27,7 +27,6 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.jk.operatorperformance.program.ProgramAuthority
 import com.jk.operatorperformance.program.SessionResolver
 import org.junit.After
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -74,7 +73,7 @@ class V72ReferenceUiTest {
         rule.onAllNodesWithTag("rep_field").assertCountEquals(0)
         rule.onAllNodesWithTag("result_field").assertCountEquals(0)
         rule.onAllNodesWithText("LOG SET", substring = true).assertCountEquals(0)
-        listOf("WEEK", "PROGRAM", "TOOLS", "TODAY").forEach { destination ->
+        listOf("WEEK", "PROGRAM", "DOSSIER", "TODAY").forEach { destination ->
             rule.onNodeWithTag("nav_$destination").performClick()
             assertTouchTarget("nav_$destination")
         }
@@ -141,7 +140,7 @@ class V72ReferenceUiTest {
         }
         rule.onNodeWithTag("start_resume_workout").assertIsDisplayed()
         assertPrimaryAction("start_resume_workout")
-        for (destination in listOf("TODAY", "WEEK", "PROGRAM", "TOOLS")) {
+        for (destination in listOf("TODAY", "WEEK", "PROGRAM", "DOSSIER")) {
             rule.onNodeWithTag("nav_$destination").assertIsDisplayed()
                 .assertContentDescriptionEquals(destination)
             assertTouchTarget("nav_$destination")
@@ -159,11 +158,11 @@ class V72ReferenceUiTest {
         }
         rule.onNodeWithTag("start_resume_workout").assertTextContains("RESUME", substring = true)
         assertOverlaps("today_screen", "saved_workout_status")
-        rule.onNodeWithTag("nav_TOOLS").performClick()
+        rule.onNodeWithTag("nav_DOSSIER").performClick()
         rule.waitUntil(20_000) {
-            rule.onAllNodesWithTag("tools_screen").fetchSemanticsNodes().isNotEmpty()
+            rule.onAllNodesWithTag("dossier_screen").fetchSemanticsNodes().isNotEmpty()
         }
-        assertOverlaps("tools_screen", "rest_timer_tool")
+        assertOverlaps("dossier_screen", "dossier_position_header")
     }
 
     @Test fun rotationAirplaneResumeAndNavigation() {
@@ -185,18 +184,10 @@ class V72ReferenceUiTest {
         rule.onNodeWithTag("week_screen").assertIsDisplayed()
         rule.onNodeWithTag("nav_PROGRAM").performClick()
         rule.onNodeWithTag("program_screen").assertIsDisplayed()
-        rule.onNodeWithTag("nav_TOOLS").performClick()
-        revealOnScreen("tools_screen", "rest_choice_60")
-        rule.onNodeWithTag("rest_choice_60").performClick()
-        val timerPrefs = ApplicationProvider.getApplicationContext<Context>()
-            .getSharedPreferences("ares_v71_reference_state", Context.MODE_PRIVATE)
-        assertEquals("Selected rest duration was not persisted", 60, timerPrefs.getInt("manualRestTimerSeconds", 0))
-        revealOnScreen("tools_screen", "rest_timer_start")
-        rule.onNodeWithTag("rest_timer_start").performClick()
-        assertTrue("Timer start was not persisted: ${timerPrefs.all}",
-            timerPrefs.getLong("utilityRestTimerEndEpochMillis", 0L) > System.currentTimeMillis())
-        assertOverlaps("tools_screen", "utility_rest_countdown")
-        lifecycle.recreate("tools_screen")
+        rule.onNodeWithTag("nav_DOSSIER").performClick()
+        lifecycle.screen("dossier_screen")
+        rule.onNodeWithTag("dossier_position_header").assertIsDisplayed()
+        lifecycle.recreate("dossier_screen")
         rule.onNodeWithTag("nav_TODAY").performClick()
         rule.onNodeWithTag("start_resume_workout").assertTextContains("RESUME", substring = true)
     }
@@ -239,10 +230,10 @@ class V72ReferenceUiTest {
         rule.onNodeWithText("CLOSE").performClick()
     }
 
-    @Test fun coachingNotesAndLegacyExportAreReachable() {
+    @Test fun coachingNotesAreReachableOnDossier() {
         rule.onNodeWithTag("start_v72").performScrollTo().performClick()
-        rule.onNodeWithTag("nav_TOOLS").performClick()
-        revealOnScreen("tools_screen", "program_notes_toggle")
+        rule.onNodeWithTag("nav_DOSSIER").performClick()
+        revealOnScreen("dossier_screen", "program_notes_toggle")
         rule.onNodeWithTag("program_notes_toggle").performClick()
         rule.onNodeWithText("Week structure").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("D1: Engine alone", substring = true).performScrollTo().assertIsDisplayed()
@@ -256,10 +247,10 @@ class V72ReferenceUiTest {
         rule.onAllNodesWithTag("sprint_reference_150").assertCountEquals(0)
         rule.onAllNodesWithText("These 300 m entries", substring = true).assertCountEquals(0)
         rule.onAllNodesWithText("RIR means", substring = true).assertCountEquals(0)
-        revealOnScreen("tools_screen", "legacy_export_scope")
-        rule.onNodeWithTag("legacy_export_scope").assertTextContains("Excludes current program authority, pointer, session status, substitutions, and timers.", substring = true)
-        revealOnScreen("tools_screen", "export_data")
-        rule.onNodeWithTag("export_data").assertTextContains("EXPORT LEGACY DATA")
+        rule.onAllNodesWithTag("legacy_export_scope").assertCountEquals(0)
+        rule.onAllNodesWithTag("plate_math_tool").assertCountEquals(0)
+        rule.onAllNodesWithTag("build_integrity_card").assertCountEquals(0)
+        rule.onAllNodesWithTag("rest_timer_tool").assertCountEquals(0)
     }
 
     private fun revealInWorkout(tag: String) = revealOnScreen("workout_mode", tag)

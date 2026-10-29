@@ -2,6 +2,7 @@ package com.jk.operatorperformance.ui
 
 import com.jk.operatorperformance.program.ProgramAuthority
 import com.jk.operatorperformance.program.SessionResolver
+import com.jk.operatorperformance.program.V74Pointer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -16,6 +17,13 @@ class SessionFocusTest {
             session.rows.filter { it.id.endsWith("_plyometrics") || it.id.endsWith("_throws") }.forEach {
                 assertEquals(MapSymbol.SPEED, rowSymbol(session,it))
             }
+        }
+        for (block in 1..4) for (blockWeek in 3..7) {
+            val session = SessionResolver.resolve(V74Pointer.absoluteWeek(block, blockWeek), 4, ProgramAuthority.V74, block, blockWeek)
+            session.rows.filter { it.id.endsWith("_airbike") || it.id.endsWith("_landmine_push_press") }.forEach {
+                assertEquals(MapSymbol.SPEED, rowSymbol(session, it))
+            }
+            assertTrue(sessionFocusLine(session).startsWith("Speed lead ·"))
         }
         assertEquals("Speed lead · 12 blocks", sessionFocusLine(SessionResolver.resolve(3,4,ProgramAuthority.V73)))
         assertTrue(sessionFocusLine(SessionResolver.resolve(13,4,ProgramAuthority.V73)).startsWith("Speed lead ·"))
