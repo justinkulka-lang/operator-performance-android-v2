@@ -35,7 +35,7 @@ The debug APK is for testing. `.github/scripts/package-debug-candidate.sh` copie
 
 `assembleRelease` and `bundleRelease` must fail with `RELEASE_SIGNING_REQUIRED` when the owner signing values are absent. That check runs with those values unset.
 
-On a push to this repository, and on a pull request whose head repository is this repository, `.github/scripts/package-signed-release.sh` builds the signed release APK for the owner's phone. Fork pull requests do not run that step. The script checks the release signer's certificate SHA-256 against `docs/signing/RELEASE_CERT_SHA256.txt`, checks that the release version matches the debug APK, installs the release APK on an emulator, and requires `Status: ok`. The workflow uploads `legend-v7.4-<sha12>-release.apk` and `SHA256SUMS` as `legend-release-<commit>-attempt-<n>` and keeps that artifact for 90 days. The keystore is not uploaded.
+On a push to this repository, and on a pull request whose head repository is this repository, the signed release step runs only when all four `LEGEND_RELEASE_*` Actions secrets are set. Fork pull requests do not run it. When the secrets are absent, that step is skipped and the debug APK is still published. When they are present, `.github/scripts/package-signed-release.sh` builds the signed release APK for the owner's phone. The script checks the release signer's certificate SHA-256 against `docs/signing/RELEASE_CERT_SHA256.txt`, checks that the release version matches the debug APK, installs the release APK on an emulator, and requires `Status: ok`. The workflow uploads `legend-v7.4-<sha12>-release.apk` and `SHA256SUMS` as `legend-release-<commit>-attempt-<n>` and keeps that artifact for 90 days. The keystore is not uploaded.
 
 ## Verification evidence
 

@@ -94,7 +94,15 @@ jobs:
         run: |
           set -euo pipefail
           bash .github/scripts/package-debug-candidate.sh "$SOURCE_COMMIT"
+      - name: Downloadable debug APK and ZIP
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: legend-debug-${{ env.SOURCE_COMMIT }}-attempt-${{ github.run_attempt }}
+          path: app/build/distribution/
+          if-no-files-found: error
+          retention-days: 90
       - name: Signed release APK
+        id: signed_release
         if: >-
           github.event_name == 'push' ||
           (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
@@ -104,22 +112,21 @@ jobs:
           LEGEND_RELEASE_KEY_ALIAS: ${{ secrets.LEGEND_RELEASE_KEY_ALIAS }}
           LEGEND_RELEASE_KEY_PASSWORD: ${{ secrets.LEGEND_RELEASE_KEY_PASSWORD }}
         shell: bash
-        run: bash .github/scripts/package-signed-release.sh "$SOURCE_COMMIT"
+        run: |
+          set -euo pipefail
+          if [[ -z "${LEGEND_RELEASE_KEYSTORE_B64:-}" || -z "${LEGEND_RELEASE_STORE_PASSWORD:-}" || -z "${LEGEND_RELEASE_KEY_ALIAS:-}" || -z "${LEGEND_RELEASE_KEY_PASSWORD:-}" ]]; then
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "Owner release secrets are not set. Skipping the signed release APK."
+            exit 0
+          fi
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+          bash .github/scripts/package-signed-release.sh "$SOURCE_COMMIT"
       - name: Downloadable signed release APK
-        if: >-
-          github.event_name == 'push' ||
-          (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+        if: steps.signed_release.outputs.signed == 'true'
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: legend-release-${{ env.SOURCE_COMMIT }}-attempt-${{ github.run_attempt }}
           path: app/build/distribution-release/
-          if-no-files-found: error
-          retention-days: 90
-      - name: Downloadable debug APK and ZIP
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: legend-debug-${{ env.SOURCE_COMMIT }}-attempt-${{ github.run_attempt }}
-          path: app/build/distribution/
           if-no-files-found: error
           retention-days: 90
       - name: Verification evidence (failures are retained)
